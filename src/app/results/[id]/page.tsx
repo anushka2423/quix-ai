@@ -190,6 +190,7 @@ function ResultsContent() {
   const mod = modules.find((m) => m.id === moduleId);
 
   const [summary, setSummary] = useState<string | null>(null);
+  const [explanations, setExplanations] = useState<string[]>([]);
   const [loadingSummary, setLoadingSummary] = useState(true);
 
   const rawAnswers = searchParams.get("a") ?? "";
@@ -240,11 +241,13 @@ function ResultsContent() {
               userAnswer: r.userAnswer,
               correctAnswer: r.correctAnswer,
               isCorrect: r.isCorrect,
+              options: r.options,
             })),
           }),
         });
         const data = await res.json();
         setSummary(data.summary ?? null);
+        if (Array.isArray(data.explanations)) setExplanations(data.explanations);
         if (data.callScript) {
           const email = getStoredEmail();
           if (email) {
@@ -260,6 +263,36 @@ function ResultsContent() {
     fetchSummary();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* ── Full-screen AI loader ── */
+  if (loadingSummary) {
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "var(--color-navy-900)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "32px", zIndex: 9999 }}>
+        {/* Animated rings */}
+        <div style={{ position: "relative", width: "80px", height: "80px" }}>
+          <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "3px solid rgba(255,255,255,0.15)" }} />
+          <div style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "3px solid transparent", borderTopColor: "var(--color-primary)", animation: "spin 1s linear infinite" }} />
+          <div style={{ position: "absolute", inset: "14px", borderRadius: "50%", border: "3px solid transparent", borderTopColor: "#FF6F00", animation: "spin 0.7s linear infinite reverse" }} />
+          <div style={{ position: "absolute", inset: "28px", borderRadius: "50%", background: "var(--color-primary)", opacity: 0.25, animation: "shimmer-pulse 1.4s ease-in-out infinite" }} />
+        </div>
+        <div style={{ textAlign: "center" }}>
+          <p style={{ fontFamily: "var(--font-golos)", fontSize: "22px", fontWeight: 600, color: "#fff", margin: "0 0 10px" }}>
+            Analysing your results…
+          </p>
+          <p style={{ fontFamily: "var(--font-geist)", fontSize: "15px", color: "rgba(255,255,255,0.6)", margin: 0 }}>
+            Our AI is building your personalised report
+          </p>
+        </div>
+        {/* Dot trail */}
+        <div style={{ display: "flex", gap: "8px" }}>
+          {[0, 1, 2, 3].map((d) => (
+            <div key={d} style={{ width: "8px", height: "8px", borderRadius: "50%", background: "rgba(255,255,255,0.4)", animation: `shimmer-pulse 1.2s ease-in-out ${d * 0.2}s infinite` }} />
+          ))}
+        </div>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <main
@@ -611,6 +644,36 @@ function ResultsContent() {
                     </span>
                   </div>
                 </div>
+
+                {/* ── Explanation card ── */}
+                {(loadingSummary || explanations[i]) && (
+                  <div
+                    style={{
+                      marginTop: "14px",
+                      borderRadius: "var(--radius-md)",
+                      background: r.isCorrect ? "#F0FDF4" : "#FFF7ED",
+                      border: `1px solid ${r.isCorrect ? "#A7F3D0" : "#FED7AA"}`,
+                      padding: "14px 16px",
+                    }}
+                  >
+                    {loadingSummary && !explanations[i] ? (
+                      <div>
+                        <div className="shimmer" style={{ height: "11px", width: "40%", background: "var(--color-hairline)", borderRadius: "4px", marginBottom: "8px" }} />
+                        <div className="shimmer" style={{ height: "13px", width: "90%", background: "var(--color-hairline)", borderRadius: "4px", marginBottom: "6px" }} />
+                        <div className="shimmer" style={{ height: "13px", width: "75%", background: "var(--color-hairline)", borderRadius: "4px" }} />
+                      </div>
+                    ) : (
+                      <>
+                        <p style={{ fontFamily: "var(--font-geist)", fontSize: "11px", fontWeight: 700, letterSpacing: "0.6px", textTransform: "uppercase", color: r.isCorrect ? "#047857" : "#92400E", margin: "0 0 6px" }}>
+                          {r.isCorrect ? `✓ Correct — Option ${r.correctAnswer}` : `Correct answer — Option ${r.correctAnswer}`}
+                        </p>
+                        <p style={{ fontFamily: "var(--font-geist)", fontSize: "13px", lineHeight: 1.6, color: r.isCorrect ? "#065F46" : "#78350F", margin: 0 }}>
+                          {explanations[i]}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}

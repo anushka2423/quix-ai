@@ -3,30 +3,28 @@ import OpenAI from "openai";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+const COURSE_URL = "https://maven.com/mahesh-yadav/genaipm";
+
 interface QuestionResult {
   questionText: string;
   difficulty: string;
   userAnswer: string;
   correctAnswer: string;
   isCorrect: boolean;
+  options: { label: string; text: string }[];
 }
 
 export async function POST(req: Request) {
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json(
-      { summary: null, callScript: null, error: "OPENAI_API_KEY not configured" },
+      { summary: null, callScript: null, explanations: [], error: "OPENAI_API_KEY not configured" },
       { status: 200 }
     );
   }
 
   try {
     const body = await req.json();
-    const {
-      moduleTitle,
-      score,
-      total,
-      results,
-    }: {
+    const { moduleTitle, score, total, results }: {
       moduleTitle: string;
       score: number;
       total: number;
@@ -35,45 +33,62 @@ export async function POST(req: Request) {
 
     const pct = Math.round((score / total) * 100);
 
-    const wrongOnes = results
-      .filter((r) => !r.isCorrect)
-      .map((r) => `- "${r.questionText}" (correct: ${r.correctAnswer}, answered: ${r.userAnswer})`)
-      .join("\n");
+    const questionsFormatted = results.map((r, i) => {
+      const correctText = r.options.find((o) => o.label === r.correctAnswer)?.text ?? "";
+      const userText = r.options.find((o) => o.label === r.userAnswer)?.text ?? "Not answered";
+      return `Q${i + 1} [${r.isCorrect ? "CORRECT" : "WRONG"}]: ${r.questionText}
+  Options: ${r.options.map((o) => `${o.label}) ${o.text}`).join(" | ")}
+  Correct: ${r.correctAnswer}) ${correctText}
+  User answered: ${r.userAnswer}) ${userText}`;
+    }).join("\n\n");
 
-    const correctOnes = results
-      .filter((r) => r.isCorrect)
-      .map((r) => `- "${r.questionText}"`)
-      .join("\n");
+    const weakTopics = results.filter((r) => !r.isCorrect).map((r) => r.questionText);
+    const strongTopics = results.filter((r) => r.isCorrect).map((r) => r.questionText);
 
     const prompt = `
 A learner completed the quiz "${moduleTitle}" and scored ${score}/${total} (${pct}%).
 
-Questions they got RIGHT:
-${correctOnes || "None"}
+Here are all questions with answers:
+${questionsFormatted}
 
-Questions they got WRONG:
-${wrongOnes || "None"}
+Return a JSON object with exactly three fields:
 
-Return a JSON object with exactly two fields:
+1. "summary": A 2–3 sentence personalized performance summary FOR THE LEARNER. Be honest but encouraging. Name the specific topics they struggled with and where they showed confidence. End with one actionable next step.
 
-1. "summary": A 2-3 sentence personalized performance summary written FOR THE LEARNER. Be honest but encouraging. Name the specific topics they struggled with and where they showed confidence. End with one concrete next step.
+2. "explanations": An array of ${results.length} strings, one per question in order. Each explanation should be 2–3 sentences explaining WHY the correct answer is right and briefly why the wrong options are misleading. Be educational and specific to the question content. Write it as if explaining to the learner directly.
 
-2. "callScript": A short internal call script FOR THE MARKETING TEAM to use when they get on a 1-on-1 call with this user. Format it as:
+3. "callScript": A COMPLETE sales call script FOR THE MARKETING TEAM to use when speaking 1-on-1 with this user. The goal is to sell the Gen AI PM course at ${COURSE_URL}.
+
+Structure the call script EXACTLY like this:
+
+📋 LEAD PROFILE
 - Score: ${score}/${total} (${pct}%)
+- Module: ${moduleTitle}
 - Strong areas: [list topics they got right]
 - Weak areas: [list topics they got wrong]
-- Talking points: 3 bullet points the team can use to pitch the Gen AI PM course, referencing the specific gaps this user has
-- Suggested opener: One natural sentence to start the call that references their result
 
-Keep the call script concise and actionable. Write it as internal notes, not as something the user will read.
+📞 SUGGESTED OPENER
+[Write a warm, personalized 2-sentence opener that references their specific result without being pushy]
 
-Return ONLY valid JSON, no markdown.
+🎯 PAIN POINTS TO ADDRESS
+[3 bullet points — specific gaps from their wrong answers and how those gaps hurt them in real PM roles]
+
+💡 COURSE PITCH (tailored to their gaps)
+[4–5 sentences explaining how the Gen AI PM course at ${COURSE_URL} directly covers their weak areas. Be specific — name the modules or concepts from the course that address each gap. Make it feel like the course was built for someone with exactly their profile.]
+
+❓ QUALIFYING QUESTIONS
+[3 questions to ask the lead to understand their role, urgency, and budget]
+
+🚀 CLOSING LINE
+[One strong, personalized closing sentence to get them to enroll or book a follow-up]
+
+Return ONLY valid JSON, no markdown code blocks.
 `.trim();
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [{ role: "user", content: prompt }],
-      max_tokens: 500,
+      max_tokens: 2000,
       temperature: 0.7,
       response_format: { type: "json_object" },
     });
@@ -84,11 +99,12 @@ Return ONLY valid JSON, no markdown.
     return NextResponse.json({
       summary: parsed.summary ?? null,
       callScript: parsed.callScript ?? null,
+      explanations: Array.isArray(parsed.explanations) ? parsed.explanations : [],
     });
   } catch (err) {
     console.error("Summary API error:", err);
     return NextResponse.json(
-      { summary: null, callScript: null, error: "Failed to generate summary" },
+      { summary: null, callScript: null, explanations: [], error: "Failed to generate" },
       { status: 500 }
     );
   }
