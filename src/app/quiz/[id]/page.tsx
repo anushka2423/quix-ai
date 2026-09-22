@@ -22,10 +22,7 @@ export default function QuizPage() {
   const [answers, setAnswers] = useState<Record<number, OptionLabel>>({});
   const [currentIdx, setCurrentIdx] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
-  // revealed = user has clicked Submit on this question (feedback visible)
   const [revealed, setRevealed] = useState<Record<number, boolean>>({});
-  const [explanations, setExplanations] = useState<Record<number, string | null>>({});
-  // nudge = show "pick an answer" hint
   const [showNudge, setShowNudge] = useState(false);
 
   const confettiPieces = useMemo(
@@ -66,23 +63,19 @@ export default function QuizPage() {
   const isFirst = currentIdx === 0;
   const isLast = currentIdx === total - 1;
 
-  // Arc tracks how many questions have been submitted (revealed)
   const arcR = 26;
   const arcC = 2 * Math.PI * arcR;
   const arcOffset = arcC * (1 - revealedCount / total);
   const arcColor = allRevealed ? "#10B981" : "var(--color-primary)";
 
-  // Just record selection — no feedback until Submit is clicked
   function handleSelect(option: OptionLabel) {
     if (isRevealed) return;
     setShowNudge(false);
     setAnswers((prev) => ({ ...prev, [q.id]: option }));
   }
 
-  // Per-question Submit: reveal feedback + fetch explanation + auto-advance
-  async function handleQuestionSubmit() {
+  function handleQuestionSubmit() {
     if (isRevealed) {
-      // Already submitted — act as Next
       if (!isLast) setCurrentIdx((i) => i + 1);
       return;
     }
@@ -91,33 +84,11 @@ export default function QuizPage() {
       setTimeout(() => setShowNudge(false), 2000);
       return;
     }
-
-    // Reveal immediately
     setRevealed((prev) => ({ ...prev, [q.id]: true }));
-    setExplanations((prev) => ({ ...prev, [q.id]: null })); // null = loading
-
-    // Fetch explanation in background
-    fetch("/api/explain", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        question: q.question,
-        options: q.options,
-        correctAnswer: q.answer,
-        userAnswer: selected,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => setExplanations((prev) => ({ ...prev, [q.id]: data.explanation ?? "" })))
-      .catch(() => setExplanations((prev) => ({ ...prev, [q.id]: "" })));
-
-    // No auto-advance — user clicks Next manually
   }
 
-  // Full quiz submit → confetti → results
   async function handleQuizSubmit() {
     if (!allAnswered) {
-      // Jump to first unanswered
       const first = mod!.questions.findIndex((qq) => !answers[qq.id]);
       if (first !== -1) { setCurrentIdx(first); return; }
     }
@@ -163,17 +134,10 @@ export default function QuizPage() {
     return { border: "1.5px solid #E0E0E0", background: "#f5f5f5" };
   }
 
-  const explanationText = explanations[q.id];
-  const explanationLoading = isRevealed && explanationText === null;
-
-  // Submit button label
-  const submitLabel = isRevealed
-    ? isLast ? "Done" : "Next →"
-    : "Submit";
+  const submitLabel = isRevealed ? (isLast ? "Done" : "Next →") : "Submit";
 
   return (
     <>
-      {/* ── Confetti overlay ── */}
       {showConfetti && (
         <div style={{ position: "fixed", inset: 0, zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(4,39,94,0.88)", backdropFilter: "blur(6px)" }}>
           {confettiPieces.map((p, i) => (
@@ -194,7 +158,7 @@ export default function QuizPage() {
 
       <main style={{ height: "100vh", background: "#F7F8FA", display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-        {/* ── Top bar ── */}
+        {/* Top bar */}
         <div style={{ background: "#fff", borderBottom: "1px solid var(--color-hairline)", flexShrink: 0 }}>
           <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "14px 48px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <Link href="/" style={{ fontFamily: "var(--font-geist)", fontSize: "14px", color: "var(--color-slate)", textDecoration: "none" }}>← Back</Link>
@@ -206,19 +170,17 @@ export default function QuizPage() {
           </div>
         </div>
 
-        {/* ── Two-column content ── */}
+        {/* Two-column content */}
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 48px", overflow: "auto" }}>
           <div style={{ maxWidth: "1280px", width: "100%", display: "flex", gap: "56px", alignItems: "flex-start" }}>
 
-            {/* ── LEFT: Question + Options + Feedback ── */}
+            {/* LEFT */}
             <div key={currentIdx} style={{ flex: 1, minWidth: 0, animation: "fade-in-up 0.2s ease both" }}>
 
-              {/* Question label */}
               <p style={{ fontFamily: "var(--font-geist)", fontSize: "15px", fontWeight: 600, color: "var(--color-steel)", margin: "0 0 14px" }}>
                 Question {currentIdx + 1} <span style={{ fontWeight: 400, color: "#B0B8C8" }}>of {total}</span>
               </p>
 
-              {/* Question text box */}
               <div style={{ background: "var(--color-surface-blue-tint)", borderRadius: "var(--radius-lg)", padding: "24px 28px", marginBottom: "20px" }}>
                 <p style={{ fontFamily: "var(--font-golos)", fontSize: "22px", fontWeight: 600, color: "var(--color-ink)", margin: 0, lineHeight: 1.5 }}>
                   {q.question}
@@ -258,14 +220,7 @@ export default function QuizPage() {
                       key={opt.label}
                       onClick={() => handleSelect(opt.label)}
                       disabled={isRevealed}
-                      style={{
-                        display: "flex", alignItems: "center", gap: "16px",
-                        padding: "16px 20px", borderRadius: "var(--radius-md)",
-                        ...oStyle,
-                        cursor: isRevealed ? "default" : "pointer",
-                        textAlign: "left", width: "100%",
-                        transition: "all 0.18s",
-                      }}
+                      style={{ display: "flex", alignItems: "center", gap: "16px", padding: "16px 20px", borderRadius: "var(--radius-md)", ...oStyle, cursor: isRevealed ? "default" : "pointer", textAlign: "left", width: "100%", transition: "all 0.18s" }}
                     >
                       <div style={{ width: "22px", height: "22px", borderRadius: "6px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.18s", ...cStyle }}>
                         {showCheckIcon && !isRevealed && (
@@ -286,36 +241,7 @@ export default function QuizPage() {
                 })}
               </div>
 
-              {/* ── Explanation card (only after Submit) ── */}
-              {isRevealed && (
-                <div style={{
-                  marginTop: "16px",
-                  borderRadius: "var(--radius-md)",
-                  background: isCorrect ? "#F0FDF4" : "#FFF7ED",
-                  border: `1px solid ${isCorrect ? "#A7F3D0" : "#FED7AA"}`,
-                  padding: "16px 20px",
-                  animation: "fade-in-up 0.3s ease both",
-                }}>
-                  {explanationLoading ? (
-                    <>
-                      <div className="shimmer" style={{ height: "11px", width: "35%", background: "#E0E0E0", borderRadius: "4px", marginBottom: "10px" }} />
-                      <div className="shimmer" style={{ height: "13px", width: "92%", background: "#E0E0E0", borderRadius: "4px", marginBottom: "6px" }} />
-                      <div className="shimmer" style={{ height: "13px", width: "70%", background: "#E0E0E0", borderRadius: "4px" }} />
-                    </>
-                  ) : (
-                    <>
-                      <p style={{ fontFamily: "var(--font-geist)", fontSize: "11px", fontWeight: 700, letterSpacing: "0.6px", textTransform: "uppercase", color: isCorrect ? "#047857" : "#92400E", margin: "0 0 7px" }}>
-                        {isCorrect ? `✓ Why this is correct` : `✗ Why the correct answer is ${q.answer}`}
-                      </p>
-                      <p style={{ fontFamily: "var(--font-geist)", fontSize: "14px", lineHeight: 1.65, color: isCorrect ? "#065F46" : "#78350F", margin: 0 }}>
-                        {explanationText || "See your full results for a detailed breakdown."}
-                      </p>
-                    </>
-                  )}
-                </div>
-              )}
-
-              {/* ── Buttons: Prev | Skip | Submit/Next ── */}
+              {/* Buttons */}
               <div style={{ display: "flex", gap: "10px", marginTop: "24px", alignItems: "center" }}>
                 <button
                   onClick={() => { if (!isFirst) setCurrentIdx((i) => i - 1); }}
@@ -337,21 +263,14 @@ export default function QuizPage() {
 
                 <button
                   onClick={handleQuestionSubmit}
-                  style={{
-                    fontFamily: "var(--font-golos)", fontSize: "15px", fontWeight: 600,
-                    padding: "12px 28px", borderRadius: "var(--radius-md)", border: "none",
-                    background: isRevealed ? "var(--color-navy-900)" : selected ? "var(--color-primary)" : "#C0C5D0",
-                    color: "#fff", cursor: selected || isRevealed ? "pointer" : "not-allowed",
-                    transition: "background 0.2s",
-                  }}
+                  style={{ fontFamily: "var(--font-golos)", fontSize: "15px", fontWeight: 600, padding: "12px 28px", borderRadius: "var(--radius-md)", border: "none", background: isRevealed ? "var(--color-navy-900)" : selected ? "var(--color-primary)" : "#C0C5D0", color: "#fff", cursor: selected || isRevealed ? "pointer" : "not-allowed", transition: "background 0.2s" }}
                 >
                   {submitLabel}
                 </button>
-
               </div>
             </div>
 
-            {/* ── RIGHT: Progress + Grid + Submit Quiz ── */}
+            {/* RIGHT */}
             <div style={{ width: "260px", flexShrink: 0, paddingTop: "4px" }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
                 <span style={{ fontFamily: "var(--font-geist)", fontSize: "15px", fontWeight: 500, color: "var(--color-ink)" }}>Progress</span>
@@ -362,7 +281,6 @@ export default function QuizPage() {
                 </svg>
               </div>
 
-              {/* Number grid — green/red only after reveal */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "20px" }}>
                 {mod.questions.map((qq, i) => {
                   const isCurrent = i === currentIdx;
@@ -375,42 +293,26 @@ export default function QuizPage() {
                   let textColor = "var(--color-ink)";
 
                   if (isCurrent) {
-                    bgColor = "var(--color-navy-900)";
-                    borderColor = "var(--color-navy-900)";
-                    textColor = "#fff";
+                    bgColor = "var(--color-navy-900)"; borderColor = "var(--color-navy-900)"; textColor = "#fff";
                   } else if (isRev) {
-                    bgColor = wasCorrect ? "#10B981" : "#EF4444";
-                    borderColor = wasCorrect ? "#10B981" : "#EF4444";
-                    textColor = "#fff";
+                    bgColor = wasCorrect ? "#10B981" : "#EF4444"; borderColor = bgColor; textColor = "#fff";
                   } else if (ans) {
-                    bgColor = "#EBF3FF";
-                    borderColor = "var(--color-primary)";
-                    textColor = "var(--color-primary)";
+                    bgColor = "#EBF3FF"; borderColor = "var(--color-primary)"; textColor = "var(--color-primary)";
                   }
 
                   return (
-                    <button
-                      key={qq.id}
-                      onClick={() => setCurrentIdx(i)}
-                      style={{ height: "48px", borderRadius: "var(--radius-md)", fontFamily: "var(--font-geist)", fontSize: "15px", fontWeight: isCurrent ? 700 : 500, border: `1.5px solid ${borderColor}`, background: bgColor, color: textColor, cursor: "pointer", transition: "all 0.15s" }}
-                    >
+                    <button key={qq.id} onClick={() => setCurrentIdx(i)} style={{ height: "48px", borderRadius: "var(--radius-md)", fontFamily: "var(--font-geist)", fontSize: "15px", fontWeight: isCurrent ? 700 : 500, border: `1.5px solid ${borderColor}`, background: bgColor, color: textColor, cursor: "pointer", transition: "all 0.15s" }}>
                       {i + 1}
                     </button>
                   );
                 })}
               </div>
 
-              <button
-                onClick={handleQuizSubmit}
-                style={{ width: "100%", padding: "16px", borderRadius: "var(--radius-md)", border: "none", background: allAnswered ? "#10B981" : "var(--color-navy-900)", color: "#fff", fontFamily: "var(--font-golos)", fontSize: "17px", fontWeight: 600, cursor: "pointer", transition: "background 0.2s" }}
-              >
+              <button onClick={handleQuizSubmit} style={{ width: "100%", padding: "16px", borderRadius: "var(--radius-md)", border: "none", background: allAnswered ? "#10B981" : "var(--color-navy-900)", color: "#fff", fontFamily: "var(--font-golos)", fontSize: "17px", fontWeight: 600, cursor: "pointer", transition: "background 0.2s" }}>
                 {allAnswered ? "Submit quiz ✓" : "Submit quiz"}
               </button>
               <p style={{ fontFamily: "var(--font-geist)", fontSize: "13px", color: "var(--color-slate)", marginTop: "10px", textAlign: "center" }}>
-                {allAnswered
-                  ? "All answered — ready to submit!"
-                  : `${total - answeredCount} question${total - answeredCount !== 1 ? "s" : ""} remaining`
-                }
+                {allAnswered ? "All answered — ready to submit!" : `${total - answeredCount} question${total - answeredCount !== 1 ? "s" : ""} remaining`}
               </p>
             </div>
 
