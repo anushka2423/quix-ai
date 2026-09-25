@@ -6,7 +6,8 @@ import Link from "next/link";
 import { modules } from "@/lib/quiz-data";
 import type { OptionLabel } from "@/types/quiz";
 import Header from "@/components/Header";
-import BookingModal from "@/components/BookingModal";
+
+const CALENDLY_URL = "https://calendly.com/d/dtdk-7jq-xwm/1-1";
 
 const CONFETTI_COLORS = [
   "#002862", "#0a3578", "#7cc4a0", "#d6def0", "#e6f5ed",
@@ -61,7 +62,8 @@ function getLevel(pct: number) {
       label: "AI-ready",
       color: "var(--correct-text)",
       bg: "var(--correct-bg)",
-      headline: "You're AI-ready! Here's what to focus on next.",
+      headline: "You've nailed it. Now go deeper.",
+      body: "You answered every question correctly. You have a strong command of this material.",
     };
   }
   if (pct >= 50) {
@@ -69,14 +71,16 @@ function getLevel(pct: number) {
       label: "Building momentum",
       color: "#b86e00",
       bg: "#fff3e0",
-      headline: "Good progress — let's sharpen these areas.",
+      headline: "Good progress. Let's sharpen these areas.",
+      body: "You're building strong foundations. A few areas are worth revisiting to sharpen your edge.",
     };
   }
   return {
     label: "Keep practicing",
     color: "var(--incorrect-text)",
     bg: "var(--incorrect-bg)",
-    headline: "Let's build your foundation.",
+    headline: "There is a clear path from here.",
+    body: "Several core concepts in this track are worth revisiting. We can walk through each focus area below and map out what to practice first.",
   };
 }
 
@@ -85,7 +89,6 @@ function ResultsContent() {
   const searchParams = useSearchParams();
   const moduleId = Number(params.id);
   const mod = modules.find((m) => m.id === moduleId);
-  const [bookingOpen, setBookingOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | "incorrect">("all");
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
 
@@ -143,232 +146,184 @@ function ResultsContent() {
       {pct >= 80 && <Confetti />}
 
       <main style={{ minHeight: "calc(100vh - 64px)", paddingBottom: "88px" }}>
-        {/* ── Top section ── */}
-        <section style={{ background: "#ffffff", padding: "48px 0 40px" }}>
-          <div
-            style={{ maxWidth: "860px", margin: "0 auto", padding: "0 48px" }}
-          >
+
+        {/* ── Full-width gradient hero banner ── */}
+        <section style={{ background: "var(--gradient)", padding: "32px 0 48px" }}>
+          <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 48px" }}>
+
+            {/* Back link */}
             <Link
               href="/"
-              style={{
-                fontSize: "14px",
-                color: "var(--muted)",
-                textDecoration: "none",
-              }}
+              style={{ fontSize: "14px", color: "var(--on-navy-2)", textDecoration: "none" }}
             >
               ← All tracks
             </Link>
 
-            <h1
-              style={{
-                fontSize: "32px",
-                lineHeight: "40px",
-                fontWeight: 700,
-                color: "var(--ink)",
-                letterSpacing: "-0.03em",
-                margin: "20px 0 4px",
-              }}
-            >
-              Your results
-            </h1>
-            <p
-              style={{
-                fontSize: "14px",
-                color: "var(--muted)",
-                margin: "0 0 32px",
-              }}
-            >
-              {mod.title}
-            </p>
-
-            {/* Score ring */}
+            {/* Two-column layout */}
             <div
               style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: "16px",
+                display: "grid",
+                gridTemplateColumns: "280px 1fr",
+                gap: "32px",
+                marginTop: "24px",
+                alignItems: "start",
               }}
             >
-              <svg width="140" height="140" viewBox="0 0 140 140">
-                <circle
-                  cx="70"
-                  cy="70"
-                  r="52"
-                  fill="none"
-                  stroke="var(--border)"
-                  strokeWidth="10"
-                />
-                <circle
-                  cx="70"
-                  cy="70"
-                  r="52"
-                  fill="none"
-                  stroke={level.color}
-                  strokeWidth="10"
-                  strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  strokeDashoffset={dashOffset}
-                  transform="rotate(-90 70 70)"
-                  className="score-arc"
-                />
-                <text
-                  x="50%"
-                  y="46%"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
+              {/* LEFT: Score card */}
+              <div
+                style={{
+                  background: "#ffffff",
+                  borderRadius: "var(--r-feature)",
+                  padding: "32px 24px",
+                  textAlign: "center",
+                  boxShadow: "0 4px 24px rgba(0,0,0,.12)",
+                }}
+              >
+                <p
                   style={{
-                    fontSize: "26px",
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
+                    color: "var(--muted)",
+                    margin: "0 0 20px",
+                  }}
+                >
+                  {mod.title}
+                </p>
+
+                {/* Score ring */}
+                <svg width="140" height="140" viewBox="0 0 140 140" style={{ display: "block", margin: "0 auto" }}>
+                  <circle cx="70" cy="70" r="52" fill="none" stroke="var(--border)" strokeWidth="10" />
+                  <circle
+                    cx="70" cy="70" r="52" fill="none"
+                    stroke={level.color} strokeWidth="10" strokeLinecap="round"
+                    strokeDasharray={circumference} strokeDashoffset={dashOffset}
+                    transform="rotate(-90 70 70)" className="score-arc"
+                  />
+                  <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle"
+                    style={{ fontSize: "28px", fontWeight: 700, fill: level.color, fontFamily: "inherit" }}>
+                    {pct}%
+                  </text>
+                </svg>
+
+                <span
+                  style={{
+                    display: "inline-block",
+                    marginTop: "16px",
+                    padding: "5px 18px",
+                    borderRadius: "var(--r-pill)",
+                    background: level.bg,
+                    color: level.color,
+                    fontSize: "13px",
                     fontWeight: 600,
-                    fill: level.color,
-                    fontFamily: "inherit",
                   }}
                 >
-                  {pct}%
-                </text>
-                <text
-                  x="50%"
-                  y="62%"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  style={{
-                    fontSize: "12px",
-                    fill: "var(--muted)",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  {score}/{total}
-                </text>
-              </svg>
+                  {level.label}
+                </span>
 
-              <span
-                style={{
-                  display: "inline-block",
-                  padding: "5px 16px",
-                  borderRadius: "var(--r-pill)",
-                  background: level.bg,
-                  color: level.color,
-                  fontSize: "13px",
-                  fontWeight: 500,
-                }}
-              >
-                {level.label}
-              </span>
-            </div>
-          </div>
-        </section>
+                <p style={{ fontSize: "14px", color: "var(--muted)", margin: "10px 0 0" }}>
+                  {score} of {total} correct
+                </p>
+              </div>
 
-        {/* ── Gradient feedback card ── */}
-        <section style={{ padding: "0 0 8px" }}>
-          <div
-            style={{ maxWidth: "860px", margin: "0 auto", padding: "0 48px" }}
-          >
-            <div
-              style={{
-                background: "var(--gradient)",
-                borderRadius: "var(--r-feature)",
-                padding: "40px",
-                margin: "32px 0",
-                boxShadow: "var(--shadow-feature)",
-              }}
-            >
-              {/* Chip */}
-              <span
-                style={{
-                  display: "inline-block",
-                  padding: "4px 14px",
-                  borderRadius: "var(--r-pill)",
-                  background: "rgba(255,255,255,.15)",
-                  color: "var(--on-navy)",
-                  fontSize: "12px",
-                  fontWeight: 500,
-                }}
-              >
-                Your personalized feedback
-              </span>
-
-              <h2
-                style={{
-                  fontSize: "22px",
-                  fontWeight: 600,
-                  color: "#ffffff",
-                  margin: "12px 0 8px",
-                  letterSpacing: "-0.02em",
-                }}
-              >
-                {level.headline}
-              </h2>
-
-              {focusAreas.length > 0 ? (
+              {/* RIGHT: Feedback content */}
+              <div style={{ paddingTop: "4px" }}>
                 <p
                   style={{
-                    fontSize: "15px",
-                    lineHeight: "24px",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    letterSpacing: "0.1em",
+                    textTransform: "uppercase",
                     color: "var(--on-navy-2)",
+                    margin: "0 0 14px",
+                  }}
+                >
+                  Get your 1-on-1 feedback &amp; learning plan
+                </p>
+
+                <h1
+                  style={{
+                    fontSize: "clamp(28px, 3.5vw, 40px)",
+                    fontWeight: 700,
+                    color: "#ffffff",
+                    letterSpacing: "-0.03em",
+                    lineHeight: 1.15,
                     margin: "0 0 16px",
                   }}
                 >
-                  Based on your answers, we&apos;ve identified these focus areas:
-                </p>
-              ) : (
+                  {level.headline}
+                </h1>
+
                 <p
                   style={{
-                    fontSize: "15px",
-                    lineHeight: "24px",
+                    fontSize: "16px",
+                    lineHeight: "26px",
                     color: "var(--on-navy-2)",
-                    margin: "0 0 16px",
+                    margin: "0 0 28px",
+                    maxWidth: "520px",
                   }}
                 >
-                  Excellent work — you answered every question correctly!
+                  {level.body}
                 </p>
-              )}
 
-              {/* Focus area chips */}
-              {focusAreas.length > 0 && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    gap: "8px",
-                    marginBottom: "24px",
-                  }}
-                >
-                  {focusAreas.map((area) => (
-                    <span
-                      key={area}
+                {focusAreas.length > 0 && (
+                  <>
+                    <p
                       style={{
-                        display: "inline-block",
-                        padding: "5px 16px",
-                        borderRadius: "var(--r-pill)",
-                        background: "rgba(255,255,255,.15)",
-                        color: "#ffffff",
-                        fontSize: "13px",
-                        fontWeight: 500,
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        letterSpacing: "0.1em",
+                        textTransform: "uppercase",
+                        color: "var(--on-navy-2)",
+                        margin: "0 0 12px",
                       }}
                     >
-                      {area}
-                    </span>
-                  ))}
-                </div>
-              )}
+                      Focus Areas
+                    </p>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginBottom: "32px" }}>
+                      {focusAreas.map((area) => (
+                        <span
+                          key={area}
+                          style={{
+                            padding: "6px 16px",
+                            borderRadius: "var(--r-pill)",
+                            background: "rgba(255,255,255,.15)",
+                            color: "#ffffff",
+                            fontSize: "13px",
+                            fontWeight: 500,
+                            border: "1px solid rgba(255,255,255,.2)",
+                          }}
+                        >
+                          {area}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
 
-              <button
-                onClick={() => setBookingOpen(true)}
-                style={{
-                  display: "inline-block",
-                  padding: "12px 24px",
-                  borderRadius: "var(--r-pill)",
-                  background: "#ffffff",
-                  color: "var(--navy)",
-                  fontWeight: 600,
-                  fontSize: "15px",
-                  border: "none",
-                  cursor: "pointer",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                Book my free 1-on-1
-              </button>
+                <a
+                  href={CALENDLY_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    padding: "14px 32px",
+                    borderRadius: "var(--r-pill)",
+                    background: "#ffffff",
+                    color: "var(--navy)",
+                    fontWeight: 700,
+                    fontSize: "16px",
+                    textDecoration: "none",
+                    letterSpacing: "-0.01em",
+                    boxShadow: "0 4px 16px rgba(0,0,0,.15)",
+                  }}
+                >
+                  Book my free 1-on-1
+                </a>
+              </div>
             </div>
           </div>
         </section>
@@ -401,26 +356,28 @@ function ResultsContent() {
                 Question review
               </h2>
               <div style={{ display: "flex", gap: "8px" }}>
-                {(["all", "incorrect"] as const).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => setFilter(f)}
-                    style={{
-                      padding: "7px 18px",
-                      borderRadius: "var(--r-pill)",
-                      border: filter === f ? "none" : "1px solid var(--border)",
-                      background: filter === f ? "var(--navy)" : "transparent",
-                      color: filter === f ? "#ffffff" : "var(--ink)",
-                      fontSize: "13px",
-                      fontWeight: 500,
-                      cursor: "pointer",
-                      transition: "all 0.15s",
-                      textTransform: "capitalize",
-                    }}
-                  >
-                    {f === "all" ? "All" : "Incorrect"}
-                  </button>
-                ))}
+                {(["all", "incorrect"] as const).map((f) => {
+                  const count = f === "all" ? results.length : results.filter((r) => !r.isCorrect).length;
+                  return (
+                    <button
+                      key={f}
+                      onClick={() => setFilter(f)}
+                      style={{
+                        padding: "7px 18px",
+                        borderRadius: "var(--r-pill)",
+                        border: filter === f ? "none" : "1px solid var(--border)",
+                        background: filter === f ? "var(--navy)" : "transparent",
+                        color: filter === f ? "#ffffff" : "var(--ink)",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        cursor: "pointer",
+                        transition: "all 0.15s",
+                      }}
+                    >
+                      {f === "all" ? `All ${count}` : `Incorrect ${count}`}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -462,40 +419,20 @@ function ResultsContent() {
                           "var(--border)";
                       }}
                     >
-                      {/* Status icon */}
-                      <div
-                        style={{
-                          width: "20px",
-                          height: "20px",
-                          borderRadius: "50%",
-                          background: r.isCorrect
-                            ? "var(--correct-bg)"
-                            : "var(--incorrect-bg)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          flexShrink: 0,
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          color: r.isCorrect
-                            ? "var(--correct-text)"
-                            : "var(--incorrect-text)",
-                        }}
-                      >
-                        {r.isCorrect ? "✓" : "✕"}
-                      </div>
-
+                      {/* Question number */}
                       <span
                         style={{
                           fontSize: "13px",
-                          fontWeight: 600,
+                          fontWeight: 700,
                           color: "var(--muted)",
                           flexShrink: 0,
+                          minWidth: "24px",
                         }}
                       >
-                        Q{globalIdx + 1}
+                        {String(globalIdx + 1).padStart(2, "0")}
                       </span>
 
+                      {/* Question text */}
                       <span
                         style={{
                           flex: 1,
@@ -510,14 +447,35 @@ function ResultsContent() {
                         {r.questionText}
                       </span>
 
+                      {/* Status badge */}
+                      {!r.isCorrect && (
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            color: "var(--incorrect-text)",
+                            background: "var(--incorrect-bg)",
+                            padding: "3px 12px",
+                            borderRadius: "var(--r-pill)",
+                            whiteSpace: "nowrap",
+                            flexShrink: 0,
+                          }}
+                        >
+                          Incorrect
+                        </span>
+                      )}
+
+                      {/* Chevron */}
                       <span
                         style={{
-                          fontSize: "13px",
-                          color: "var(--muted)",
+                          fontSize: "16px",
+                          color: "var(--faint)",
                           flexShrink: 0,
+                          transition: "transform 0.15s",
+                          transform: isExpanded ? "rotate(90deg)" : "none",
                         }}
                       >
-                        {isExpanded ? "Hide ↑" : "Show →"}
+                        ›
                       </span>
                     </div>
 
@@ -631,25 +589,26 @@ function ResultsContent() {
               return (
                 <div style={{ marginTop: "32px" }}>
                   {nextMod.locked ? (
-                    <button
-                      onClick={() => setBookingOpen(true)}
+                    <a
+                      href={CALENDLY_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       style={{
                         display: "inline-flex",
                         alignItems: "center",
                         gap: "8px",
                         padding: "13px 24px",
                         borderRadius: "var(--r-card)",
-                        border: "none",
                         background: "var(--navy)",
                         color: "#ffffff",
                         fontSize: "15px",
                         fontWeight: 600,
-                        cursor: "pointer",
+                        textDecoration: "none",
                         letterSpacing: "-0.01em",
                       }}
                     >
                       🔒 Unlock Module {nextMod.id}: {nextMod.title}
-                    </button>
+                    </a>
                   ) : (
                     <Link
                       href={`/quiz/${nextMod.id}`}
@@ -704,30 +663,28 @@ function ResultsContent() {
             {focusAreas.length} focus area{focusAreas.length !== 1 ? "s" : ""}{" "}
             identified
           </span>
-          <button
-            onClick={() => setBookingOpen(true)}
+          <a
+            href={CALENDLY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             style={{
+              display: "inline-block",
               padding: "11px 24px",
               borderRadius: "var(--r-pill)",
-              border: "none",
               background: "var(--navy)",
               color: "#ffffff",
               fontSize: "14px",
               fontWeight: 600,
-              cursor: "pointer",
+              textDecoration: "none",
               whiteSpace: "nowrap",
               letterSpacing: "-0.01em",
             }}
           >
             Book my free 1-on-1 →
-          </button>
+          </a>
         </div>
       </div>
 
-      <BookingModal
-        open={bookingOpen}
-        onClose={() => setBookingOpen(false)}
-      />
     </>
   );
 }

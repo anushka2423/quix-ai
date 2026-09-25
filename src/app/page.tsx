@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { modules } from "@/lib/quiz-data";
 import Header from "@/components/Header";
-import BookingModal from "@/components/BookingModal";
+
+const CALENDLY_URL = "https://calendly.com/d/dtdk-7jq-xwm/1-1";
 
 type Scores = Record<string, { score: number; total: number; pct: number }>;
 
@@ -13,7 +14,6 @@ function quizMeta(questionCount: number) {
 }
 
 export default function Home() {
-  const [bookingOpen, setBookingOpen] = useState(false);
   const [scores, setScores] = useState<Scores>({});
 
   useEffect(() => {
@@ -315,8 +315,10 @@ export default function Home() {
                   personalised review of your results.
                 </p>
               </div>
-              <button
-                onClick={() => setBookingOpen(true)}
+              <a
+                href={CALENDLY_URL}
+                target="_blank"
+                rel="noopener noreferrer"
                 style={{
                   display: "inline-block",
                   padding: "11px 24px",
@@ -325,24 +327,27 @@ export default function Home() {
                   color: "var(--navy)",
                   fontWeight: 600,
                   fontSize: "15px",
-                  border: "none",
-                  cursor: "pointer",
+                  textDecoration: "none",
                   whiteSpace: "nowrap",
                   flexShrink: 0,
                   letterSpacing: "-0.01em",
                 }}
               >
                 Book a call →
-              </button>
+              </a>
             </div>
 
             {/* ── Locked cards ── */}
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               {locked.map((mod) => (
-                <div
+                <a
                   key={mod.id}
-                  onClick={() => setBookingOpen(true)}
+                  href={CALENDLY_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   style={{
+                    textDecoration: "none",
+                    display: "block",
                     background: "#ffffff",
                     border: "1.5px dashed var(--border)",
                     borderRadius: "var(--r-card)",
@@ -352,14 +357,12 @@ export default function Home() {
                     transition: "opacity 0.2s, border-color 0.2s",
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.opacity = "1";
-                    (e.currentTarget as HTMLDivElement).style.borderColor =
-                      "var(--border-hover)";
+                    (e.currentTarget as HTMLAnchorElement).style.opacity = "1";
+                    (e.currentTarget as HTMLAnchorElement).style.borderColor = "var(--border-hover)";
                   }}
                   onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLDivElement).style.opacity = "0.8";
-                    (e.currentTarget as HTMLDivElement).style.borderColor =
-                      "var(--border)";
+                    (e.currentTarget as HTMLAnchorElement).style.opacity = "0.8";
+                    (e.currentTarget as HTMLAnchorElement).style.borderColor = "var(--border)";
                   }}
                 >
                   {/* Top row */}
@@ -432,14 +435,13 @@ export default function Home() {
                   >
                     Book a call to unlock →
                   </span>
-                </div>
+                </a>
               ))}
             </div>
           </div>
         </section>
       </main>
 
-      <BookingModal open={bookingOpen} onClose={() => setBookingOpen(false)} />
     </>
   );
 }
