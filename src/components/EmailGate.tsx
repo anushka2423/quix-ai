@@ -57,7 +57,7 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "rgba(4, 39, 94, 0.72)",
+            background: "rgba(15,27,51,.7)",
             backdropFilter: "blur(8px)",
             WebkitBackdropFilter: "blur(8px)",
             padding: "24px",
@@ -66,11 +66,11 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
           <div
             style={{
               background: "#fff",
-              borderRadius: "20px",
+              borderRadius: "var(--r-feature)",
               padding: "48px",
               maxWidth: "480px",
               width: "100%",
-              boxShadow: "0 32px 80px rgba(0,0,0,0.25)",
+              boxShadow: "var(--shadow-feature)",
               animation: "fade-in-up 0.35s ease both",
             }}
           >
@@ -80,7 +80,7 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
                 width: "52px",
                 height: "52px",
                 borderRadius: "14px",
-                background: "var(--color-surface-blue-soft)",
+                background: "var(--wash)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -88,51 +88,83 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
               }}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="#006FFF" strokeWidth="1.6" strokeLinejoin="round"/>
-                <path d="M22 6l-10 7L2 6" stroke="#006FFF" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                <path
+                  d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
+                  stroke="#002862"
+                  strokeWidth="1.6"
+                  strokeLinejoin="round"
+                />
+                <path
+                  d="M22 6l-10 7L2 6"
+                  stroke="#002862"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </div>
 
             {/* Eyebrow */}
-            <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "12px" }}>
-              <div style={{ width: "7px", height: "7px", borderRadius: "2px", background: "#FF6F00" }} />
-              <span style={{ fontFamily: "var(--font-geist)", fontSize: "12px", fontWeight: 600, letterSpacing: "0.6px", textTransform: "uppercase", color: "var(--color-steel)" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "7px",
+                marginBottom: "12px",
+              }}
+            >
+              <div
+                style={{
+                  width: "7px",
+                  height: "7px",
+                  borderRadius: "2px",
+                  background: "var(--navy)",
+                }}
+              />
+              <span
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  letterSpacing: "0.6px",
+                  textTransform: "uppercase",
+                  color: "var(--muted)",
+                }}
+              >
                 Gen AI · Skills Assessment
               </span>
             </div>
 
             <h2
               style={{
-                fontFamily: "var(--font-golos)",
                 fontSize: "26px",
                 fontWeight: 700,
-                color: "var(--color-ink)",
+                color: "var(--ink)",
                 margin: "0 0 10px",
                 lineHeight: 1.25,
+                letterSpacing: "-0.02em",
               }}
             >
               Before we begin
             </h2>
             <p
               style={{
-                fontFamily: "var(--font-geist)",
                 fontSize: "15px",
                 lineHeight: 1.6,
-                color: "var(--color-slate)",
+                color: "var(--muted)",
                 margin: "0 0 28px",
               }}
             >
-              Enter your email to access the assessment and receive your personalised results.
+              Enter your email to access the assessment and receive your
+              personalised results.
             </p>
 
             <form onSubmit={handleSubmit}>
               <label
                 style={{
                   display: "block",
-                  fontFamily: "var(--font-geist)",
                   fontSize: "13px",
                   fontWeight: 600,
-                  color: "var(--color-ink)",
+                  color: "var(--ink)",
                   marginBottom: "8px",
                 }}
               >
@@ -142,26 +174,46 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
                 type="email"
                 placeholder="you@company.com"
                 value={input}
-                onChange={(e) => { setInput(e.target.value); setError(""); }}
+                onChange={(e) => {
+                  setInput(e.target.value);
+                  setError("");
+                }}
                 autoFocus
                 style={{
                   width: "100%",
                   padding: "13px 16px",
-                  borderRadius: "var(--radius-md)",
-                  border: error ? "1.5px solid #EF4444" : "1.5px solid var(--color-hairline)",
-                  fontFamily: "var(--font-geist)",
+                  borderRadius: "var(--r-input)",
+                  border: error
+                    ? "1.5px solid var(--incorrect-text)"
+                    : "1.5px solid var(--border)",
                   fontSize: "15px",
-                  color: "var(--color-ink)",
+                  color: "var(--ink)",
                   outline: "none",
                   boxSizing: "border-box",
                   background: "#fff",
                   transition: "border-color 0.15s",
+                  fontFamily: "inherit",
                 }}
-                onFocus={(e) => { if (!error) e.target.style.borderColor = "var(--color-primary)"; }}
-                onBlur={(e) => { if (!error) e.target.style.borderColor = "var(--color-hairline)"; }}
+                onFocus={(e) => {
+                  if (!error)
+                    (e.target as HTMLInputElement).style.borderColor =
+                      "var(--navy)";
+                }}
+                onBlur={(e) => {
+                  if (!error)
+                    (e.target as HTMLInputElement).style.borderColor =
+                      "var(--border)";
+                }}
               />
               {error && (
-                <p style={{ fontFamily: "var(--font-geist)", fontSize: "13px", color: "#EF4444", marginTop: "6px", marginBottom: 0 }}>
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: "var(--incorrect-text)",
+                    marginTop: "6px",
+                    marginBottom: 0,
+                  }}
+                >
                   {error}
                 </p>
               )}
@@ -173,21 +225,31 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
                   marginTop: "16px",
                   width: "100%",
                   padding: "14px",
-                  borderRadius: "var(--radius-md)",
+                  borderRadius: "var(--r-card)",
                   border: "none",
-                  background: loading ? "var(--color-steel)" : "var(--color-navy-900)",
+                  background: "var(--navy)",
                   color: "#fff",
-                  fontFamily: "var(--font-golos)",
                   fontSize: "16px",
                   fontWeight: 600,
                   cursor: loading ? "not-allowed" : "pointer",
-                  transition: "background 0.15s",
+                  transition: "opacity 0.15s",
+                  opacity: loading ? 0.7 : 1,
+                  fontFamily: "inherit",
+                  letterSpacing: "-0.01em",
                 }}
               >
                 {loading ? "Saving…" : "Start Assessment →"}
               </button>
 
-              <p style={{ fontFamily: "var(--font-geist)", fontSize: "12px", color: "var(--color-stone)", textAlign: "center", marginTop: "14px", marginBottom: 0 }}>
+              <p
+                style={{
+                  fontSize: "12px",
+                  color: "var(--faint)",
+                  textAlign: "center",
+                  marginTop: "14px",
+                  marginBottom: 0,
+                }}
+              >
                 No spam. Your email is only used to send your results.
               </p>
             </form>

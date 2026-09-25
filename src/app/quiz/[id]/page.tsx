@@ -1,16 +1,17 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { modules } from "@/lib/quiz-data";
 import type { OptionLabel } from "@/types/quiz";
 import { saveResult } from "@/lib/supabase";
 import { getStoredEmail } from "@/components/EmailGate";
+import Header from "@/components/Header";
 
 const CONFETTI_COLORS = [
-  "#006FFF", "#FF6F00", "#10B981", "#F59E0B", "#8B5CF6",
-  "#EC4899", "#06B6D4", "#84CC16", "#EF4444", "#04275E",
+  "#002862", "#0a3578", "#1a4a92", "#1f7a52", "#7cc4a0",
+  "#d6def0", "#a9bcdf", "#eef2f9", "#e6f5ed",
 ];
 
 export default function QuizPage() {
@@ -21,9 +22,11 @@ export default function QuizPage() {
 
   const [answers, setAnswers] = useState<Record<number, OptionLabel>>({});
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [showConfetti, setShowConfetti] = useState(false);
   const [revealed, setRevealed] = useState<Record<number, boolean>>({});
   const [showNudge, setShowNudge] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [submitWarned, setSubmitWarned] = useState(false);
+  const [submitWarnMsg, setSubmitWarnMsg] = useState("");
 
   const confettiPieces = useMemo(
     () =>
@@ -43,9 +46,11 @@ export default function QuizPage() {
   if (!mod) {
     return (
       <main style={{ padding: "96px 48px", textAlign: "center" }}>
-        <p style={{ fontFamily: "var(--font-geist)", color: "var(--color-slate)" }}>
+        <p style={{ color: "var(--muted)" }}>
           Module not found.{" "}
-          <Link href="/" style={{ color: "var(--color-primary)" }}>Go back</Link>
+          <Link href="/" style={{ color: "var(--navy)" }}>
+            Go back
+          </Link>
         </p>
       </main>
     );
@@ -57,26 +62,50 @@ export default function QuizPage() {
   const isRevealed = !!revealed[q.id];
   const isCorrect = selected === q.answer;
   const answeredCount = Object.keys(answers).length;
-  const revealedCount = Object.keys(revealed).length;
-  const allAnswered = answeredCount === total;
-  const allRevealed = revealedCount === total;
+  const correctCount = mod.questions.filter(
+    (qq) => revealed[qq.id] && answers[qq.id] === qq.answer
+  ).length;
   const isFirst = currentIdx === 0;
   const isLast = currentIdx === total - 1;
 
-  const arcR = 26;
-  const arcC = 2 * Math.PI * arcR;
-  const arcOffset = arcC * (1 - revealedCount / total);
-  const arcColor = allRevealed ? "#10B981" : "var(--color-primary)";
+  async function handleFinish() {
+    const answerString = mod!.questions.map((qq) => answers[qq.id] ?? "").join(",");
+    const score = mod!.questions.filter((qq) => answers[qq.id] === qq.answer).length;
+    const pct = Math.round((score / total) * 100);
 
-  function handleSelect(option: OptionLabel) {
-    if (isRevealed) return;
-    setShowNudge(false);
-    setAnswers((prev) => ({ ...prev, [q.id]: option }));
+    // Save to localStorage
+    try {
+      const existing = JSON.parse(localStorage.getItem("aipm_scores") ?? "{}");
+      existing[String(moduleId)] = { score, total, pct };
+      localStorage.setItem("aipm_scores", JSON.stringify(existing));
+    } catch {}
+
+    // Save to Supabase
+    const email = getStoredEmail();
+    if (email) {
+      saveResult({
+        email,
+        moduleId,
+        moduleTitle: mod!.title,
+        answers: answerString,
+        score,
+        total,
+      }).catch(() => {});
+    }
+
+    setShowConfetti(true);
+    setTimeout(() => {
+      router.push(`/results/${moduleId}?a=${answerString}`);
+    }, 2200);
   }
 
-  function handleQuestionSubmit() {
+  function handlePrimaryAction() {
     if (isRevealed) {
-      if (!isLast) setCurrentIdx((i) => i + 1);
+      if (isLast) {
+        handleFinish();
+      } else {
+        setCurrentIdx((i) => i + 1);
+      }
       return;
     }
     if (!selected) {
@@ -85,240 +114,623 @@ export default function QuizPage() {
       return;
     }
     setRevealed((prev) => ({ ...prev, [q.id]: true }));
+    setSubmitWarned(false);
+    setSubmitWarnMsg("");
   }
 
-  async function handleQuizSubmit() {
-    if (!allAnswered) {
-      const first = mod!.questions.findIndex((qq) => !answers[qq.id]);
-      if (first !== -1) { setCurrentIdx(first); return; }
+  function handleSubmitQuiz() {
+    const unanswered = mod!.questions.filter((qq) => !answers[qq.id]).length;
+    if (unanswered > 0 && !submitWarned) {
+      setSubmitWarned(true);
+      setSubmitWarnMsg(
+        `${unanswered} question${unanswered !== 1 ? "s" : ""} unanswered. Click again to submit anyway.`
+      );
+      setTimeout(() => {
+        setSubmitWarned(false);
+        setSubmitWarnMsg("");
+      }, 4000);
+      return;
     }
-    const answerString = mod!.questions.map((qq) => answers[qq.id] ?? "").join(",");
-    const score = mod!.questions.filter((qq) => answers[qq.id] === qq.answer).length;
-    const email = getStoredEmail();
-    if (email) {
-      saveResult({ email, moduleId, moduleTitle: mod!.title, answers: answerString, score, total }).catch(() => {});
-    }
-    setShowConfetti(true);
-    setTimeout(() => {
-      router.push(`/results/${moduleId}?a=${answerString}`);
-    }, 2200);
+    handleFinish();
   }
 
-  function optionStyle(label: OptionLabel) {
+  // Keyboard handler
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (!mod) return;
+      const optionLabels: OptionLabel[] = ["A", "B", "C", "D"];
+      if (!isRevealed && ["1", "2", "3", "4"].includes(e.key)) {
+        e.preventDefault();
+        const label = optionLabels[Number(e.key) - 1];
+        if (label) {
+          setShowNudge(false);
+          setAnswers((prev) => ({ ...prev, [q.id]: label }));
+        }
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        handlePrimaryAction();
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        if (!isFirst) setCurrentIdx((i) => i - 1);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        if (!isLast) setCurrentIdx((i) => i + 1);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [q, isRevealed, isFirst, isLast, selected, answers]
+  );
+
+  useEffect(() => {
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
+
+  // Determine segment state for each question
+  function segmentState(i: number) {
+    const qq = mod!.questions[i];
+    if (i === currentIdx) return "current";
+    if (revealed[qq.id]) {
+      return answers[qq.id] === qq.answer ? "correct" : "wrong";
+    }
+    if (answers[qq.id]) return "answered";
+    return "default";
+  }
+
+  const segmentColors: Record<string, string> = {
+    default: "rgba(255,255,255,.18)",
+    current: "rgba(255,255,255,.6)",
+    answered: "rgba(255,255,255,1)",
+    correct: "#7cc4a0",
+    wrong: "#e7a3a3",
+  };
+
+  function optionState(label: OptionLabel) {
     if (!isRevealed) {
-      const isSelected = label === selected;
-      return {
-        border: isSelected ? "2px solid var(--color-primary)" : "1px solid var(--color-hairline)",
-        background: isSelected ? "var(--color-surface-blue-soft)" : "#fff",
-        color: "var(--color-ink)",
-      };
+      return label === selected ? "selected" : "default";
     }
-    if (label === q.answer) {
-      return { border: "2px solid #10B981", background: "#F0FDF4", color: "#065F46" };
-    }
-    if (label === selected && selected !== q.answer) {
-      return { border: "2px solid #EF4444", background: "#FEF2F2", color: "#991B1B" };
-    }
-    return { border: "1px solid #F0F0F0", background: "#FAFAFA", color: "#AAA" };
+    if (label === q.answer) return "correct";
+    if (label === selected && selected !== q.answer) return "wrong";
+    return "other";
   }
 
-  function checkboxStyle(label: OptionLabel) {
-    if (!isRevealed) {
-      const isSelected = label === selected;
-      return isSelected
-        ? { border: "none", background: "var(--color-primary)" }
-        : { border: "1.5px solid #D0D5DD", background: "#fff" };
+  function getOptionStyles(state: string) {
+    switch (state) {
+      case "selected":
+        return {
+          wrapper: {
+            border: "2px solid var(--navy)",
+            background: "var(--wash)",
+            color: "var(--ink)",
+          },
+          badge: { background: "var(--navy)", color: "#ffffff", border: "none" },
+          text: { color: "var(--ink)" },
+        };
+      case "correct":
+        return {
+          wrapper: {
+            border: "2px solid var(--correct-text)",
+            background: "var(--correct-bg)",
+            color: "var(--correct-text)",
+          },
+          badge: {
+            background: "var(--correct-text)",
+            color: "#ffffff",
+            border: "none",
+          },
+          text: { color: "var(--correct-text)", fontWeight: 500 },
+        };
+      case "wrong":
+        return {
+          wrapper: {
+            border: "2px solid var(--incorrect-text)",
+            background: "var(--incorrect-bg)",
+            color: "var(--incorrect-text)",
+          },
+          badge: {
+            background: "var(--incorrect-text)",
+            color: "#ffffff",
+            border: "none",
+          },
+          text: { color: "var(--incorrect-text)" },
+        };
+      case "other":
+        return {
+          wrapper: {
+            border: "1px solid var(--border)",
+            background: "var(--canvas)",
+            color: "var(--faint)",
+          },
+          badge: {
+            background: "var(--canvas)",
+            color: "var(--faint)",
+            border: "1px solid var(--border)",
+          },
+          text: { color: "var(--faint)" },
+        };
+      default:
+        return {
+          wrapper: {
+            border: "1px solid var(--border)",
+            background: "#ffffff",
+            color: "var(--ink)",
+          },
+          badge: {
+            background: "#ffffff",
+            color: "var(--muted)",
+            border: "1px solid var(--border)",
+          },
+          text: { color: "var(--ink)" },
+        };
     }
-    if (label === q.answer) return { border: "none", background: "#10B981" };
-    if (label === selected && selected !== q.answer) return { border: "none", background: "#EF4444" };
-    return { border: "1.5px solid #E0E0E0", background: "#f5f5f5" };
   }
 
-  const submitLabel = isRevealed ? (isLast ? "Done" : "Next →") : "Submit";
+  const primaryLabel = isRevealed
+    ? isLast
+      ? "See results →"
+      : "Next question →"
+    : "Check answer";
+
+  const primaryDisabled = !isRevealed && !selected;
 
   return (
     <>
+      <Header moduleTitle={mod.title} />
+
+      {/* Confetti overlay */}
       {showConfetti && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(4,39,94,0.88)", backdropFilter: "blur(6px)" }}>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(15,27,51,0.88)",
+            backdropFilter: "blur(6px)",
+          }}
+        >
           {confettiPieces.map((p, i) => (
-            <div key={i} style={{ position: "absolute", left: p.left, top: "-24px", width: p.width, height: p.height, background: p.color, borderRadius: p.isCircle ? "50%" : "3px", animation: `confetti-fall ${p.duration} ease-in forwards`, animationDelay: p.delay, transform: `rotate(${p.rotate})` }} />
+            <div
+              key={i}
+              style={{
+                position: "absolute",
+                left: p.left,
+                top: "-24px",
+                width: p.width,
+                height: p.height,
+                background: p.color,
+                borderRadius: p.isCircle ? "50%" : "3px",
+                animation: `confetti-fall ${p.duration} ease-in forwards`,
+                animationDelay: p.delay,
+                transform: `rotate(${p.rotate})`,
+              }}
+            />
           ))}
-          <div style={{ position: "relative", zIndex: 1000, background: "#fff", borderRadius: "var(--radius-xl)", padding: "48px 56px", textAlign: "center", boxShadow: "0 32px 64px rgba(0,0,0,0.3)", animation: "fade-in-up 0.4s ease both" }}>
-            <div style={{ fontSize: "64px", lineHeight: 1, marginBottom: "20px" }}>🎉</div>
-            <h2 style={{ fontFamily: "var(--font-golos)", fontSize: "26px", fontWeight: 700, color: "var(--color-ink)", margin: "0 0 10px" }}>Module Complete!</h2>
-            <p style={{ fontFamily: "var(--font-geist)", fontSize: "15px", color: "var(--color-slate)", margin: 0 }}>Loading your results…</p>
-            <div style={{ display: "flex", justifyContent: "center", gap: "6px", marginTop: "20px" }}>
+          <div
+            style={{
+              position: "relative",
+              zIndex: 1000,
+              background: "#fff",
+              borderRadius: "var(--r-feature)",
+              padding: "48px 56px",
+              textAlign: "center",
+              boxShadow: "var(--shadow-feature)",
+              animation: "fade-in-up 0.4s ease both",
+            }}
+          >
+            <div style={{ fontSize: "56px", lineHeight: 1, marginBottom: "20px" }}>
+              🎉
+            </div>
+            <h2
+              style={{
+                fontSize: "24px",
+                fontWeight: 700,
+                color: "var(--ink)",
+                margin: "0 0 10px",
+                letterSpacing: "-0.02em",
+              }}
+            >
+              Module Complete!
+            </h2>
+            <p style={{ fontSize: "15px", color: "var(--muted)", margin: 0 }}>
+              Loading your results…
+            </p>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "center",
+                gap: "6px",
+                marginTop: "20px",
+              }}
+            >
               {[0, 1, 2].map((d) => (
-                <div key={d} style={{ width: "7px", height: "7px", borderRadius: "50%", background: "var(--color-primary)", animation: `shimmer-pulse 1s ease-in-out ${d * 0.2}s infinite` }} />
+                <div
+                  key={d}
+                  className="shimmer"
+                  style={{
+                    width: "7px",
+                    height: "7px",
+                    borderRadius: "50%",
+                    background: "var(--navy)",
+                    animationDelay: `${d * 0.2}s`,
+                  }}
+                />
               ))}
             </div>
           </div>
         </div>
       )}
 
-      <main style={{ height: "100vh", background: "#F7F8FA", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div
+        style={{
+          minHeight: "calc(100vh - 64px)",
+          display: "flex",
+          flexDirection: "column",
+          background: "var(--canvas)",
+        }}
+      >
+        {/* ── Navy band ── */}
+        <div
+          style={{
+            background: "var(--gradient)",
+            padding: "28px 0 36px",
+            flexShrink: 0,
+          }}
+        >
+          <div
+            style={{
+              maxWidth: "860px",
+              margin: "0 auto",
+              padding: "0 48px",
+            }}
+          >
+            {/* Row 1 */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "16px",
+                marginBottom: "24px",
+              }}
+            >
+              <Link
+                href="/"
+                style={{
+                  fontSize: "14px",
+                  color: "var(--on-navy-2)",
+                  textDecoration: "none",
+                  flexShrink: 0,
+                }}
+              >
+                ← All tracks
+              </Link>
+              <div style={{ flex: 1 }} />
+              {correctCount > 0 && (
+                <span
+                  style={{
+                    padding: "4px 12px",
+                    borderRadius: "var(--r-pill)",
+                    background: "rgba(255,255,255,.15)",
+                    color: "var(--on-navy)",
+                    fontSize: "13px",
+                    fontWeight: 500,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {correctCount} correct
+                </span>
+              )}
+              <span
+                style={{
+                  fontSize: "14px",
+                  color: "var(--on-navy-2)",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {answeredCount} of {total} answered
+              </span>
+            </div>
 
-        {/* Top bar */}
-        <div style={{ background: "#fff", borderBottom: "1px solid var(--color-hairline)", flexShrink: 0 }}>
-          <div style={{ maxWidth: "1280px", margin: "0 auto", padding: "14px 48px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <Link href="/" style={{ fontFamily: "var(--font-geist)", fontSize: "14px", color: "var(--color-slate)", textDecoration: "none" }}>← Back</Link>
-            <span style={{ fontFamily: "var(--font-geist)", fontSize: "14px", fontWeight: 500, color: "var(--color-steel)", maxWidth: "400px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{mod.title}</span>
-            <span style={{ fontFamily: "var(--font-geist)", fontSize: "14px", color: allAnswered ? "#10B981" : "var(--color-slate)", fontWeight: 500, transition: "color 0.2s" }}>{answeredCount}/{total} answered</span>
-          </div>
-          <div style={{ height: "3px", background: "var(--color-hairline)" }}>
-            <div style={{ width: `${(answeredCount / total) * 100}%`, height: "100%", background: allAnswered ? "#10B981" : "var(--color-primary)", transition: "width 0.3s ease" }} />
+            {/* Segmented progress */}
+            <div
+              style={{
+                display: "flex",
+                gap: "4px",
+                alignItems: "center",
+                height: "16px",
+              }}
+            >
+              {mod.questions.map((_, i) => {
+                const state = segmentState(i);
+                return (
+                  <div
+                    key={i}
+                    onClick={() => setCurrentIdx(i)}
+                    style={{
+                      flex: 1,
+                      borderRadius: "var(--r-pill)",
+                      background: segmentColors[state],
+                      height: state === "current" ? "8px" : "4px",
+                      transition: "background 0.2s, height 0.2s",
+                      cursor: "pointer",
+                    }}
+                  />
+                );
+              })}
+            </div>
           </div>
         </div>
 
-        {/* Two-column content */}
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "24px 48px", overflow: "auto" }}>
-          <div style={{ maxWidth: "1280px", width: "100%", display: "flex", gap: "56px", alignItems: "flex-start" }}>
-
-            {/* LEFT */}
-            <div key={currentIdx} style={{ flex: 1, minWidth: 0, animation: "fade-in-up 0.2s ease both" }}>
-
-              <p style={{ fontFamily: "var(--font-geist)", fontSize: "15px", fontWeight: 600, color: "var(--color-steel)", margin: "0 0 14px" }}>
-                Question {currentIdx + 1} <span style={{ fontWeight: 400, color: "#B0B8C8" }}>of {total}</span>
-              </p>
-
-              <div style={{ background: "var(--color-surface-blue-tint)", borderRadius: "var(--radius-lg)", padding: "24px 28px", marginBottom: "20px" }}>
-                <p style={{ fontFamily: "var(--font-golos)", fontSize: "22px", fontWeight: 600, color: "var(--color-ink)", margin: 0, lineHeight: 1.5 }}>
-                  {q.question}
-                </p>
+        {/* ── Content area ── */}
+        <div
+          style={{
+            flex: 1,
+            padding: "40px 0 80px",
+          }}
+        >
+          <div
+            style={{
+              maxWidth: "860px",
+              margin: "0 auto",
+              padding: "0 48px",
+            }}
+          >
+            {/* Quiz card */}
+            <div
+              key={currentIdx}
+              className="card-enter"
+              style={{
+                background: "#ffffff",
+                borderRadius: "var(--r-quiz-card)",
+                boxShadow: "var(--shadow-feature)",
+                padding: "40px",
+              }}
+            >
+              {/* Card header */}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  marginBottom: "24px",
+                }}
+              >
+                <span
+                  style={{
+                    padding: "5px 14px",
+                    borderRadius: "var(--r-pill)",
+                    background: "var(--navy)",
+                    color: "#ffffff",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    letterSpacing: "0.02em",
+                    flexShrink: 0,
+                  }}
+                >
+                  {String(currentIdx + 1).padStart(2, "0")}
+                </span>
+                <span style={{ fontSize: "14px", color: "var(--muted)" }}>
+                  Question {currentIdx + 1} of {total} · {q.section} ·{" "}
+                  {q.difficulty}
+                </span>
               </div>
 
-              {/* Instruction / result label */}
-              {!isRevealed ? (
-                <p style={{ fontFamily: "var(--font-geist)", fontSize: "14px", color: showNudge ? "#DC2626" : "var(--color-slate)", margin: "0 0 14px", transition: "color 0.2s" }}>
-                  {showNudge ? "Please select an answer before submitting." : "Select an answer, then click Submit to check."}
+              {/* Question */}
+              <p
+                style={{
+                  fontSize: "22px",
+                  lineHeight: "32px",
+                  fontWeight: 600,
+                  color: "var(--ink)",
+                  marginBottom: "28px",
+                  letterSpacing: "-0.02em",
+                  margin: "0 0 28px",
+                }}
+              >
+                {q.question}
+              </p>
+
+              {/* Nudge */}
+              {showNudge && (
+                <p
+                  style={{
+                    fontSize: "13px",
+                    color: "var(--incorrect-text)",
+                    marginBottom: "12px",
+                    animation: "fade-in-up 0.2s ease",
+                  }}
+                >
+                  Please select an answer before checking.
                 </p>
-              ) : (
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px", animation: "fade-in-up 0.25s ease both" }}>
-                  <div style={{ width: "24px", height: "24px", borderRadius: "50%", background: isCorrect ? "#10B981" : "#EF4444", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
-                      {isCorrect
-                        ? <path d="M1 5L4.5 8.5L11 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        : <path d="M2 2L10 10M10 2L2 10" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                      }
-                    </svg>
-                  </div>
-                  <span style={{ fontFamily: "var(--font-golos)", fontSize: "16px", fontWeight: 600, color: isCorrect ? "#047857" : "#DC2626" }}>
-                    {isCorrect ? "Correct!" : `Incorrect — the correct answer is ${q.answer}`}
-                  </span>
-                </div>
               )}
 
               {/* Options */}
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                 {q.options.map((opt) => {
-                  const oStyle = optionStyle(opt.label);
-                  const cStyle = checkboxStyle(opt.label);
-                  const showCheckIcon = (!isRevealed && opt.label === selected) || (isRevealed && opt.label === q.answer);
-                  const showWrongIcon = isRevealed && opt.label === selected && selected !== q.answer;
+                  const state = optionState(opt.label);
+                  const styles = getOptionStyles(state);
+                  const isCurrent = state === "selected";
+                  const isCorrectOpt = state === "correct";
+                  const isWrongOpt = state === "wrong";
+
                   return (
                     <button
                       key={opt.label}
-                      onClick={() => handleSelect(opt.label)}
+                      onClick={() => {
+                        if (isRevealed) return;
+                        setShowNudge(false);
+                        setAnswers((prev) => ({ ...prev, [q.id]: opt.label }));
+                      }}
                       disabled={isRevealed}
-                      style={{ display: "flex", alignItems: "center", gap: "16px", padding: "16px 20px", borderRadius: "var(--radius-md)", ...oStyle, cursor: isRevealed ? "default" : "pointer", textAlign: "left", width: "100%", transition: "all 0.18s" }}
+                      className={`option-btn${isCurrent ? " option-selected" : ""}${isRevealed ? " option-answered" : ""}`}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "14px",
+                        padding: "14px 18px",
+                        borderRadius: "var(--r-option)",
+                        textAlign: "left",
+                        width: "100%",
+                        cursor: isRevealed ? "default" : "pointer",
+                        ...styles.wrapper,
+                        transition: "all 0.15s",
+                      }}
                     >
-                      <div style={{ width: "22px", height: "22px", borderRadius: "6px", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.18s", ...cStyle }}>
-                        {showCheckIcon && !isRevealed && (
-                          <svg width="11" height="9" viewBox="0 0 11 9" fill="none"><path d="M1 4L4 7L10 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                        )}
-                        {showCheckIcon && isRevealed && opt.label === q.answer && (
-                          <svg width="12" height="9" viewBox="0 0 12 9" fill="none"><path d="M1 4.5L4 7.5L11 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                        )}
-                        {showWrongIcon && (
-                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M1 1L9 9M9 1L1 9" stroke="white" strokeWidth="2" strokeLinecap="round" /></svg>
-                        )}
-                      </div>
-                      <span style={{ fontFamily: "var(--font-geist)", fontSize: "16px", lineHeight: 1.5, fontWeight: (isRevealed && opt.label === q.answer) ? 500 : 400 }}>
+                      {/* Letter badge */}
+                      <span
+                        style={{
+                          width: "28px",
+                          height: "28px",
+                          borderRadius: "var(--r-option)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "13px",
+                          fontWeight: 600,
+                          flexShrink: 0,
+                          transition: "all 0.15s",
+                          ...styles.badge,
+                        }}
+                      >
+                        {isCorrectOpt ? "✓" : isWrongOpt ? "✕" : opt.label}
+                      </span>
+
+                      {/* Text + tags */}
+                      <span
+                        style={{
+                          flex: 1,
+                          fontSize: "15px",
+                          lineHeight: "24px",
+                          ...styles.text,
+                        }}
+                      >
                         {opt.text}
                       </span>
+
+                      {isCorrectOpt && (
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            color: "var(--correct-text)",
+                            background: "rgba(31,122,82,.1)",
+                            padding: "2px 10px",
+                            borderRadius: "var(--r-pill)",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          Correct
+                        </span>
+                      )}
+                      {isWrongOpt && (
+                        <span
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            color: "var(--incorrect-text)",
+                            background: "rgba(194,59,59,.1)",
+                            padding: "2px 10px",
+                            borderRadius: "var(--r-pill)",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          Your answer
+                        </span>
+                      )}
                     </button>
                   );
                 })}
               </div>
 
-              {/* Buttons */}
-              <div style={{ display: "flex", gap: "10px", marginTop: "24px", alignItems: "center" }}>
-                <button
-                  onClick={() => { if (!isFirst) setCurrentIdx((i) => i - 1); }}
-                  disabled={isFirst}
-                  style={{ fontFamily: "var(--font-golos)", fontSize: "15px", fontWeight: 500, padding: "12px 24px", borderRadius: "var(--radius-md)", border: "1px solid var(--color-hairline)", background: "#fff", color: isFirst ? "#C0C5D0" : "var(--color-ink)", cursor: isFirst ? "not-allowed" : "pointer" }}
+              {/* Explanation / result */}
+              {isRevealed && (
+                <div
+                  className="card-enter"
+                  style={{
+                    marginTop: "20px",
+                    padding: "16px",
+                    borderRadius: "var(--r-option)",
+                    background: "var(--wash)",
+                    fontSize: "14px",
+                    lineHeight: "22px",
+                    color: "var(--ink-2)",
+                  }}
                 >
-                  Prev
-                </button>
+                  {isCorrect
+                    ? `✓ Correct! The answer is ${q.answer}.`
+                    : `The correct answer is ${q.answer}. ${q.options.find((o) => o.label === q.answer)?.text ?? ""}`}
+                </div>
+              )}
 
-                {!isRevealed && (
-                  <button
-                    onClick={() => { if (!isLast) setCurrentIdx((i) => i + 1); }}
-                    disabled={isLast}
-                    style={{ fontFamily: "var(--font-golos)", fontSize: "15px", fontWeight: 500, padding: "12px 24px", borderRadius: "var(--radius-md)", border: "1px solid var(--color-hairline)", background: "#fff", color: isLast ? "#C0C5D0" : "var(--color-slate)", cursor: isLast ? "not-allowed" : "pointer" }}
-                  >
-                    Skip
-                  </button>
-                )}
-
-                <button
-                  onClick={handleQuestionSubmit}
-                  style={{ fontFamily: "var(--font-golos)", fontSize: "15px", fontWeight: 600, padding: "12px 28px", borderRadius: "var(--radius-md)", border: "none", background: isRevealed ? "var(--color-navy-900)" : selected ? "var(--color-primary)" : "#C0C5D0", color: "#fff", cursor: selected || isRevealed ? "pointer" : "not-allowed", transition: "background 0.2s" }}
-                >
-                  {submitLabel}
-                </button>
-              </div>
-            </div>
-
-            {/* RIGHT */}
-            <div style={{ width: "260px", flexShrink: 0, paddingTop: "4px" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
-                <span style={{ fontFamily: "var(--font-geist)", fontSize: "15px", fontWeight: 500, color: "var(--color-ink)" }}>Progress</span>
-                <svg width="62" height="62" viewBox="0 0 62 62">
-                  <circle cx="31" cy="31" r={arcR} fill="none" stroke="var(--color-hairline)" strokeWidth="5" />
-                  <circle cx="31" cy="31" r={arcR} fill="none" stroke={arcColor} strokeWidth="5" strokeLinecap="round" strokeDasharray={arcC} strokeDashoffset={arcOffset} transform="rotate(-90 31 31)" style={{ transition: "stroke-dashoffset 0.35s ease, stroke 0.3s" }} />
-                  <text x="50%" y="50%" textAnchor="middle" dominantBaseline="middle" style={{ fontFamily: "var(--font-golos)", fontSize: "13px", fontWeight: 700, fill: arcColor }}>{revealedCount}/{total}</text>
-                </svg>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "8px", marginBottom: "20px" }}>
-                {mod.questions.map((qq, i) => {
-                  const isCurrent = i === currentIdx;
-                  const isRev = !!revealed[qq.id];
-                  const ans = answers[qq.id];
-                  const wasCorrect = ans === qq.answer;
-
-                  let bgColor = "#fff";
-                  let borderColor = "var(--color-hairline)";
-                  let textColor = "var(--color-ink)";
-
-                  if (isCurrent) {
-                    bgColor = "var(--color-navy-900)"; borderColor = "var(--color-navy-900)"; textColor = "#fff";
-                  } else if (isRev) {
-                    bgColor = wasCorrect ? "#10B981" : "#EF4444"; borderColor = bgColor; textColor = "#fff";
-                  } else if (ans) {
-                    bgColor = "#EBF3FF"; borderColor = "var(--color-primary)"; textColor = "var(--color-primary)";
-                  }
-
-                  return (
-                    <button key={qq.id} onClick={() => setCurrentIdx(i)} style={{ height: "48px", borderRadius: "var(--radius-md)", fontFamily: "var(--font-geist)", fontSize: "15px", fontWeight: isCurrent ? 700 : 500, border: `1.5px solid ${borderColor}`, background: bgColor, color: textColor, cursor: "pointer", transition: "all 0.15s" }}>
-                      {i + 1}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <button onClick={handleQuizSubmit} style={{ width: "100%", padding: "16px", borderRadius: "var(--radius-md)", border: "none", background: allAnswered ? "#10B981" : "var(--color-navy-900)", color: "#fff", fontFamily: "var(--font-golos)", fontSize: "17px", fontWeight: 600, cursor: "pointer", transition: "background 0.2s" }}>
-                {allAnswered ? "Submit quiz ✓" : "Submit quiz"}
+              {/* Primary action */}
+              <button
+                onClick={handlePrimaryAction}
+                disabled={primaryDisabled}
+                style={{
+                  marginTop: "28px",
+                  padding: "14px 32px",
+                  borderRadius: "var(--r-card)",
+                  border: "none",
+                  background: primaryDisabled
+                    ? "var(--disabled)"
+                    : "var(--navy)",
+                  color: "#ffffff",
+                  fontSize: "16px",
+                  fontWeight: 600,
+                  cursor: primaryDisabled ? "not-allowed" : "pointer",
+                  transition: "background 0.2s",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                {primaryLabel}
               </button>
-              <p style={{ fontFamily: "var(--font-geist)", fontSize: "13px", color: "var(--color-slate)", marginTop: "10px", textAlign: "center" }}>
-                {allAnswered ? "All answered — ready to submit!" : `${total - answeredCount} question${total - answeredCount !== 1 ? "s" : ""} remaining`}
-              </p>
             </div>
 
+            {/* Below card */}
+            <div
+              style={{
+                marginTop: "20px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <span style={{ fontSize: "12px", color: "var(--faint)" }}>
+                Use 1–4 to select · Enter to confirm · ← → navigate
+              </span>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
+                <button
+                  onClick={handleSubmitQuiz}
+                  style={{
+                    fontSize: "14px",
+                    fontWeight: 500,
+                    color: "var(--navy)",
+                    background: "transparent",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: 0,
+                  }}
+                >
+                  Submit quiz →
+                </button>
+                {submitWarnMsg && (
+                  <span
+                    style={{
+                      fontSize: "12px",
+                      color: "var(--incorrect-text)",
+                      animation: "fade-in-up 0.2s ease",
+                    }}
+                  >
+                    {submitWarnMsg}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </main>
+      </div>
     </>
   );
 }
