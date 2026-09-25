@@ -229,18 +229,29 @@ function ResultsContent() {
 
               {/* RIGHT: Feedback content */}
               <div style={{ paddingTop: "4px" }}>
-                <p
+                <span
                   style={{
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    letterSpacing: "0.1em",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "6px 16px",
+                    borderRadius: "var(--r-pill)",
+                    background: "rgba(255,255,255,.18)",
+                    border: "1px solid rgba(255,255,255,.3)",
+                    color: "#ffffff",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    letterSpacing: "0.04em",
                     textTransform: "uppercase",
-                    color: "var(--on-navy-2)",
-                    margin: "0 0 14px",
+                    marginBottom: "16px",
                   }}
                 >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <circle cx="6" cy="6" r="5" stroke="white" strokeWidth="1.2" />
+                    <path d="M6 3.5v3l2 1.2" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
                   Get your 1-on-1 feedback &amp; learning plan
-                </p>
+                </span>
 
                 <h1
                   style={{
