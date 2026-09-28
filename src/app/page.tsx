@@ -55,7 +55,7 @@ export default function Home() {
                 letterSpacing: "0.01em",
               }}
             >
-              Gen AI · Skills Assessment
+              Claude Certification · Module Assessment
             </div>
 
             <h1
@@ -119,7 +119,7 @@ export default function Home() {
                   color: "var(--on-navy-2)",
                 }}
               >
-                {completed} of {unlocked.length} tracks completed
+                {completed} of {unlocked.length} modules completed
               </span>
             </div>
           </div>
@@ -145,7 +145,7 @@ export default function Home() {
                 margin: "0 0 8px",
               }}
             >
-              Assessment tracks
+              Certification modules
             </p>
             <h2
               style={{
@@ -156,7 +156,7 @@ export default function Home() {
                 margin: "0 0 32px",
               }}
             >
-              Choose your track
+              Choose your module
             </h2>
 
             {/* Unlocked cards */}

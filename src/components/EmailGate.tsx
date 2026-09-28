@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { saveLead } from "@/lib/supabase";
 
 const EMAIL_KEY = "quix_user_email";
+const SKIP_KEY = "quix_skipped_email";
 
 export function getStoredEmail(): string | null {
   if (typeof window === "undefined") return null;
@@ -20,9 +21,10 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = localStorage.getItem(EMAIL_KEY);
+    const skipped = localStorage.getItem(SKIP_KEY);
     if (stored) {
       setEmail(stored);
-    } else {
+    } else if (!skipped) {
       setShowModal(true);
     }
     setReady(true);
@@ -42,6 +44,11 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
     setEmail(trimmed);
     setShowModal(false);
     setLoading(false);
+  }
+
+  function handleDismiss() {
+    localStorage.setItem(SKIP_KEY, "true");
+    setShowModal(false);
   }
 
   if (!ready) return null;
@@ -71,9 +78,43 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
               maxWidth: "480px",
               width: "100%",
               boxShadow: "var(--shadow-feature)",
-              animation: "fade-in-up 0.35s ease both",
+              position: "relative",
             }}
           >
+            {/* Close button */}
+            <button
+              onClick={handleDismiss}
+              aria-label="Skip and close"
+              style={{
+                position: "absolute",
+                top: "16px",
+                right: "16px",
+                width: "32px",
+                height: "32px",
+                borderRadius: "50%",
+                border: "1px solid var(--border)",
+                background: "#fff",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "18px",
+                lineHeight: 1,
+                color: "var(--muted)",
+                transition: "background 0.15s, color 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = "var(--canvas)";
+                (e.currentTarget as HTMLButtonElement).style.color = "var(--ink)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLButtonElement).style.background = "#fff";
+                (e.currentTarget as HTMLButtonElement).style.color = "var(--muted)";
+              }}
+            >
+              ×
+            </button>
+
             {/* Icon */}
             <div
               style={{
@@ -130,7 +171,7 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
                   color: "var(--muted)",
                 }}
               >
-                Gen AI · Skills Assessment
+                Claude Certification · Module Assessment
               </span>
             </div>
 
@@ -154,8 +195,8 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
                 margin: "0 0 28px",
               }}
             >
-              Enter your email to access the assessment and receive your
-              personalised results.
+              Enter your email to receive your personalised results — or skip to
+              start right away.
             </p>
 
             <form onSubmit={handleSubmit}>
@@ -196,13 +237,11 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
                 }}
                 onFocus={(e) => {
                   if (!error)
-                    (e.target as HTMLInputElement).style.borderColor =
-                      "var(--navy)";
+                    (e.target as HTMLInputElement).style.borderColor = "var(--navy)";
                 }}
                 onBlur={(e) => {
                   if (!error)
-                    (e.target as HTMLInputElement).style.borderColor =
-                      "var(--border)";
+                    (e.target as HTMLInputElement).style.borderColor = "var(--border)";
                 }}
               />
               {error && (
@@ -239,6 +278,26 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
                 }}
               >
                 {loading ? "Saving…" : "Start Assessment →"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDismiss}
+                style={{
+                  marginTop: "10px",
+                  width: "100%",
+                  padding: "10px",
+                  borderRadius: "var(--r-card)",
+                  border: "1px solid var(--border)",
+                  background: "#fff",
+                  color: "var(--muted)",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Skip for now
               </button>
 
               <p
