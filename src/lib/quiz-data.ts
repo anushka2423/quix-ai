@@ -843,6 +843,7 @@ export const modules: QuizModule[] = [
     title: "Production Engineering, Evals and Security",
     description:
       "Go deep on AI agent evaluation, KPIs, observability, security guardrails, and the launch criteria that keep production agents reliable.",
+    locked: true,
     questions: [
       {
         id: 1,
@@ -1109,6 +1110,7 @@ export const modules: QuizModule[] = [
     title: "Accelerators and IP Contribution",
     description:
       "Master the responsible AI frameworks, contribution patterns, and org structures needed to accelerate AI adoption and build lasting intellectual property.",
+    locked: true,
     questions: [
       {
         id: 1,
