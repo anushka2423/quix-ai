@@ -10,8 +10,8 @@ import { getStoredEmail } from "@/components/EmailGate";
 import Header from "@/components/Header";
 
 const CONFETTI_COLORS = [
-  "#002862", "#0a3578", "#1a4a92", "#1f7a52", "#7cc4a0",
-  "#d6def0", "#a9bcdf", "#eef2f9", "#e6f5ed",
+  "#071b39", "#ff9b50", "#ec7626", "#1f7a52", "#7cc4a0",
+  "#ffb77e", "#a9bcdf", "#fff3e8", "#e6f5ed",
 ];
 
 export default function QuizPage() {
@@ -179,7 +179,7 @@ export default function QuizPage() {
 
   const segmentColors: Record<string, string> = {
     default: "rgba(255,255,255,.18)",
-    current: "rgba(255,255,255,.6)",
+    current: "var(--accent)",
     answered: "rgba(255,255,255,1)",
     correct: "#7cc4a0",
     wrong: "#e7a3a3",
@@ -199,11 +199,11 @@ export default function QuizPage() {
       case "selected":
         return {
           wrapper: {
-            border: "2px solid var(--navy)",
-            background: "var(--wash)",
+            border: "2px solid var(--accent-dark)",
+            background: "#fff3e8",
             color: "var(--ink)",
           },
-          badge: { background: "var(--navy)", color: "#ffffff", border: "none" },
+          badge: { background: "var(--accent-dark)", color: "#ffffff", border: "none" },
           text: { color: "var(--ink)" },
         };
       case "correct":
@@ -501,12 +501,13 @@ export default function QuizPage() {
                   style={{
                     padding: "5px 14px",
                     borderRadius: "var(--r-pill)",
-                    background: "var(--navy)",
-                    color: "#ffffff",
+                    background: "var(--accent)",
+                    color: "var(--navy)",
                     fontSize: "13px",
-                    fontWeight: 700,
-                    letterSpacing: "0.02em",
+                    fontWeight: 800,
+                    letterSpacing: "0.04em",
                     flexShrink: 0,
+                    fontFamily: "var(--font-manrope), sans-serif",
                   }}
                 >
                   {String(currentIdx + 1).padStart(2, "0")}
@@ -671,17 +672,28 @@ export default function QuizPage() {
                 style={{
                   marginTop: "28px",
                   padding: "14px 32px",
-                  borderRadius: "var(--r-card)",
+                  borderRadius: "9px",
                   border: "none",
                   background: primaryDisabled
                     ? "var(--disabled)"
-                    : "var(--navy)",
-                  color: "#ffffff",
+                    : "var(--accent)",
+                  color: primaryDisabled ? "#ffffff" : "var(--navy)",
                   fontSize: "16px",
-                  fontWeight: 600,
+                  fontWeight: 700,
                   cursor: primaryDisabled ? "not-allowed" : "pointer",
-                  transition: "background 0.2s",
+                  transition: "background 0.2s, transform 0.15s",
                   letterSpacing: "-0.01em",
+                  minHeight: "52px",
+                }}
+                onMouseEnter={(e) => {
+                  if (!primaryDisabled) {
+                    (e.currentTarget as HTMLButtonElement).style.background = "#ffb77e";
+                    (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLButtonElement).style.background = primaryDisabled ? "var(--disabled)" : "var(--accent)";
+                  (e.currentTarget as HTMLButtonElement).style.transform = "none";
                 }}
               >
                 {primaryLabel}
@@ -705,12 +717,14 @@ export default function QuizPage() {
                   onClick={handleSubmitQuiz}
                   style={{
                     fontSize: "14px",
-                    fontWeight: 500,
-                    color: "var(--navy)",
+                    fontWeight: 600,
+                    color: "var(--accent-dark)",
                     background: "transparent",
                     border: "none",
                     cursor: "pointer",
                     padding: 0,
+                    borderBottom: "1px solid var(--accent-dark)",
+                    paddingBottom: "2px",
                   }}
                 >
                   Submit quiz →

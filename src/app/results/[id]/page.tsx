@@ -10,8 +10,8 @@ import Header from "@/components/Header";
 const CALENDLY_URL = "https://calendly.com/d/dtdk-7jq-xwm/1-1";
 
 const CONFETTI_COLORS = [
-  "#002862", "#0a3578", "#7cc4a0", "#d6def0", "#e6f5ed",
-  "#a9bcdf", "#eef2f9", "#1f7a52",
+  "#071b39", "#ff9b50", "#ec7626", "#7cc4a0", "#d6e4f0",
+  "#a9bcdf", "#fff3e8", "#1f7a52",
 ];
 
 function Confetti() {
@@ -321,15 +321,25 @@ function ResultsContent() {
                     display: "inline-flex",
                     alignItems: "center",
                     gap: "8px",
-                    padding: "14px 32px",
-                    borderRadius: "var(--r-pill)",
-                    background: "#ffffff",
+                    padding: "17px 32px",
+                    borderRadius: "9px",
+                    background: "var(--accent)",
                     color: "var(--navy)",
                     fontWeight: 700,
                     fontSize: "16px",
                     textDecoration: "none",
                     letterSpacing: "-0.01em",
                     boxShadow: "0 4px 16px rgba(0,0,0,.15)",
+                    transition: "background 0.15s, transform 0.15s",
+                    minHeight: "54px",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLAnchorElement).style.background = "#ffb77e";
+                    (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-1px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLAnchorElement).style.background = "var(--accent)";
+                    (e.currentTarget as HTMLAnchorElement).style.transform = "none";
                   }}
                 >
                   Book my free 1-on-1
@@ -380,9 +390,10 @@ function ResultsContent() {
                         background: filter === f ? "var(--navy)" : "transparent",
                         color: filter === f ? "#ffffff" : "var(--ink)",
                         fontSize: "13px",
-                        fontWeight: 500,
+                        fontWeight: 600,
                         cursor: "pointer",
                         transition: "all 0.15s",
+                        fontFamily: "inherit",
                       }}
                     >
                       {f === "all" ? `All ${count}` : `Incorrect ${count}`}
@@ -608,14 +619,16 @@ function ResultsContent() {
                         display: "inline-flex",
                         alignItems: "center",
                         gap: "8px",
-                        padding: "13px 24px",
-                        borderRadius: "var(--r-card)",
-                        background: "var(--navy)",
-                        color: "#ffffff",
+                        padding: "14px 24px",
+                        borderRadius: "9px",
+                        background: "var(--accent)",
+                        color: "var(--navy)",
                         fontSize: "15px",
-                        fontWeight: 600,
+                        fontWeight: 700,
                         textDecoration: "none",
                         letterSpacing: "-0.01em",
+                        minHeight: "52px",
+                        transition: "background 0.15s",
                       }}
                     >
                       🔒 Unlock Module {nextMod.id}: {nextMod.title}
@@ -627,14 +640,16 @@ function ResultsContent() {
                         display: "inline-flex",
                         alignItems: "center",
                         gap: "8px",
-                        padding: "13px 24px",
-                        borderRadius: "var(--r-card)",
-                        background: "var(--navy)",
-                        color: "#ffffff",
+                        padding: "14px 24px",
+                        borderRadius: "9px",
+                        background: "var(--accent)",
+                        color: "var(--navy)",
                         fontSize: "15px",
-                        fontWeight: 600,
+                        fontWeight: 700,
                         textDecoration: "none",
                         letterSpacing: "-0.01em",
+                        minHeight: "52px",
+                        transition: "background 0.15s",
                       }}
                     >
                       Next: {nextMod.title} →
@@ -680,15 +695,16 @@ function ResultsContent() {
             rel="noopener noreferrer"
             style={{
               display: "inline-block",
-              padding: "11px 24px",
-              borderRadius: "var(--r-pill)",
-              background: "var(--navy)",
-              color: "#ffffff",
+              padding: "12px 24px",
+              borderRadius: "9px",
+              background: "var(--accent)",
+              color: "var(--navy)",
               fontSize: "14px",
-              fontWeight: 600,
+              fontWeight: 700,
               textDecoration: "none",
               whiteSpace: "nowrap",
               letterSpacing: "-0.01em",
+              transition: "background 0.15s",
             }}
           >
             Book my free 1-on-1 →
