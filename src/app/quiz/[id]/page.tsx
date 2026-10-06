@@ -141,7 +141,9 @@ export default function QuizPage() {
   function scrollToOpt(idx: number) {
     const el = carouselRef.current;
     if (!el) return;
-    el.scrollTo({ left: idx * el.offsetWidth, behavior: "smooth" });
+    // Use instant assignment to avoid race with the onScroll handler
+    // (smooth scrollTo fires many scroll events that would reset the index mid-animation)
+    el.scrollLeft = idx * el.offsetWidth;
     setVisibleOptIdx(idx);
   }
 
