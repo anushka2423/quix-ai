@@ -62,6 +62,19 @@ export default function AdminDashboardLayout({
           >
             Modules
           </Link>
+          <Link
+            href="/admin/responses"
+            style={{
+              display: "block",
+              padding: "9px 18px",
+              color: "var(--on-navy)",
+              fontSize: "13px",
+              fontWeight: 500,
+              textDecoration: "none",
+            }}
+          >
+            Responses
+          </Link>
           <a
             href="/"
             target="_blank"

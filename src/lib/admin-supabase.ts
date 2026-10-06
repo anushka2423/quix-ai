@@ -27,8 +27,30 @@ import { createClient } from "@supabase/supabase-js";
     created_at   timestamptz not null default now()
   );
 
+  create table if not exists quiz_leads (
+    id           serial primary key,
+    email        text not null unique,
+    created_at   timestamptz not null default now()
+  );
+
+  -- answers stores a JSON array of per-question results:
+  -- [{ questionId, question, section, difficulty, userAnswer, correctAnswer, isCorrect }, ...]
+  create table if not exists quiz_results (
+    id             serial primary key,
+    email          text not null,
+    module_id      integer not null,
+    module_title   text not null default '',
+    answers        text not null default '[]',
+    score          integer not null default 0,
+    total          integer not null default 0,
+    pct            integer not null default 0,
+    completed_at   timestamptz not null default now()
+  );
+
   alter table quiz_modules disable row level security;
   alter table quiz_questions disable row level security;
+  alter table quiz_leads disable row level security;
+  alter table quiz_results disable row level security;
 */
 
 function getClient() {
@@ -88,5 +110,36 @@ export async function adminFetchQuestions(moduleId: number): Promise<DbQuestion[
     .select("*")
     .eq("module_id", moduleId)
     .order("order_index", { ascending: true });
+  return data ?? [];
+}
+
+export type DbResponse = {
+  id: number;
+  email: string;
+  module_id: number;
+  module_title: string;
+  answers: string;
+  score: number;
+  total: number;
+  pct: number;
+  completed_at: string;
+};
+
+export type DetailedAnswer = {
+  questionId: number;
+  question: string;
+  section: string;
+  difficulty: string;
+  userAnswer: string;
+  correctAnswer: string;
+  isCorrect: boolean;
+};
+
+export async function adminFetchResponses(): Promise<DbResponse[]> {
+  const sb = getClient();
+  const { data } = await sb
+    .from("quiz_results")
+    .select("*")
+    .order("completed_at", { ascending: false });
   return data ?? [];
 }

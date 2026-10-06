@@ -9,6 +9,117 @@ const CALENDLY_URL = "https://calendly.com/d/dtdk-7jq-xwm/1-1";
 
 type Scores = Record<string, { score: number; total: number; pct: number }>;
 
+const SKILL_REPORT_SKILLS = [
+  { label: "AI product decisions", pct: 80 },
+  { label: "Agents & context", pct: 65 },
+  { label: "Evaluations & safety", pct: 45 },
+  { label: "Claude Code & MCP", pct: 40 },
+];
+const SR_SCORE = 58;
+const SR_R = 40;
+const SR_CIRC = 2 * Math.PI * SR_R;
+
+function SkillReportCard() {
+  return (
+    <div style={{
+      background: "#fff",
+      borderRadius: "16px",
+      boxShadow: "0 25px 70px rgba(0,0,0,.22)",
+      padding: "24px",
+      width: "100%",
+      maxWidth: "380px",
+      fontFamily: "var(--font-dm-sans), system-ui, sans-serif",
+    }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+        <span style={{ fontSize: "13px", fontWeight: 800, color: "#0f1d35", letterSpacing: "0.03em", fontFamily: "var(--font-manrope), sans-serif" }}>
+          YOUR AI PM SKILL REPORT
+        </span>
+        <span style={{ fontSize: "11px", padding: "3px 10px", borderRadius: "6px", background: "#eef0f4", color: "#6b7a8f", fontWeight: 500, whiteSpace: "nowrap" }}>
+          Illustrative sample
+        </span>
+      </div>
+
+      <div style={{ height: "1px", background: "#e4e8f0", marginBottom: "20px" }} />
+
+      {/* Score row */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "20px" }}>
+        <div>
+          <p style={{ fontSize: "13px", color: "#6b7a8f", margin: "0 0 6px" }}>Readiness score</p>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "2px", marginBottom: "6px" }}>
+            <span style={{ fontSize: "44px", fontWeight: 800, color: "#0f1d35", lineHeight: 1, fontFamily: "var(--font-manrope), sans-serif" }}>
+              {SR_SCORE}
+            </span>
+            <span style={{ fontSize: "18px", color: "#6b7a8f", fontWeight: 400 }}>/100</span>
+          </div>
+          <p style={{ fontSize: "13px", color: "#6b7a8f", margin: 0 }}>
+            Your next step: build execution skills
+          </p>
+        </div>
+
+        {/* Donut chart */}
+        <svg width="94" height="94" viewBox="0 0 94 94" style={{ flexShrink: 0 }}>
+          <circle cx="47" cy="47" r={SR_R} fill="none" stroke="#e4e8f0" strokeWidth="9" />
+          <circle
+            cx="47" cy="47" r={SR_R}
+            fill="none"
+            stroke="#c95d0a"
+            strokeWidth="9"
+            strokeLinecap="round"
+            strokeDasharray={SR_CIRC}
+            strokeDashoffset={SR_CIRC * (1 - SR_SCORE / 100)}
+            transform="rotate(-90 47 47)"
+          />
+          <text x="47" y="43" textAnchor="middle" style={{ fontSize: "20px", fontWeight: 800, fill: "#0f1d35", fontFamily: "var(--font-manrope), sans-serif" }}>
+            {SR_SCORE}
+          </text>
+          <text x="47" y="58" textAnchor="middle" style={{ fontSize: "10px", fill: "#6b7a8f" }}>
+            out of 100
+          </text>
+        </svg>
+      </div>
+
+      {/* Skills */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "20px" }}>
+        {SKILL_REPORT_SKILLS.map((s) => (
+          <div key={s.label}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
+              <span style={{ fontSize: "13px", color: "#2a3a52" }}>{s.label}</span>
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "#2a3a52" }}>{s.pct}%</span>
+            </div>
+            <div style={{ height: "5px", background: "#e4e8f0", borderRadius: "99px" }}>
+              <div style={{ height: "100%", width: `${s.pct}%`, background: "#c95d0a", borderRadius: "99px" }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Priority box */}
+      <div style={{
+        background: "#fff3e8",
+        borderRadius: "10px",
+        borderLeft: "3px solid #c95d0a",
+        padding: "14px 16px",
+        marginBottom: "16px",
+      }}>
+        <p style={{ fontSize: "10px", fontWeight: 800, letterSpacing: "0.8px", color: "#c95d0a", textTransform: "uppercase", margin: "0 0 5px", fontFamily: "var(--font-manrope), sans-serif" }}>
+          Your first learning priority
+        </p>
+        <p style={{ fontSize: "14px", fontWeight: 700, color: "#0f1d35", margin: "0 0 4px", lineHeight: 1.4 }}>
+          Move from a working demo to a reliable agent.
+        </p>
+        <p style={{ fontSize: "13px", color: "#6b7a8f", margin: 0, lineHeight: 1.5 }}>
+          Start with evaluation criteria, tool permissions and failure handling.
+        </p>
+      </div>
+
+      <p style={{ fontSize: "12px", color: "#9aa5b4", textAlign: "center", margin: 0 }}>
+        Your report is based on your answers.
+      </p>
+    </div>
+  );
+}
+
 function quizMeta(questionCount: number) {
   return `${questionCount} questions · ~${Math.round(questionCount * 1.5)} min`;
 }
@@ -138,19 +249,9 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Right: hero card screenshot */}
+              {/* Right: skill report card */}
               <div className="hero-img-col" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/hero-card.png"
-                  alt="AI PM Skill Report sample"
-                  className="hero-img"
-                  style={{
-                    borderRadius: "16px",
-                    boxShadow: "0 25px 70px rgba(0,0,0,.18)",
-                    display: "block",
-                  }}
-                />
+                <SkillReportCard />
               </div>
             </div>
           </div>

@@ -5,8 +5,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { modules } from "@/lib/quiz-data";
 import type { OptionLabel } from "@/types/quiz";
-import { saveResult } from "@/lib/supabase";
-import { getStoredEmail } from "@/components/EmailGate";
+import { saveResult, saveLead } from "@/lib/supabase";
 import Header from "@/components/Header";
 
 export default function QuizPage() {
@@ -21,6 +20,19 @@ export default function QuizPage() {
   // Mobile carousel — tracks which option card is currently visible (0–4)
   const [visibleOptIdx, setVisibleOptIdx] = useState(0);
   const carouselRef = useRef<HTMLDivElement>(null);
+
+  // Email gate — mandatory before quiz
+  const [emailGateReady, setEmailGateReady] = useState(false);
+  const [emailGateEmail, setEmailGateEmail] = useState<string | null>(null);
+  const [emailInput, setEmailInput] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [emailLoading, setEmailLoading] = useState(false);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("quix_user_email");
+    setEmailGateEmail(stored);
+    setEmailGateReady(true);
+  }, []);
 
   if (!mod) {
     return (
@@ -59,13 +71,22 @@ export default function QuizPage() {
       localStorage.setItem("aipm_scores", JSON.stringify(existing));
     } catch {}
 
-    const email = getStoredEmail();
+    const email = emailGateEmail;
     if (email) {
+      const detailedAnswers = mod!.questions.map((qq) => ({
+        questionId: qq.id,
+        question: qq.question,
+        section: qq.section,
+        difficulty: qq.difficulty,
+        userAnswer: answers[qq.id] ?? "",
+        correctAnswer: qq.answer,
+        isCorrect: answers[qq.id] === qq.answer,
+      }));
       saveResult({
         email,
         moduleId,
         moduleTitle: mod!.title,
-        answers: answerString,
+        answers: JSON.stringify(detailedAnswers),
         score,
         total,
       }).catch(() => {});
@@ -185,8 +206,136 @@ export default function QuizPage() {
     };
   }
 
+  async function handleEmailGateSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = emailInput.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setEmailError("Please enter a valid email address.");
+      return;
+    }
+    setEmailLoading(true);
+    setEmailError("");
+    await saveLead(trimmed);
+    localStorage.setItem("quix_user_email", trimmed);
+    setEmailGateEmail(trimmed);
+    setEmailLoading(false);
+  }
+
   return (
     <>
+      {/* Mandatory email gate — covers everything until email is provided */}
+      {(!emailGateReady || !emailGateEmail) && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            background: "var(--canvas)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "24px",
+          }}
+        >
+          {emailGateReady && (
+            <div
+              style={{
+                background: "#fff",
+                borderRadius: "var(--r-feature)",
+                padding: "48px",
+                maxWidth: "480px",
+                width: "100%",
+                boxShadow: "var(--shadow-feature)",
+              }}
+            >
+              {/* Icon */}
+              <div
+                style={{
+                  width: "52px",
+                  height: "52px",
+                  borderRadius: "14px",
+                  background: "var(--wash)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: "24px",
+                }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="#002862" strokeWidth="1.6" strokeLinejoin="round" />
+                  <path d="M22 6l-10 7L2 6" stroke="#002862" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "12px" }}>
+                <div style={{ width: "7px", height: "7px", borderRadius: "2px", background: "var(--navy)" }} />
+                <span style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.6px", textTransform: "uppercase" as const, color: "var(--muted)" }}>
+                  Claude Certification · Module Assessment
+                </span>
+              </div>
+
+              <h2 style={{ fontSize: "26px", fontWeight: 700, color: "var(--ink)", margin: "0 0 10px", lineHeight: 1.25, letterSpacing: "-0.02em" }}>
+                Before we begin
+              </h2>
+              <p style={{ fontSize: "15px", lineHeight: 1.6, color: "var(--muted)", margin: "0 0 28px" }}>
+                Enter your work email to start the assessment. Your results will be tracked so our team can give you personalised feedback.
+              </p>
+
+              <form onSubmit={handleEmailGateSubmit}>
+                <label style={{ display: "block", fontSize: "13px", fontWeight: 600, color: "var(--ink)", marginBottom: "8px" }}>
+                  Email address
+                </label>
+                <input
+                  type="email"
+                  placeholder="you@company.com"
+                  value={emailInput}
+                  onChange={(e) => { setEmailInput(e.target.value); setEmailError(""); }}
+                  autoFocus
+                  style={{
+                    width: "100%",
+                    padding: "13px 16px",
+                    borderRadius: "var(--r-input)",
+                    border: emailError ? "1.5px solid var(--incorrect-text)" : "1.5px solid var(--border)",
+                    fontSize: "15px",
+                    color: "var(--ink)",
+                    outline: "none",
+                    boxSizing: "border-box" as const,
+                    background: "#fff",
+                    fontFamily: "inherit",
+                  }}
+                />
+                {emailError && (
+                  <p style={{ fontSize: "13px", color: "var(--incorrect-text)", marginTop: "6px", marginBottom: 0 }}>
+                    {emailError}
+                  </p>
+                )}
+                <button
+                  type="submit"
+                  disabled={emailLoading}
+                  style={{
+                    marginTop: "16px",
+                    width: "100%",
+                    padding: "14px",
+                    borderRadius: "var(--r-card)",
+                    border: "none",
+                    background: "var(--navy)",
+                    color: "#fff",
+                    fontSize: "16px",
+                    fontWeight: 600,
+                    cursor: emailLoading ? "not-allowed" : "pointer",
+                    opacity: emailLoading ? 0.7 : 1,
+                    fontFamily: "inherit",
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  {emailLoading ? "Saving…" : "Start Assessment →"}
+                </button>
+              </form>
+            </div>
+          )}
+        </div>
+      )}
+
       <Header moduleTitle={mod.title} />
 
       <div
