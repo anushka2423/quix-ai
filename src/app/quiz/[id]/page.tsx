@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { modules } from "@/lib/quiz-data";
-import type { OptionLabel, AnswerLabel } from "@/types/quiz";
+import type { OptionLabel } from "@/types/quiz";
 import { saveResult } from "@/lib/supabase";
 import { getStoredEmail } from "@/components/EmailGate";
 import Header from "@/components/Header";
@@ -15,8 +15,7 @@ export default function QuizPage() {
   const moduleId = Number(params.id);
   const mod = modules.find((m) => m.id === moduleId);
 
-  // answers[questionId] = selected label (A/B/C/D or "?" for "I'm not sure")
-  const [answers, setAnswers] = useState<Record<number, AnswerLabel>>({});
+  const [answers, setAnswers] = useState<Record<number, OptionLabel>>({});
   const [currentIdx, setCurrentIdx] = useState(0);
 
   // Mobile carousel — tracks which option card is currently visible (0–4)
@@ -38,7 +37,7 @@ export default function QuizPage() {
 
   const total = mod.questions.length;
   const q = mod.questions[currentIdx];
-  const selected = answers[q.id] as AnswerLabel | undefined;
+  const selected = answers[q.id] as OptionLabel | undefined;
   const isFirst = currentIdx === 0;
   const isLast = currentIdx === total - 1;
   const primaryDisabled = !selected;
@@ -88,7 +87,7 @@ export default function QuizPage() {
     if (!isFirst) setCurrentIdx((i) => i - 1);
   }
 
-  function selectAnswer(label: AnswerLabel) {
+  function selectAnswer(label: OptionLabel) {
     setAnswers((prev) => ({ ...prev, [q.id]: label }));
   }
 
@@ -155,8 +154,7 @@ export default function QuizPage() {
     answered: "rgba(255,255,255,1)",
   };
 
-  // Option visual state — only selected vs default (no reveals during quiz)
-  function optionState(label: OptionLabel | "?"): "selected" | "default" {
+  function optionState(label: OptionLabel): "selected" | "default" {
     return label === selected ? "selected" : "default";
   }
 
@@ -186,39 +184,6 @@ export default function QuizPage() {
       text: { color: "var(--ink)" },
     };
   }
-
-  function getNotSureStyles(state: "selected" | "default") {
-    if (state === "selected") {
-      return {
-        wrapper: {
-          border: "2px solid var(--accent-dark)",
-          background: "#fff3e8",
-          color: "var(--ink)",
-        },
-        badge: { background: "var(--accent-dark)", color: "#ffffff", border: "none" },
-        text: { color: "var(--muted)", fontStyle: "italic" as const },
-      };
-    }
-    return {
-      wrapper: {
-        border: "1px dashed var(--border)",
-        background: "#ffffff",
-        color: "var(--muted)",
-      },
-      badge: {
-        background: "#ffffff",
-        color: "var(--faint)",
-        border: "1px dashed var(--border)",
-      },
-      text: { color: "var(--muted)", fontStyle: "italic" as const },
-    };
-  }
-
-  // All options including "I'm not sure"
-  const allOptions: Array<{ label: AnswerLabel; text: string }> = [
-    ...q.options.map((o) => ({ label: o.label as AnswerLabel, text: o.text })),
-    { label: "?", text: "I'm not sure" },
-  ];
 
   return (
     <>
@@ -377,7 +342,6 @@ export default function QuizPage() {
                 className="quiz-options-desktop"
                 style={{ display: "flex", flexDirection: "column", gap: "10px" }}
               >
-                {/* A / B / C / D */}
                 {q.options.map((opt) => {
                   const state = optionState(opt.label);
                   const styles = getOptionStyles(state);
@@ -425,54 +389,6 @@ export default function QuizPage() {
                     </button>
                   );
                 })}
-
-                {/* I'm not sure */}
-                {(() => {
-                  const state = optionState("?");
-                  const styles = getNotSureStyles(state);
-                  return (
-                    <button
-                      onClick={() => selectAnswer("?")}
-                      aria-pressed={state === "selected"}
-                      className={`option-btn${state === "selected" ? " option-selected" : ""}`}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "14px",
-                        padding: "14px 18px",
-                        borderRadius: "var(--r-option)",
-                        textAlign: "left",
-                        width: "100%",
-                        cursor: "pointer",
-                        ...styles.wrapper,
-                        transition: "all 0.15s",
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: "28px",
-                          height: "28px",
-                          borderRadius: "var(--r-option)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "13px",
-                          fontWeight: 600,
-                          flexShrink: 0,
-                          transition: "all 0.15s",
-                          ...styles.badge,
-                        }}
-                      >
-                        ?
-                      </span>
-                      <span
-                        style={{ flex: 1, fontSize: "15px", lineHeight: "24px", ...styles.text }}
-                      >
-                        I&apos;m not sure
-                      </span>
-                    </button>
-                  );
-                })()}
               </div>
 
               {/* Options — Mobile swipeable carousel (visible only on ≤460px) */}
