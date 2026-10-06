@@ -9,7 +9,9 @@ export default function Header({ moduleTitle }: { moduleTitle?: string }) {
     <header style={{
       background: "#ffffff",
       borderBottom: "1px solid var(--border)",
-      position: "relative",
+      position: "sticky",
+      top: 0,
+      zIndex: 50,
       flexShrink: 0,
     }}>
       <div className="page-wrap" style={{
@@ -25,39 +27,22 @@ export default function Header({ moduleTitle }: { moduleTitle?: string }) {
             textDecoration: "none",
             display: "flex",
             alignItems: "center",
-            gap: "12px",
             flexShrink: 0,
           }}
-          aria-label="Quix AI home"
+          aria-label="Agentic AI Institute home"
         >
-          <span style={{
-            width: "42px",
-            height: "42px",
-            background: "var(--navy)",
-            color: "var(--accent)",
-            borderRadius: "11px",
-            fontFamily: "var(--font-manrope), sans-serif",
-            fontWeight: 800,
-            fontSize: "22px",
-            display: "grid",
-            placeContent: "center",
-            flexShrink: 0,
-          }} aria-hidden="true">
-            Q
-          </span>
-          <span style={{
-            fontSize: "15px",
-            lineHeight: 1.15,
-            color: "var(--ink)",
-          }}>
-            Quix<br />
-            <strong style={{ fontWeight: 800 }}>AI</strong>
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/agentic-ai-logo-cropped.png"
+            alt="Agentic AI Institute"
+            className="nav-logo-img"
+            style={{ height: "52px", width: "auto" }}
+          />
         </Link>
 
         {/* Center label */}
         <span className="nav-label-center">
-          {moduleTitle ?? "AI PM readiness quiz"}
+          {moduleTitle ?? "AI PM Readiness Quiz"}
         </span>
 
         {/* Spacer */}
@@ -68,6 +53,7 @@ export default function Header({ moduleTitle }: { moduleTitle?: string }) {
           href={CALENDLY_URL}
           target="_blank"
           rel="noopener noreferrer"
+          className="nav-book-btn"
           style={{
             display: "inline-flex",
             alignItems: "center",
