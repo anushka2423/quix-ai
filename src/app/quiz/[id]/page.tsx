@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { modules } from "@/lib/quiz-data";
 import type { OptionLabel } from "@/types/quiz";
@@ -27,6 +27,9 @@ export default function QuizPage() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [submitWarned, setSubmitWarned] = useState(false);
   const [submitWarnMsg, setSubmitWarnMsg] = useState("");
+  // Mobile carousel — tracks which option card is currently visible
+  const [visibleOptIdx, setVisibleOptIdx] = useState(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
 
   const confettiPieces = useMemo(
     () =>
@@ -134,6 +137,20 @@ export default function QuizPage() {
     handleFinish();
   }
 
+  // Mobile carousel helpers
+  function scrollToOpt(idx: number) {
+    const el = carouselRef.current;
+    if (!el) return;
+    el.scrollTo({ left: idx * el.offsetWidth, behavior: "smooth" });
+    setVisibleOptIdx(idx);
+  }
+
+  function handleCarouselScroll() {
+    const el = carouselRef.current;
+    if (!el) return;
+    setVisibleOptIdx(Math.round(el.scrollLeft / el.offsetWidth));
+  }
+
   // Keyboard handler
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -165,6 +182,12 @@ export default function QuizPage() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
+
+  // Reset carousel to first card when the question changes
+  useEffect(() => {
+    setVisibleOptIdx(0);
+    if (carouselRef.current) carouselRef.current.scrollLeft = 0;
+  }, [currentIdx]);
 
   // Determine segment state for each question
   function segmentState(i: number) {
@@ -380,6 +403,7 @@ export default function QuizPage() {
           }}
         >
           <div
+            className="quiz-band-inner"
             style={{
               maxWidth: "860px",
               margin: "0 auto",
@@ -471,6 +495,7 @@ export default function QuizPage() {
           }}
         >
           <div
+            className="quiz-content-inner"
             style={{
               maxWidth: "860px",
               margin: "0 auto",
@@ -480,7 +505,7 @@ export default function QuizPage() {
             {/* Quiz card */}
             <div
               key={currentIdx}
-              className="card-enter"
+              className="card-enter quiz-card"
               style={{
                 background: "#ffffff",
                 borderRadius: "var(--r-quiz-card)",
@@ -520,6 +545,7 @@ export default function QuizPage() {
 
               {/* Question */}
               <p
+                className="quiz-question"
                 style={{
                   fontSize: "22px",
                   lineHeight: "32px",
@@ -547,8 +573,11 @@ export default function QuizPage() {
                 </p>
               )}
 
-              {/* Options */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {/* Options — Desktop list (hidden on ≤460px) */}
+              <div
+                className="quiz-options-desktop"
+                style={{ display: "flex", flexDirection: "column", gap: "10px" }}
+              >
                 {q.options.map((opt) => {
                   const state = optionState(opt.label);
                   const styles = getOptionStyles(state);
@@ -579,7 +608,6 @@ export default function QuizPage() {
                         transition: "all 0.15s",
                       }}
                     >
-                      {/* Letter badge */}
                       <span
                         style={{
                           width: "28px",
@@ -597,8 +625,6 @@ export default function QuizPage() {
                       >
                         {isCorrectOpt ? "✓" : isWrongOpt ? "✕" : opt.label}
                       </span>
-
-                      {/* Text + tags */}
                       <span
                         style={{
                           flex: 1,
@@ -609,7 +635,6 @@ export default function QuizPage() {
                       >
                         {opt.text}
                       </span>
-
                       {isCorrectOpt && (
                         <span
                           style={{
@@ -645,6 +670,89 @@ export default function QuizPage() {
                 })}
               </div>
 
+              {/* Options — Mobile swipeable carousel (visible only on ≤460px) */}
+              <div className="quiz-options-mobile">
+                <p className="mobile-answer-label">Answer</p>
+
+                {/* Swipeable card track */}
+                <div
+                  ref={carouselRef}
+                  className="mobile-carousel"
+                  onScroll={handleCarouselScroll}
+                >
+                  {q.options.map((opt) => {
+                    const state = optionState(opt.label);
+                    const styles = getOptionStyles(state);
+                    const isCorrectOpt = state === "correct";
+                    const isWrongOpt = state === "wrong";
+
+                    return (
+                      <div key={opt.label} className="mobile-option-slide">
+                        <button
+                          onClick={() => {
+                            if (isRevealed) return;
+                            setShowNudge(false);
+                            setAnswers((prev) => ({ ...prev, [q.id]: opt.label }));
+                          }}
+                          disabled={isRevealed}
+                          className="mobile-option-card"
+                          style={styles.wrapper as React.CSSProperties}
+                        >
+                          {/* Prominent letter badge */}
+                          <div
+                            className="mobile-option-badge"
+                            style={styles.badge as React.CSSProperties}
+                          >
+                            {isCorrectOpt ? "✓" : isWrongOpt ? "✕" : opt.label}
+                          </div>
+
+                          {/* Full answer text — never truncated */}
+                          <p
+                            className="mobile-option-text"
+                            style={{ color: (styles.text as React.CSSProperties).color }}
+                          >
+                            {opt.text}
+                          </p>
+
+                          {isCorrectOpt && (
+                            <span className="result-tag correct-tag-mobile">Correct</span>
+                          )}
+                          {isWrongOpt && (
+                            <span className="result-tag wrong-tag-mobile">Your answer</span>
+                          )}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Swipe hint */}
+                <p className="mobile-swipe-hint" aria-hidden="true">← swipe →</p>
+
+                {/* A / B / C / D navigation */}
+                <div className="mobile-carousel-nav" role="group" aria-label="Answer navigation">
+                  {q.options.map((opt, optIdx) => {
+                    const isViewing = optIdx === visibleOptIdx;
+                    const isChosen = selected === opt.label;
+                    return (
+                      <button
+                        key={opt.label}
+                        onClick={() => scrollToOpt(optIdx)}
+                        aria-label={`View option ${opt.label}${isChosen ? " (your selection)" : ""}`}
+                        className={
+                          "mobile-nav-btn" +
+                          (isViewing ? " mnb-viewing" : "") +
+                          (isChosen ? " mnb-chosen" : "")
+                        }
+                      >
+                        <span>{opt.label}</span>
+                        {isChosen && <span className="mnb-dot" aria-hidden="true">●</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Explanation / result */}
               {isRevealed && (
                 <div
@@ -669,6 +777,7 @@ export default function QuizPage() {
               <button
                 onClick={handlePrimaryAction}
                 disabled={primaryDisabled}
+                className="quiz-primary-btn"
                 style={{
                   marginTop: "28px",
                   padding: "14px 32px",
@@ -709,7 +818,7 @@ export default function QuizPage() {
                 justifyContent: "space-between",
               }}
             >
-              <span style={{ fontSize: "12px", color: "var(--faint)" }}>
+              <span className="quiz-keyboard-hint" style={{ fontSize: "12px", color: "var(--faint)" }}>
                 Use 1–4 to select · Enter to confirm · ← → navigate
               </span>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>

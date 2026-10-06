@@ -243,3 +243,181 @@ h1, h2, h3, h4, h5, h6 {
   html { scroll-behavior: auto; }
   *, *::before, *::after { transition: none !important; animation: none !important; }
 }
+
+/* ── Mobile quiz carousel (≤460px) ───────────────────────────── */
+
+/* Desktop: options vertical list is default; hide carousel shell */
+.quiz-options-mobile { display: none; }
+
+@media (max-width: 460px) {
+  /* Swap desktop ↔ mobile option rendering */
+  .quiz-options-desktop { display: none !important; }
+  .quiz-options-mobile  { display: block; }
+
+  /* Tighten outer padding so quiz fills the screen width */
+  .quiz-band-inner,
+  .quiz-content-inner {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  /* Quiz card inner padding */
+  .quiz-card { padding: 24px 20px !important; }
+
+  /* Question text – comfortable on phone */
+  .quiz-question {
+    font-size: 22px !important;
+    line-height: 1.35 !important;
+    margin: 0 0 20px !important;
+  }
+
+  /* Check answer – full width, easy tap target */
+  .quiz-primary-btn {
+    width: 100% !important;
+    margin-top: 20px !important;
+  }
+
+  /* Hide keyboard shortcut hint on phone */
+  .quiz-keyboard-hint { display: none !important; }
+
+  /* ── "Answer" section label ── */
+  .mobile-answer-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 12px;
+  }
+
+  /* ── Carousel track ── */
+  .mobile-carousel {
+    display: flex;
+    overflow-x: scroll;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .mobile-carousel::-webkit-scrollbar { display: none; }
+
+  /* Each slide = 100% of carousel width */
+  .mobile-option-slide {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+  }
+
+  /* The clickable card */
+  .mobile-option-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    min-height: 200px;
+    padding: 28px 20px 24px;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: border 0.15s, background 0.15s;
+    box-sizing: border-box;
+    gap: 14px;
+    font-family: inherit;
+  }
+  .mobile-option-card:disabled { cursor: default; }
+  .mobile-option-card:active:not(:disabled) { opacity: 0.9; }
+
+  /* Prominent letter badge */
+  .mobile-option-badge {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 800;
+    flex-shrink: 0;
+    font-family: var(--font-manrope), sans-serif;
+  }
+
+  /* Option text – centered for single-card view */
+  .mobile-option-text {
+    font-size: 15px;
+    line-height: 1.55;
+    text-align: center;
+    margin: 0;
+  }
+
+  /* Correct / wrong result tags */
+  .result-tag {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 12px;
+    border-radius: 999px;
+  }
+  .correct-tag-mobile {
+    color: var(--correct-text);
+    background: rgba(31,122,82,.1);
+  }
+  .wrong-tag-mobile {
+    color: var(--incorrect-text);
+    background: rgba(194,59,59,.1);
+  }
+
+  /* Swipe hint text */
+  .mobile-swipe-hint {
+    font-size: 12px;
+    color: var(--faint);
+    text-align: center;
+    margin: 8px 0 2px;
+    user-select: none;
+  }
+
+  /* Navigation row: [A] [B] [C] [D] */
+  .mobile-carousel-nav {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 4px 0 0;
+  }
+
+  /* Individual nav buttons */
+  .mobile-nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 52px;
+    min-height: 52px;
+    border-radius: 12px;
+    border: 1.5px solid var(--border);
+    background: #fff;
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+    gap: 1px;
+    padding: 4px 6px;
+    font-family: inherit;
+  }
+  .mobile-nav-btn:active { transform: scale(0.93); }
+
+  /* Currently viewing this card → orange fill */
+  .mobile-nav-btn.mnb-viewing {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--navy);
+  }
+
+  /* User selected this option (but not currently viewing it) */
+  .mobile-nav-btn.mnb-chosen:not(.mnb-viewing) {
+    border-color: var(--accent-dark);
+    color: var(--accent-dark);
+  }
+
+  /* Selection dot indicator */
+  .mnb-dot {
+    font-size: 7px;
+    line-height: 1;
+    opacity: 0.8;
+  }
+}
