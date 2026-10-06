@@ -151,7 +151,7 @@ export default function Home() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src="/hero-card.avif"
+                  src="/hero-card.png"
                   alt="AI PM Skill Report sample"
                   style={{
                     width: "100%",
