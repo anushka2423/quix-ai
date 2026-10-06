@@ -147,171 +147,20 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Right: module progress card */}
-              <div style={{
-                background: "#fff",
-                borderRadius: "16px",
-                padding: "28px",
-                boxShadow: "0 25px 70px rgba(0,0,0,.18)",
-                border: "1px solid #d7e4f8",
-                color: "var(--ink)",
-              }}>
-                {/* Card header */}
-                <div style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  gap: "10px",
-                  borderBottom: "1px solid var(--border)",
-                  paddingBottom: "16px",
-                  flexWrap: "wrap",
-                  rowGap: "8px",
-                }}>
-                  <span style={{
-                    fontSize: "11px",
-                    letterSpacing: "0.8px",
-                    fontWeight: 800,
-                    color: "var(--ink-2)",
-                    textTransform: "uppercase",
-                    fontFamily: "var(--font-manrope), sans-serif",
-                  }}>
-                    YOUR AI PM SKILL REPORT
-                  </span>
-                  <span style={{
-                    fontSize: "12px",
-                    color: "var(--muted)",
-                    background: "var(--canvas)",
-                    borderRadius: "4px",
-                    padding: "3px 8px",
-                  }}>
-                    {completed > 0 ? "Your progress" : "Illustrative sample"}
-                  </span>
-                </div>
-
-                {/* Score row */}
-                <div style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: "12px",
-                  alignItems: "center",
-                  padding: "22px 0",
-                }}>
-                  <div>
-                    <p style={{ color: "var(--muted)", margin: "0 0 4px", fontSize: "14px" }}>
-                      Modules completed
-                    </p>
-                    <strong style={{
-                      fontSize: "52px",
-                      fontFamily: "var(--font-manrope), sans-serif",
-                      letterSpacing: "-3px",
-                      lineHeight: 1.25,
-                      color: "var(--ink)",
-                      fontWeight: 800,
-                      display: "block",
-                    }}>
-                      {completed}
-                      <span style={{ fontSize: "18px", letterSpacing: "0", color: "var(--muted)", fontWeight: 500 }}>
-                        /{unlocked.length}
-                      </span>
-                    </strong>
-                    <p style={{ fontSize: "13px", margin: "6px 0 0", color: "var(--muted)", maxWidth: "185px", lineHeight: 1.6 }}>
-                      {completed === 0
-                        ? "Start a module to see your score"
-                        : `${completed} module${completed !== 1 ? "s" : ""} complete`}
-                    </p>
-                  </div>
-
-                  {/* Ring */}
-                  <div style={{
-                    borderRadius: "50%",
-                    width: "108px",
-                    height: "108px",
-                    flexShrink: 0,
-                    background: `conic-gradient(var(--accent-dark) ${(completed / Math.max(unlocked.length, 1)) * 100}%, #e8edf5 0)`,
-                    display: "grid",
-                    placeContent: "center",
-                  }}>
-                    <span style={{
-                      background: "white",
-                      borderRadius: "50%",
-                      width: "84px",
-                      height: "84px",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "28px",
-                      fontWeight: 800,
-                      lineHeight: 1.2,
-                      fontFamily: "var(--font-manrope), sans-serif",
-                      color: "var(--ink)",
-                    }}>
-                      {completed === 0 ? "0" : Math.round((completed / unlocked.length) * 100)}
-                      <small style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 400, lineHeight: 1 }}>
-                        {completed === 0 ? "—" : "%"}
-                      </small>
-                    </span>
-                  </div>
-                </div>
-
-                {/* Module bars */}
-                <div style={{ display: "grid", gap: "14px" }}>
-                  {unlocked.map((mod) => {
-                    const s = scores[String(mod.id)];
-                    return (
-                      <div key={mod.id} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: "6px", fontSize: "14px" }}>
-                        <span style={{ color: "var(--ink)", fontWeight: 500 }}>{mod.title}</span>
-                        <b style={{ fontWeight: 500, color: "var(--muted)" }}>{s ? `${s.pct}%` : "—"}</b>
-                        <span style={{
-                          gridColumn: "1 / -1",
-                          height: "7px",
-                          background: "#eaf0f7",
-                          borderRadius: "5px",
-                          overflow: "hidden",
-                          display: "block",
-                        }}>
-                          <span style={{
-                            display: "block",
-                            width: s ? `${s.pct}%` : "0%",
-                            height: "100%",
-                            background: "var(--accent-dark)",
-                            borderRadius: "5px",
-                            transition: "width 0.5s ease",
-                          }} />
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Next step box */}
-                <div style={{
-                  marginTop: "22px",
-                  padding: "14px",
-                  borderRadius: "8px",
-                  background: "#fff3e8",
-                  borderLeft: "3px solid var(--accent-dark)",
-                }}>
-                  <span style={{
+              {/* Right: hero card screenshot */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/hero-card.avif"
+                  alt="AI PM Skill Report sample"
+                  style={{
+                    width: "100%",
+                    maxWidth: "480px",
+                    borderRadius: "16px",
+                    boxShadow: "0 25px 70px rgba(0,0,0,.18)",
                     display: "block",
-                    fontSize: "11px",
-                    letterSpacing: "0.8px",
-                    color: "var(--accent-dark)",
-                    fontWeight: 800,
-                    marginBottom: "6px",
-                    textTransform: "uppercase",
-                    fontFamily: "var(--font-manrope), sans-serif",
-                  }}>
-                    YOUR NEXT STEP
-                  </span>
-                  <strong style={{ fontSize: "14px", lineHeight: 1.5, display: "block", color: "var(--ink)" }}>
-                    {completed === 0
-                      ? "Start with Module 1: MSO Foundations"
-                      : completed < unlocked.length
-                      ? `Continue with Module ${completed + 1}`
-                      : "Book a call to unlock advanced modules"}
-                  </strong>
-                </div>
+                  }}
+                />
               </div>
             </div>
           </div>
