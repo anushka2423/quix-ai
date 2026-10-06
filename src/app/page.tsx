@@ -38,26 +38,22 @@ export default function Home() {
             <div className="hero-grid">
               {/* Left: copy */}
               <div>
-                <p style={{
-                  fontSize: "13px",
+                <p className="hero-eyebrow" style={{
                   letterSpacing: "1.2px",
                   fontWeight: 800,
                   color: "var(--accent)",
                   textTransform: "uppercase",
-                  margin: "0 0 20px",
                   fontFamily: "var(--font-manrope), sans-serif",
                 }}>
                   FOR PRODUCT MANAGERS MOVING INTO AI
                 </p>
 
-                <h1 style={{
+                <h1 className="hero-heading" style={{
                   fontFamily: "var(--font-manrope), sans-serif",
-                  fontSize: "clamp(38px, 4.5vw, 56px)",
                   fontWeight: 800,
                   lineHeight: 1.12,
                   letterSpacing: "-0.035em",
                   color: "#ffffff",
-                  margin: "0 0 24px",
                 }}>
                   Are you an<br />
                   AI-ready{" "}
@@ -66,12 +62,9 @@ export default function Home() {
                   </em>
                 </h1>
 
-                <p style={{
-                  fontSize: "18px",
-                  lineHeight: 1.65,
+                <p className="hero-desc" style={{
                   color: "#c7d4e7",
                   maxWidth: "470px",
-                  margin: "0 0 28px",
                 }}>
                   Test your knowledge across agentic AI, product roadmapping,
                   evaluation, and observability. Get a personalized skill
@@ -107,18 +100,16 @@ export default function Home() {
                   Start assessment →
                 </Link>
 
-                <p style={{ fontSize: "13px", color: "#dce7f7", margin: "13px 0 0" }}>
+                <p className="hero-cta-note" style={{ fontSize: "13px", color: "#dce7f7" }}>
                   Free · {unlocked.length} modules · ~15 min per module
                 </p>
 
                 {/* Byline */}
-                <div style={{
+                <div className="hero-byline" style={{
                   display: "flex",
                   gap: "12px",
                   alignItems: "center",
                   borderTop: "1px solid rgba(255,255,255,.15)",
-                  paddingTop: "24px",
-                  marginTop: "28px",
                   fontSize: "14px",
                   color: "#f1f4fa",
                 }}>
@@ -148,14 +139,13 @@ export default function Home() {
               </div>
 
               {/* Right: hero card screenshot */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div className="hero-img-col" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/hero-card.png"
                   alt="AI PM Skill Report sample"
+                  className="hero-img"
                   style={{
-                    width: "100%",
-                    maxWidth: "480px",
                     borderRadius: "16px",
                     boxShadow: "0 25px 70px rgba(0,0,0,.18)",
                     display: "block",
