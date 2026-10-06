@@ -1,5 +1,6 @@
 export type Difficulty = "Easy" | "Medium" | "Hard";
 export type OptionLabel = "A" | "B" | "C" | "D";
+export type AnswerLabel = OptionLabel | "?";
 
 export interface Option {
   label: OptionLabel;
