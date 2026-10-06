@@ -33,240 +33,273 @@ export default function Home() {
 
       <main style={{ minHeight: "100vh" }}>
         {/* ── Hero ── */}
-        <section
-          style={{
-            background: "var(--gradient)",
-            padding: "88px 0 80px",
-          }}
-        >
-          <div
-            style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 48px" }}
-          >
-            {/* Chip */}
-            <div
-              style={{
-                display: "inline-block",
-                padding: "5px 14px",
-                border: "1px solid rgba(255,255,255,.2)",
-                borderRadius: "var(--r-pill)",
-                fontSize: "12px",
-                color: "var(--on-navy)",
-                marginBottom: "20px",
-                letterSpacing: "0.01em",
-              }}
-            >
-              Claude Certification · Module Assessment
-            </div>
+        <section style={{ background: "var(--navy)", overflow: "hidden" }}>
+          <div className="page-wrap">
+            <div className="hero-grid">
+              {/* Left: copy */}
+              <div>
+                <p style={{
+                  fontSize: "13px",
+                  letterSpacing: "1.2px",
+                  fontWeight: 800,
+                  color: "var(--accent)",
+                  textTransform: "uppercase",
+                  margin: "0 0 20px",
+                  fontFamily: "var(--font-manrope), sans-serif",
+                }}>
+                  FOR PRODUCT MANAGERS MOVING INTO AI
+                </p>
 
-            <h1
-              style={{
-                fontSize: "clamp(32px, 4vw, 42px)",
-                fontWeight: 600,
-                lineHeight: 1.15,
-                letterSpacing: "-0.03em",
-                color: "#ffffff",
-                maxWidth: "640px",
-                margin: 0,
-              }}
-            >
-              Are you an AI-ready Product Manager?
-            </h1>
+                <h1 style={{
+                  fontFamily: "var(--font-manrope), sans-serif",
+                  fontSize: "clamp(38px, 4.5vw, 56px)",
+                  fontWeight: 800,
+                  lineHeight: 1.12,
+                  letterSpacing: "-0.035em",
+                  color: "#ffffff",
+                  margin: "0 0 24px",
+                }}>
+                  Are you an<br />
+                  AI-ready{" "}
+                  <em style={{ fontStyle: "normal", color: "var(--accent)" }}>
+                    Product Manager?
+                  </em>
+                </h1>
 
-            <p
-              style={{
-                fontSize: "16px",
-                lineHeight: "26px",
-                color: "var(--on-navy-2)",
-                maxWidth: "520px",
-                marginTop: "16px",
-                marginBottom: 0,
-              }}
-            >
-              Test your knowledge across agentic AI, product roadmapping,
-              evaluation, and observability. Get a personalized skills breakdown
-              in under 15 minutes.
-            </p>
+                <p style={{
+                  fontSize: "18px",
+                  lineHeight: 1.65,
+                  color: "#c7d4e7",
+                  maxWidth: "470px",
+                  margin: "0 0 28px",
+                }}>
+                  Test your knowledge across agentic AI, product roadmapping,
+                  evaluation, and observability. Get a personalized skill
+                  breakdown in under 15 minutes.
+                </p>
 
-            {/* CTA row */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                flexWrap: "wrap",
-                gap: "12px",
-                marginTop: "32px",
-              }}
-            >
-              <Link
-                href="/quiz/1"
-                style={{
-                  display: "inline-block",
-                  padding: "11px 24px",
-                  borderRadius: "var(--r-pill)",
-                  background: "#ffffff",
-                  color: "var(--navy)",
-                  fontWeight: 600,
-                  fontSize: "15px",
-                  textDecoration: "none",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                Start assessment →
-              </Link>
-              <span
-                style={{
+                <Link
+                  href="/quiz/1"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "17px 28px",
+                    borderRadius: "9px",
+                    background: "var(--accent)",
+                    color: "var(--navy)",
+                    fontWeight: 700,
+                    fontSize: "16px",
+                    textDecoration: "none",
+                    minHeight: "54px",
+                    transition: "background 0.15s, transform 0.15s",
+                    letterSpacing: "-0.01em",
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLAnchorElement).style.background = "#ffb77e";
+                    (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-1px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLAnchorElement).style.background = "var(--accent)";
+                    (e.currentTarget as HTMLAnchorElement).style.transform = "none";
+                  }}
+                >
+                  Start assessment →
+                </Link>
+
+                <p style={{ fontSize: "13px", color: "#dce7f7", margin: "13px 0 0" }}>
+                  Free · {unlocked.length} modules · ~15 min per module
+                </p>
+
+                {/* Byline */}
+                <div style={{
+                  display: "flex",
+                  gap: "12px",
+                  alignItems: "center",
+                  borderTop: "1px solid rgba(255,255,255,.15)",
+                  paddingTop: "24px",
+                  marginTop: "28px",
                   fontSize: "14px",
-                  color: "var(--on-navy-2)",
-                }}
-              >
-                {completed} of {unlocked.length} modules completed
-              </span>
+                  color: "#f1f4fa",
+                }}>
+                  <span style={{
+                    background: "#1e3a64",
+                    border: "1px solid #4a5b75",
+                    borderRadius: "50%",
+                    flexShrink: 0,
+                    width: "42px",
+                    height: "42px",
+                    display: "grid",
+                    placeItems: "center",
+                    fontWeight: 700,
+                    fontSize: "14px",
+                    fontFamily: "var(--font-manrope), sans-serif",
+                    color: "white",
+                  }}>
+                    AI
+                  </span>
+                  <div>
+                    <span style={{ display: "block" }}>Claude Certification · Module Assessment</span>
+                    <span style={{ display: "block", color: "#a9bcdf", fontSize: "13px", marginTop: "3px" }}>
+                      {completed} of {unlocked.length} modules completed
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right: hero card screenshot */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/hero-card.avif"
+                  alt="AI PM Skill Report sample"
+                  style={{
+                    width: "100%",
+                    maxWidth: "480px",
+                    borderRadius: "16px",
+                    boxShadow: "0 25px 70px rgba(0,0,0,.18)",
+                    display: "block",
+                  }}
+                />
+              </div>
             </div>
           </div>
         </section>
 
-        {/* ── Tracks section ── */}
-        <section
-          style={{
-            background: "#ffffff",
-            padding: "64px 0 48px",
-          }}
-        >
-          <div
-            style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 48px" }}
-          >
-            <p
-              style={{
-                fontSize: "12px",
-                fontWeight: 600,
-                textTransform: "uppercase",
-                letterSpacing: "0.06em",
-                color: "var(--muted)",
-                margin: "0 0 8px",
-              }}
-            >
-              Certification modules
-            </p>
-            <h2
-              style={{
-                fontSize: "24px",
-                fontWeight: 600,
-                color: "var(--ink)",
-                letterSpacing: "-0.02em",
-                margin: "0 0 32px",
-              }}
-            >
-              Choose your module
-            </h2>
+        {/* ── Stats strip ── */}
+        <section style={{ borderBottom: "1px solid var(--border)", background: "#f9fbfe" }}>
+          <div className="page-wrap">
+            <div className="stats-strip">
+              <p style={{ fontSize: "14px", lineHeight: 1.65, margin: 0, color: "var(--muted)" }}>
+                A certification assessment built around{" "}
+                <strong style={{ color: "var(--ink)", fontWeight: 500 }}>
+                  Claude AI for Product Managers
+                </strong>
+              </p>
+              <div style={{ borderLeft: "1px solid var(--border)", paddingLeft: "22px" }}>
+                <b style={{ display: "block", fontSize: "17px", fontWeight: 700, lineHeight: 1.5, color: "var(--ink)" }}>
+                  5 Modules
+                </b>
+                <span style={{ fontSize: "14px", color: "var(--muted)", display: "block", marginTop: "3px" }}>
+                  Across the full AI PM curriculum
+                </span>
+              </div>
+              <div style={{ borderLeft: "1px solid var(--border)", paddingLeft: "22px" }}>
+                <b style={{ display: "block", fontSize: "17px", fontWeight: 700, lineHeight: 1.5, color: "var(--ink)" }}>
+                  Claude Code
+                </b>
+                <span style={{ fontSize: "14px", color: "var(--muted)", display: "block", marginTop: "3px" }}>
+                  Hands-on agent building
+                </span>
+              </div>
+              <div style={{ borderLeft: "1px solid var(--border)", paddingLeft: "22px" }}>
+                <b style={{ display: "block", fontSize: "17px", fontWeight: 700, lineHeight: 1.5, color: "var(--ink)" }}>
+                  Certification prep
+                </b>
+                <span style={{ fontSize: "14px", color: "var(--muted)", display: "block", marginTop: "3px" }}>
+                  Claude Associate &amp; Developer
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── Module cards section ── */}
+        <section style={{ padding: "80px 0", background: "#ffffff" }}>
+          <div className="page-wrap">
+            <div className="section-head">
+              <div>
+                <p style={{
+                  fontSize: "13px",
+                  letterSpacing: "1px",
+                  fontWeight: 800,
+                  color: "var(--accent-dark)",
+                  textTransform: "uppercase",
+                  fontFamily: "var(--font-manrope), sans-serif",
+                  margin: "0 0 16px",
+                }}>
+                  CERTIFICATION MODULES
+                </p>
+                <h2 style={{
+                  fontFamily: "var(--font-manrope), sans-serif",
+                  fontSize: "clamp(28px, 3.4vw, 40px)",
+                  fontWeight: 800,
+                  color: "var(--ink)",
+                  margin: 0,
+                }}>
+                  Can you make the calls<br />an AI PM needs to make?
+                </h2>
+              </div>
+              <p style={{ color: "var(--muted)", margin: 0, fontSize: "16px", lineHeight: 1.65 }}>
+                Short product scenarios across five skill areas. Choose how
+                you&apos;d approach each situation — even if AI is new to you.
+              </p>
+            </div>
 
             {/* Unlocked cards */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-              {unlocked.map((mod) => {
+            <div className="module-grid">
+              {unlocked.map((mod, i) => {
                 const s = scores[String(mod.id)];
+                const labels = ["DECIDE", "DESIGN", "VALIDATE"];
                 return (
-                  <Link
-                    key={mod.id}
-                    href={`/quiz/${mod.id}`}
-                    style={{ textDecoration: "none" }}
-                  >
-                    <div
-                      className="module-card"
-                      style={{
-                        background: "#ffffff",
-                        border: "1px solid var(--border)",
-                        borderRadius: "var(--r-card)",
-                        padding: "28px",
-                        boxShadow: "var(--shadow-card)",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {/* Top row */}
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "10px",
-                        }}
-                      >
-                        <span
-                          style={{
-                            display: "inline-block",
-                            padding: "3px 12px",
-                            borderRadius: "var(--r-pill)",
-                            background: "var(--navy)",
-                            color: "#ffffff",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            letterSpacing: "0.02em",
-                          }}
-                        >
-                          0{mod.id}
-                        </span>
-                        {s && (
-                          <span
-                            style={{
-                              display: "inline-block",
-                              padding: "3px 12px",
-                              borderRadius: "var(--r-pill)",
-                              background: "var(--correct-bg)",
-                              color: "var(--correct-text)",
-                              fontSize: "12px",
-                              fontWeight: 600,
-                            }}
-                          >
-                            Scored {s.pct}%
-                          </span>
-                        )}
-                      </div>
-
-                      <h3
-                        style={{
-                          fontSize: "20px",
-                          lineHeight: "28px",
-                          fontWeight: 600,
-                          color: "var(--ink)",
-                          margin: "10px 0 6px",
-                          letterSpacing: "-0.01em",
-                        }}
-                      >
+                  <Link key={mod.id} href={`/quiz/${mod.id}`} style={{ textDecoration: "none" }}>
+                    <div className="module-card" style={{
+                      background: "#ffffff",
+                      border: "1px solid var(--border)",
+                      borderRadius: "10px",
+                      padding: "24px 20px",
+                      cursor: "pointer",
+                      height: "100%",
+                      boxSizing: "border-box",
+                      display: "flex",
+                      flexDirection: "column",
+                    }}>
+                      <span style={{
+                        display: "block",
+                        color: "var(--accent-dark)",
+                        fontSize: "13px",
+                        fontWeight: 800,
+                        letterSpacing: "0.8px",
+                        textTransform: "uppercase",
+                        marginBottom: "24px",
+                        fontFamily: "var(--font-manrope), sans-serif",
+                      }}>
+                        {String(i + 1).padStart(2, "0")} / {labels[i] ?? "MODULE"}
+                      </span>
+                      <h3 style={{
+                        fontFamily: "var(--font-manrope), sans-serif",
+                        fontSize: "20px",
+                        lineHeight: 1.35,
+                        fontWeight: 800,
+                        color: "var(--ink)",
+                        margin: "0 0 12px",
+                        minHeight: "54px",
+                      }}>
                         {mod.title}
                       </h3>
-
-                      <p
-                        style={{
-                          fontSize: "15px",
-                          lineHeight: "24px",
-                          color: "var(--muted)",
-                          margin: "0 0 16px",
-                        }}
-                      >
+                      <p style={{
+                        fontSize: "15px",
+                        color: "var(--muted)",
+                        lineHeight: 1.7,
+                        margin: "0",
+                        flex: 1,
+                        paddingBottom: "20px",
+                      }}>
                         {mod.description}
                       </p>
-
-                      {/* Footer */}
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: "14px",
-                            color: "var(--faint)",
-                          }}
-                        >
-                          {quizMeta(mod.questions.length)}
+                      <div style={{
+                        borderTop: "1px solid var(--border)",
+                        paddingTop: "14px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        fontSize: "14px",
+                      }}>
+                        <span style={{ color: s ? "var(--correct-text)" : "var(--accent-dark)" }}>
+                          {s ? `Scored ${s.pct}%` : quizMeta(mod.questions.length)}
                         </span>
-                        <span
-                          style={{
-                            marginLeft: "auto",
-                            fontSize: "14px",
-                            fontWeight: 600,
-                            color: "var(--navy)",
-                          }}
-                        >
-                          Start →
+                        <span style={{ fontWeight: 700, color: "var(--navy)" }}>
+                          {s ? "Retake →" : "Start →"}
                         </span>
                       </div>
                     </div>
@@ -275,70 +308,119 @@ export default function Home() {
               })}
             </div>
 
-            {/* ── Unlock banner ── */}
-            <div
-              style={{
-                margin: "40px 0 16px",
-                background: "var(--gradient)",
-                borderRadius: "var(--r-feature)",
-                padding: "36px 40px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "24px",
-                flexWrap: "wrap",
-                boxShadow: "var(--shadow-feature)",
-              }}
-            >
-              <div>
-                <p
-                  style={{
-                    fontSize: "20px",
-                    fontWeight: 600,
+            {/* ── Cohort / unlock banner ── */}
+            <div style={{
+              margin: "40px 0 16px",
+              background: "var(--navy)",
+              borderRadius: "14px",
+              padding: "46px",
+              color: "#ffffff",
+              boxShadow: "var(--shadow-feature)",
+            }}>
+              <div className="cohort-grid">
+                <div>
+                  <p style={{
+                    fontSize: "13px",
+                    fontWeight: 800,
+                    letterSpacing: "1px",
+                    color: "var(--accent)",
+                    textTransform: "uppercase",
+                    margin: "0 0 16px",
+                    fontFamily: "var(--font-manrope), sans-serif",
+                  }}>
+                    WHEN YOU&apos;RE READY TO CLOSE THE GAPS
+                  </p>
+                  <h2 style={{
+                    fontFamily: "var(--font-manrope), sans-serif",
+                    fontSize: "clamp(26px, 2.5vw, 34px)",
+                    fontWeight: 800,
                     color: "#ffffff",
-                    margin: "0 0 6px",
-                    letterSpacing: "-0.02em",
-                  }}
-                >
-                  Unlock the full assessment
-                </p>
-                <p
+                    margin: "0 0 20px",
+                    lineHeight: 1.25,
+                  }}>
+                    AI product leadership.<br />
+                    Hands-on Claude Code.<br />
+                    Certification prep.
+                  </h2>
+                  <p style={{ fontSize: "15px", color: "#c7d4e7", margin: 0, lineHeight: 1.65 }}>
+                    Book a free 1-on-1 to get access to all modules and a
+                    personalised review of your results. Includes preparation for
+                    Claude Certified Associate and Developer certifications.
+                  </p>
+                </div>
+
+                <div
+                  className="cohort-aside-border"
                   style={{
-                    fontSize: "14px",
-                    color: "var(--on-navy-2)",
-                    margin: 0,
-                    lineHeight: 1.55,
-                    maxWidth: "440px",
+                    borderLeft: "1px solid rgba(255,255,255,.15)",
+                    paddingLeft: "40px",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "center",
+                    alignItems: "flex-start",
                   }}
                 >
-                  Book a free 1-on-1 to get access to all modules and a
-                  personalised review of your results.
-                </p>
+                  <span style={{
+                    fontSize: "13px",
+                    fontWeight: 800,
+                    letterSpacing: "0.8px",
+                    color: "#aebfd8",
+                    textTransform: "uppercase",
+                    fontFamily: "var(--font-manrope), sans-serif",
+                    marginBottom: "16px",
+                    display: "block",
+                  }}>
+                    START WITH YOUR SKILL GAPS
+                  </span>
+                  <h3 style={{
+                    fontFamily: "var(--font-manrope), sans-serif",
+                    fontSize: "22px",
+                    lineHeight: 1.4,
+                    color: "#ffffff",
+                    fontWeight: 800,
+                    margin: "0 0 22px",
+                  }}>
+                    Make your next learning decision an informed one.
+                  </h3>
+                  <a
+                    href={CALENDLY_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      padding: "17px 24px",
+                      borderRadius: "9px",
+                      background: "var(--accent)",
+                      color: "var(--navy)",
+                      fontWeight: 700,
+                      fontSize: "15px",
+                      textDecoration: "none",
+                      minHeight: "54px",
+                      transition: "background 0.15s, transform 0.15s",
+                      whiteSpace: "nowrap",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLAnchorElement).style.background = "#ffb77e";
+                      (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-1px)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLAnchorElement).style.background = "var(--accent)";
+                      (e.currentTarget as HTMLAnchorElement).style.transform = "none";
+                    }}
+                  >
+                    Book a call →
+                  </a>
+                  <p style={{ fontSize: "14px", color: "#b8c8df", maxWidth: "270px", margin: "14px 0 0", lineHeight: 1.65 }}>
+                    No purchase needed to start the assessment.
+                  </p>
+                </div>
               </div>
-              <a
-                href={CALENDLY_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "inline-block",
-                  padding: "11px 24px",
-                  borderRadius: "var(--r-pill)",
-                  background: "#ffffff",
-                  color: "var(--navy)",
-                  fontWeight: 600,
-                  fontSize: "15px",
-                  textDecoration: "none",
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                Book a call →
-              </a>
             </div>
 
             {/* ── Locked cards ── */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div className="locked-grid">
               {locked.map((mod) => (
                 <a
                   key={mod.id}
@@ -350,8 +432,8 @@ export default function Home() {
                     display: "block",
                     background: "#ffffff",
                     border: "1.5px dashed var(--border)",
-                    borderRadius: "var(--r-card)",
-                    padding: "24px 28px",
+                    borderRadius: "10px",
+                    padding: "24px",
                     opacity: 0.8,
                     cursor: "pointer",
                     transition: "opacity 0.2s, border-color 0.2s",
@@ -365,74 +447,46 @@ export default function Home() {
                     (e.currentTarget as HTMLAnchorElement).style.borderColor = "var(--border)";
                   }}
                 >
-                  {/* Top row */}
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "10px",
-                      marginBottom: "10px",
-                    }}
-                  >
-                    <span
-                      style={{
-                        display: "inline-block",
-                        padding: "3px 12px",
-                        borderRadius: "var(--r-pill)",
-                        background: "var(--canvas)",
-                        color: "var(--faint)",
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        border: "1px solid var(--border)",
-                      }}
-                    >
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
+                    <span style={{
+                      display: "inline-block",
+                      padding: "3px 12px",
+                      borderRadius: "var(--r-pill)",
+                      background: "var(--canvas)",
+                      color: "var(--faint)",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      border: "1px solid var(--border)",
+                    }}>
                       0{mod.id}
                     </span>
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        padding: "3px 12px",
-                        borderRadius: "var(--r-pill)",
-                        border: "1px solid var(--border)",
-                        color: "var(--faint)",
-                        fontSize: "12px",
-                        fontWeight: 500,
-                      }}
-                    >
+                    <span style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: "3px 12px",
+                      borderRadius: "var(--r-pill)",
+                      border: "1px solid var(--border)",
+                      color: "var(--faint)",
+                      fontSize: "12px",
+                      fontWeight: 500,
+                    }}>
                       🔒 Locked
                     </span>
                   </div>
-
-                  <h3
-                    style={{
-                      fontSize: "20px",
-                      fontWeight: 600,
-                      color: "var(--ink-2)",
-                      margin: "0 0 6px",
-                      letterSpacing: "-0.01em",
-                    }}
-                  >
+                  <h3 style={{
+                    fontSize: "18px",
+                    fontWeight: 800,
+                    color: "var(--ink-2)",
+                    margin: "0 0 6px",
+                    fontFamily: "var(--font-manrope), sans-serif",
+                  }}>
                     {mod.title}
                   </h3>
-                  <p
-                    style={{
-                      fontSize: "14px",
-                      color: "var(--faint)",
-                      lineHeight: 1.55,
-                      margin: "0 0 12px",
-                    }}
-                  >
+                  <p style={{ fontSize: "14px", color: "var(--faint)", lineHeight: 1.55, margin: "0 0 14px" }}>
                     {mod.description}
                   </p>
-                  <span
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: 500,
-                      color: "var(--navy)",
-                    }}
-                  >
+                  <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--navy)" }}>
                     Book a call to unlock →
                   </span>
                 </a>
@@ -440,8 +494,94 @@ export default function Home() {
             </div>
           </div>
         </section>
-      </main>
 
+        {/* ── Final CTA ── */}
+        <section style={{
+          background: "var(--navy)",
+          textAlign: "center",
+          padding: "60px 0",
+          color: "#ffffff",
+        }}>
+          <div className="page-wrap">
+            <p style={{
+              fontSize: "13px",
+              letterSpacing: "1.2px",
+              fontWeight: 800,
+              color: "var(--accent)",
+              textTransform: "uppercase",
+              margin: "0 0 20px",
+              fontFamily: "var(--font-manrope), sans-serif",
+            }}>
+              YOUR NEXT AI PM MOVE STARTS HERE
+            </p>
+            <h2 style={{
+              fontFamily: "var(--font-manrope), sans-serif",
+              fontSize: "clamp(30px, 4vw, 42px)",
+              fontWeight: 800,
+              color: "#ffffff",
+              margin: "0 0 28px",
+            }}>
+              Find your gaps.<br />Focus your learning.
+            </h2>
+            <Link
+              href="/quiz/1"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: "17px 32px",
+                borderRadius: "9px",
+                background: "var(--accent)",
+                color: "var(--navy)",
+                fontWeight: 700,
+                fontSize: "16px",
+                textDecoration: "none",
+                minHeight: "54px",
+                transition: "background 0.15s, transform 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                (e.currentTarget as HTMLAnchorElement).style.background = "#ffb77e";
+                (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-1px)";
+              }}
+              onMouseLeave={(e) => {
+                (e.currentTarget as HTMLAnchorElement).style.background = "var(--accent)";
+                (e.currentTarget as HTMLAnchorElement).style.transform = "none";
+              }}
+            >
+              Start assessment →
+            </Link>
+            <p style={{ fontSize: "14px", color: "#b8c8df", margin: "18px 0 0" }}>
+              {unlocked.length} modules · Free to start · Email unlocks your full report
+            </p>
+          </div>
+        </section>
+
+        {/* ── Footer ── */}
+        <footer style={{ borderTop: "1px solid var(--border)" }}>
+          <div className="page-wrap" style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: "20px",
+            paddingTop: "26px",
+            paddingBottom: "26px",
+            fontSize: "14px",
+            color: "var(--muted)",
+            flexWrap: "wrap",
+          }}>
+            <span style={{ fontWeight: 700, color: "var(--ink)" }}>Quix AI</span>
+            <span>Claude Certification Module Assessment</span>
+            <a
+              href={CALENDLY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "inherit", textDecoration: "underline", textUnderlineOffset: "3px" }}
+            >
+              Book a 1-on-1 call
+            </a>
+          </div>
+        </footer>
+      </main>
     </>
   );
 }

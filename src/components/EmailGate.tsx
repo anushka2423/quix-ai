@@ -121,7 +121,7 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
                 width: "52px",
                 height: "52px",
                 borderRadius: "14px",
-                background: "var(--wash)",
+                background: "#fff3e8",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -131,13 +131,13 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <path
                   d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"
-                  stroke="#002862"
+                  stroke="var(--accent-dark)"
                   strokeWidth="1.6"
                   strokeLinejoin="round"
                 />
                 <path
                   d="M22 6l-10 7L2 6"
-                  stroke="#002862"
+                  stroke="var(--accent-dark)"
                   strokeWidth="1.6"
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -159,7 +159,7 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
                   width: "7px",
                   height: "7px",
                   borderRadius: "2px",
-                  background: "var(--navy)",
+                  background: "var(--accent)",
                 }}
               />
               <span
@@ -237,7 +237,7 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
                 }}
                 onFocus={(e) => {
                   if (!error)
-                    (e.target as HTMLInputElement).style.borderColor = "var(--navy)";
+                    (e.target as HTMLInputElement).style.borderColor = "var(--accent-dark)";
                 }}
                 onBlur={(e) => {
                   if (!error)
@@ -264,17 +264,18 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
                   marginTop: "16px",
                   width: "100%",
                   padding: "14px",
-                  borderRadius: "var(--r-card)",
+                  borderRadius: "9px",
                   border: "none",
-                  background: "var(--navy)",
-                  color: "#fff",
+                  background: "var(--accent)",
+                  color: "var(--navy)",
                   fontSize: "16px",
-                  fontWeight: 600,
+                  fontWeight: 700,
                   cursor: loading ? "not-allowed" : "pointer",
-                  transition: "opacity 0.15s",
+                  transition: "opacity 0.15s, background 0.15s",
                   opacity: loading ? 0.7 : 1,
                   fontFamily: "inherit",
                   letterSpacing: "-0.01em",
+                  minHeight: "52px",
                 }}
               >
                 {loading ? "Saving…" : "Start Assessment →"}

@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 const COURSE_URL = "https://maven.com/mahesh-yadav/genaipm";
 
 interface QuestionResult {
@@ -21,6 +19,8 @@ export async function POST(req: Request) {
       { status: 200 }
     );
   }
+
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   try {
     const body = await req.json();

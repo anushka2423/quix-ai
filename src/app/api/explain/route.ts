@@ -1,12 +1,11 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 export async function POST(req: Request) {
   if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json({ explanation: null });
   }
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   try {
     const { question, options, correctAnswer, userAnswer } = await req.json();
     const correctText = options.find((o: { label: string }) => o.label === correctAnswer)?.text ?? "";
