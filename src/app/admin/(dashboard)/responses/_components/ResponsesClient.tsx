@@ -2,13 +2,29 @@
 
 import { useState } from "react";
 import type { DbResponse, DetailedAnswer } from "@/lib/admin-supabase";
+import { modules } from "@/lib/quiz-data";
 
-function parseAnswers(raw: string): DetailedAnswer[] {
+function parseAnswers(raw: string, moduleId: number): DetailedAnswer[] {
+  // New format: JSON array
   try {
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed;
+    if (Array.isArray(parsed) && parsed.length > 0) return parsed;
   } catch {}
-  return [];
+
+  // Old format: comma-separated answer labels e.g. "B,A,D,C"
+  const mod = modules.find((m) => m.id === moduleId);
+  if (!mod) return [];
+  const parts = raw.split(",");
+  if (parts.length === 0 || (parts.length === 1 && parts[0] === "")) return [];
+  return mod.questions.map((q, i) => ({
+    questionId: q.id,
+    question: q.question,
+    section: q.section,
+    difficulty: q.difficulty,
+    userAnswer: parts[i] ?? "",
+    correctAnswer: q.answer,
+    isCorrect: (parts[i] ?? "") === q.answer,
+  }));
 }
 
 function formatDate(iso: string) {
@@ -75,7 +91,7 @@ export default function ResponsesClient({ responses }: { responses: DbResponse[]
 
             {responses.map((r) => {
               const isOpen = !!expanded[r.id];
-              const answers = parseAnswers(r.answers);
+              const answers = parseAnswers(r.answers, r.module_id);
               const hasDetail = answers.length > 0;
 
               return (
