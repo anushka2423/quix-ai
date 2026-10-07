@@ -21,13 +21,13 @@ const SR_CIRC = 2 * Math.PI * SR_R;
 
 function SkillReportCard() {
   return (
-    <div style={{
+    <div className="skill-report-card" style={{
       background: "#fff",
       borderRadius: "16px",
       boxShadow: "0 25px 70px rgba(0,0,0,.22)",
       padding: "24px",
       width: "100%",
-      maxWidth: "380px",
+      maxWidth: "480px",
       fontFamily: "var(--font-dm-sans), system-ui, sans-serif",
     }}>
       {/* Header */}
@@ -143,8 +143,10 @@ export default function Home() {
       <Header />
 
       <main style={{ minHeight: "100vh" }}>
+        {/* ── Hero + Stats: fills full viewport height on desktop ── */}
+        <div className="hero-section-wrapper">
         {/* ── Hero ── */}
-        <section style={{ background: "var(--navy)", overflow: "hidden" }}>
+        <section className="hero-navy-section" style={{ background: "var(--navy)", overflow: "hidden" }}>
           <div className="page-wrap">
             <div className="hero-grid">
               {/* Left: copy */}
@@ -258,7 +260,7 @@ export default function Home() {
         </section>
 
         {/* ── Stats strip ── */}
-        <section style={{ borderBottom: "1px solid var(--border)", background: "#f9fbfe" }}>
+        <section style={{ borderBottom: "1px solid var(--border)", background: "#f9fbfe", flexShrink: 0 }}>
           <div className="page-wrap">
             <div className="stats-strip">
               <p style={{ fontSize: "14px", lineHeight: 1.65, margin: 0, color: "var(--muted)" }}>
@@ -294,6 +296,7 @@ export default function Home() {
             </div>
           </div>
         </section>
+        </div>{/* end hero-section-wrapper */}
 
         {/* ── Module cards section ── */}
         <section style={{ padding: "80px 0", background: "#ffffff" }}>
