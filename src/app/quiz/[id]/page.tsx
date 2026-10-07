@@ -183,11 +183,11 @@ export default function QuizPage() {
     if (state === "selected") {
       return {
         wrapper: {
-          border: "2px solid var(--accent-dark)",
+          border: "2px solid var(--accent)",
           background: "#fff3e8",
           color: "var(--ink)",
         },
-        badge: { background: "var(--accent-dark)", color: "#ffffff", border: "none" },
+        badge: { background: "var(--accent)", color: "#ffffff", border: "none" },
         text: { color: "var(--ink)" },
       };
     }
@@ -674,7 +674,7 @@ export default function QuizPage() {
                   }}
                   onMouseEnter={(e) => {
                     if (!primaryDisabled) {
-                      (e.currentTarget as HTMLButtonElement).style.background = "#ffb77e";
+                      (e.currentTarget as HTMLButtonElement).style.background = "var(--accent-hover)";
                       (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
                     }
                   }}

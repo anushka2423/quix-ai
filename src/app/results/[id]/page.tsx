@@ -285,7 +285,7 @@ function ResultsContent() {
                   }}
                   onFocus={(e) => {
                     if (!emailError)
-                      (e.target as HTMLInputElement).style.borderColor = "var(--accent-dark)";
+                      (e.target as HTMLInputElement).style.borderColor = "var(--accent)";
                   }}
                   onBlur={(e) => {
                     if (!emailError)
@@ -318,7 +318,7 @@ function ResultsContent() {
                     type="checkbox"
                     checked={optIn}
                     onChange={(e) => setOptIn(e.target.checked)}
-                    style={{ marginTop: "2px", flexShrink: 0, accentColor: "var(--accent-dark)" }}
+                    style={{ marginTop: "2px", flexShrink: 0, accentColor: "var(--accent)" }}
                   />
                   <span style={{ fontSize: "13px", color: "var(--muted)", lineHeight: 1.5 }}>
                     Send me optional learning tips and Mahesh&apos;s cohort updates.
@@ -476,7 +476,7 @@ function ResultsContent() {
                             fontWeight: 700,
                             letterSpacing: "0.08em",
                             textTransform: "uppercase",
-                            color: isPerfect ? "var(--correct-text)" : "var(--accent-dark)",
+                            color: isPerfect ? "var(--correct-text)" : "var(--accent)",
                           }}
                         >
                           {isPerfect ? "EXTEND YOUR PRACTICE" : "PRACTICE NEXT"}
@@ -489,7 +489,7 @@ function ResultsContent() {
                           padding: "6px 16px",
                           borderRadius: "var(--r-pill)",
                           background: isPerfect ? "var(--correct-bg)" : "#fff3e8",
-                          color: isPerfect ? "var(--correct-text)" : "var(--accent-dark)",
+                          color: isPerfect ? "var(--correct-text)" : "var(--accent)",
                           fontSize: "15px",
                           fontWeight: 700,
                           whiteSpace: "nowrap",
@@ -514,7 +514,7 @@ function ResultsContent() {
                         style={{
                           height: "100%",
                           width: `${d.pct * 100}%`,
-                          background: isPerfect ? "var(--correct-text)" : "var(--accent-dark)",
+                          background: isPerfect ? "var(--correct-text)" : "var(--accent)",
                           borderRadius: "3px",
                           transition: "width 0.6s ease",
                         }}
@@ -641,7 +641,7 @@ function ResultsContent() {
                   minHeight: "52px",
                 }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLAnchorElement).style.background = "#ffb77e";
+                  (e.currentTarget as HTMLAnchorElement).style.background = "var(--accent-hover)";
                 }}
                 onMouseLeave={(e) => {
                   (e.currentTarget as HTMLAnchorElement).style.background = "var(--accent)";
