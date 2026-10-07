@@ -3,10 +3,11 @@
 import { useParams, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import { modules } from "@/lib/quiz-data";
 import { domainData } from "@/lib/domain-data";
-import type { OptionLabel } from "@/types/quiz";
+import type { QuizModule } from "@/types/quiz";
 import { saveLead } from "@/lib/supabase";
+import { useQuizModules } from "@/lib/use-quiz-modules";
+import { formatAnswer, isCorrectAnswer, parseAnswer } from "@/lib/answers";
 import { getStoredEmail } from "@/components/EmailGate";
 import Header from "@/components/Header";
 
@@ -16,26 +17,23 @@ const COHORT_URL = "https://maven.com/mahesh-yadav/genaipm";
 // ── Score preview + email gate + learning plan ────────────────────────────
 function ResultsContent() {
   const params = useParams();
-  const searchParams = useSearchParams();
   const moduleId = Number(params.id);
-  const mod = modules.find((m) => m.id === moduleId);
+  const { modules, error } = useQuizModules();
+  const mod = modules?.find((m) => m.id === moduleId);
 
-  const [showLearningPlan, setShowLearningPlan] = useState(false);
-  const [email, setEmail] = useState(getStoredEmail() ?? "");
-  const [optIn, setOptIn] = useState(false);
-  const [emailError, setEmailError] = useState("");
-  const [emailLoading, setEmailLoading] = useState(false);
+  if (!modules && !error) {
+    return (
+      <div style={{ padding: "96px 48px", textAlign: "center", color: "var(--muted)" }}>
+        Loading results…
+      </div>
+    );
+  }
 
-  const rawAnswers = searchParams.get("a") ?? "";
-  const userAnswers: (OptionLabel | "?" | "")[] = rawAnswers
-    .split(",")
-    .map((a) => a.trim()) as (OptionLabel | "?" | "")[];
-
-  if (!mod) {
+  if (!modules || !mod) {
     return (
       <main style={{ padding: "96px 48px", textAlign: "center" }}>
         <p style={{ color: "var(--muted)" }}>
-          Module not found.{" "}
+          {error ? "Couldn't load this module." : "Module not found."}{" "}
           <Link href="/" style={{ color: "var(--navy)" }}>
             Go back
           </Link>
@@ -44,15 +42,42 @@ function ResultsContent() {
     );
   }
 
+  return <ResultsView mod={mod} modules={modules} />;
+}
+
+function ResultsView({ mod, modules }: { mod: QuizModule; modules: QuizModule[] }) {
+  const searchParams = useSearchParams();
+
+  const [showLearningPlan, setShowLearningPlan] = useState(false);
+  const [email, setEmail] = useState(getStoredEmail() ?? "");
+  const [optIn, setOptIn] = useState(false);
+  const [emailError, setEmailError] = useState("");
+  const [emailLoading, setEmailLoading] = useState(false);
+
+  // One segment per question: "B", "AC" for multi-answer, "?" for not sure, "" for skipped
+  const rawAnswers = searchParams.get("a") ?? "";
+  const userAnswers = rawAnswers.split(",").map((a) => a.trim());
+
+  // Which questions were asked: the random draw's ids ("q"), or the module's own
+  // questions for result links created before quizzes were randomised
+  const byId = new Map(modules.flatMap((m) => m.questions).map((q) => [q.id, q]));
+  const askedIds = (searchParams.get("q") ?? "").split(",").filter(Boolean).map(Number);
+  const asked = askedIds.length
+    ? askedIds.flatMap((id, i) => {
+        const q = byId.get(id);
+        return q ? [{ q, answer: userAnswers[i] }] : [];
+      })
+    : mod.questions.map((q, i) => ({ q, answer: userAnswers[i] }));
+
   // ── Score calculation ──────────────────────────────────────────────────
-  const results = mod.questions.map((q, i) => ({
+  const results = asked.map(({ q, answer }) => ({
     id: q.id,
     questionText: q.question,
     section: q.section,
     difficulty: q.difficulty,
-    userAnswer: userAnswers[i] ?? ("" as OptionLabel | "?" | ""),
-    correctAnswer: q.answer,
-    isCorrect: userAnswers[i] === q.answer,
+    userAnswer: answer === "?" ? "?" : formatAnswer([answer ?? ""]),
+    correctAnswer: formatAnswer([q.answer]),
+    isCorrect: answer !== "?" && isCorrectAnswer(answer ?? "", q.answer),
     options: q.options,
   }));
 
@@ -669,7 +694,7 @@ function ResultsContent() {
 
             {/* Next module CTA */}
             {(() => {
-              const nextMod = modules.find((m) => m.id === moduleId + 1);
+              const nextMod = modules[modules.findIndex((m) => m.id === mod.id) + 1];
               if (!nextMod) return null;
               return (
                 <div style={{ marginTop: "32px" }}>
@@ -753,11 +778,17 @@ function QuestionReview({
     <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
       {results.map((r, i) => {
         const isExpanded = !!expanded[i];
-        const correctText = r.options.find((o) => o.label === r.correctAnswer)?.text ?? "";
-        const userText =
+        const describe = (answer: string) =>
+          parseAnswer(answer).map(
+            (l) => `${l}) ${r.options.find((o) => o.label === l)?.text ?? ""}`
+          );
+        const correctLines = describe(r.correctAnswer);
+        const userLines =
           r.userAnswer === "?"
-            ? "I'm not sure"
-            : r.options.find((o) => o.label === r.userAnswer)?.text ?? "Not answered";
+            ? ["I'm not sure"]
+            : r.userAnswer
+            ? describe(r.userAnswer)
+            : ["Not answered"];
 
         return (
           <div key={i}>
@@ -867,9 +898,9 @@ function QuestionReview({
                       Your answer
                     </span>
                     <span style={{ fontSize: "14px", color: "var(--incorrect-text)" }}>
-                      {r.userAnswer && r.userAnswer !== "?"
-                        ? `${r.userAnswer}) ${userText}`
-                        : userText}
+                      {userLines.map((line) => (
+                        <span key={line} style={{ display: "block" }}>{line}</span>
+                      ))}
                     </span>
                   </div>
                 )}
@@ -885,9 +916,12 @@ function QuestionReview({
                     }}
                   >
                     {r.isCorrect ? "Your answer" : "Correct answer"}
+                    {correctLines.length > 1 ? "s" : ""}
                   </span>
                   <span style={{ fontSize: "14px", color: "var(--correct-text)" }}>
-                    {r.correctAnswer}) {correctText}
+                    {correctLines.map((line) => (
+                      <span key={line} style={{ display: "block" }}>{line}</span>
+                    ))}
                   </span>
                 </div>
                 <span

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { modules } from "@/lib/quiz-data";
+import { useQuizModules } from "@/lib/use-quiz-modules";
+import { QUIZ_LENGTH } from "@/lib/quiz-sampling";
 import Header from "@/components/Header";
 
 const CALENDLY_URL = "https://calendly.com/d/dtdk-7jq-xwm/1-1";
@@ -126,6 +127,10 @@ function quizMeta(questionCount: number) {
 
 export default function Home() {
   const [scores, setScores] = useState<Scores>({});
+  const { modules: loadedModules } = useQuizModules();
+  const modules = loadedModules ?? [];
+  // Every attempt draws QUIZ_LENGTH questions from the whole bank
+  const quizLength = Math.min(QUIZ_LENGTH, modules.reduce((n, m) => n + m.questions.length, 0));
 
   useEffect(() => {
     try {
@@ -136,6 +141,8 @@ export default function Home() {
 
   const unlocked = modules.filter((m) => !m.locked);
   const locked = modules.filter((m) => m.locked);
+  // Show a placeholder instead of "0 modules" while modules load
+  const moduleCount = loadedModules ? unlocked.length : "–";
   const completed = Object.keys(scores).length;
 
   return (
@@ -214,7 +221,7 @@ export default function Home() {
                 </Link>
 
                 <p className="hero-cta-note" style={{ fontSize: "13px", color: "#dce7f7" }}>
-                  Free · {unlocked.length} modules · ~15 min per module
+                  Free · {moduleCount} modules · ~15 min per module
                 </p>
 
                 {/* Byline */}
@@ -245,7 +252,7 @@ export default function Home() {
                   <div>
                     <span style={{ display: "block" }}>Claude Certification · Module Assessment</span>
                     <span style={{ display: "block", color: "#a9bcdf", fontSize: "13px", marginTop: "3px" }}>
-                      {completed} of {unlocked.length} modules completed
+                      {completed} of {moduleCount} modules completed
                     </span>
                   </div>
                 </div>
@@ -390,7 +397,7 @@ export default function Home() {
                         fontSize: "14px",
                       }}>
                         <span style={{ color: s ? "var(--correct-text)" : "var(--accent)" }}>
-                          {s ? `Scored ${s.pct}%` : quizMeta(mod.questions.length)}
+                          {s ? `Scored ${s.pct}%` : quizMeta(quizLength)}
                         </span>
                         <span style={{ fontWeight: 700, color: "var(--navy)" }}>
                           {s ? "Retake →" : "Start →"}
@@ -645,7 +652,7 @@ export default function Home() {
               Start assessment →
             </Link>
             <p style={{ fontSize: "14px", color: "#b8c8df", margin: "18px 0 0" }}>
-              {unlocked.length} modules · Free to start · Email unlocks your full report
+              {moduleCount} modules · Free to start · Email unlocks your full report
             </p>
           </div>
         </section>

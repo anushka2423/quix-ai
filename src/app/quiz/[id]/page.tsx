@@ -3,18 +3,51 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { modules } from "@/lib/quiz-data";
-import type { OptionLabel } from "@/types/quiz";
+import type { OptionLabel, Question, QuizModule } from "@/types/quiz";
 import { saveResult, saveLead } from "@/lib/supabase";
+import { useQuizModules } from "@/lib/use-quiz-modules";
+import { formatAnswer, isCorrectAnswer, parseAnswer, requiredPicks } from "@/lib/answers";
+import { drawQuizQuestions } from "@/lib/quiz-sampling";
 import Header from "@/components/Header";
 
 export default function QuizPage() {
   const params = useParams();
-  const router = useRouter();
   const moduleId = Number(params.id);
-  const mod = modules.find((m) => m.id === moduleId);
+  const { modules, error } = useQuizModules();
+  const mod = modules?.find((m) => m.id === moduleId);
 
-  const [answers, setAnswers] = useState<Record<number, OptionLabel>>({});
+  if (!modules && !error) {
+    return (
+      <main style={{ padding: "96px 48px", textAlign: "center" }}>
+        <p style={{ color: "var(--muted)" }}>Loading questions…</p>
+      </main>
+    );
+  }
+
+  if (!mod || modules!.every((m) => m.questions.length === 0)) {
+    return (
+      <main style={{ padding: "96px 48px", textAlign: "center" }}>
+        <p style={{ color: "var(--muted)" }}>
+          {error ? "Couldn't load this module." : "Module not found."}{" "}
+          <Link href="/" style={{ color: "var(--navy)" }}>
+            Go back
+          </Link>
+        </p>
+      </main>
+    );
+  }
+
+  return <QuizRunner mod={mod} modules={modules!} />;
+}
+
+function QuizRunner({ mod, modules }: { mod: QuizModule; modules: QuizModule[] }) {
+  const router = useRouter();
+  const moduleId = mod.id;
+
+  // A new random set from every module each time a quiz starts
+  const [questions] = useState<Question[]>(() => drawQuizQuestions(modules));
+
+  const [answers, setAnswers] = useState<Record<number, OptionLabel[]>>({});
   const [currentIdx, setCurrentIdx] = useState(0);
 
   // Mobile carousel — tracks which option card is currently visible (0–4)
@@ -34,34 +67,31 @@ export default function QuizPage() {
     setEmailGateReady(true);
   }, []);
 
-  if (!mod) {
-    return (
-      <main style={{ padding: "96px 48px", textAlign: "center" }}>
-        <p style={{ color: "var(--muted)" }}>
-          Module not found.{" "}
-          <Link href="/" style={{ color: "var(--navy)" }}>
-            Go back
-          </Link>
-        </p>
-      </main>
-    );
-  }
-
-  const total = mod.questions.length;
-  const q = mod.questions[currentIdx];
-  const selected = answers[q.id] as OptionLabel | undefined;
+  const total = questions.length;
+  const q = questions[currentIdx];
+  const selected = answers[q.id] ?? [];
+  const picks = requiredPicks(q.answer);
+  const isMulti = picks > 1;
+  const isComplete = (qq: Question) =>
+    (answers[qq.id]?.length ?? 0) === requiredPicks(qq.answer);
+  // Once every pick is made the answer is checked and locked
+  const currentComplete = selected.length === picks;
+  const revealed = currentComplete;
+  const correctLabels = parseAnswer(q.answer);
+  const currentCorrect = revealed && isCorrectAnswer(selected, q.answer);
   const isFirst = currentIdx === 0;
   const isLast = currentIdx === total - 1;
-  const primaryDisabled = !selected;
+  const primaryDisabled = !currentComplete;
   const primaryLabel = isLast ? "See my score →" : "Next question →";
 
   // Finish the quiz — save results and navigate to results page
   async function handleFinish() {
-    const answerString = mod!.questions
-      .map((qq) => answers[qq.id] ?? "")
+    // One segment per question; multi-answer picks are concatenated, e.g. "B,AC,D"
+    const answerString = questions
+      .map((qq) => (answers[qq.id] ?? []).join(""))
       .join(",");
-    const score = mod!.questions.filter(
-      (qq) => answers[qq.id] === qq.answer
+    const score = questions.filter((qq) =>
+      isCorrectAnswer(answers[qq.id] ?? [], qq.answer)
     ).length;
     const pct = Math.round((score / total) * 100);
 
@@ -73,30 +103,32 @@ export default function QuizPage() {
 
     const email = emailGateEmail;
     if (email) {
-      const detailedAnswers = mod!.questions.map((qq) => ({
+      const detailedAnswers = questions.map((qq) => ({
         questionId: qq.id,
         question: qq.question,
         section: qq.section,
         difficulty: qq.difficulty,
-        userAnswer: answers[qq.id] ?? "",
-        correctAnswer: qq.answer,
-        isCorrect: answers[qq.id] === qq.answer,
+        userAnswer: formatAnswer(answers[qq.id] ?? []),
+        correctAnswer: formatAnswer([qq.answer]),
+        isCorrect: isCorrectAnswer(answers[qq.id] ?? [], qq.answer),
       }));
       saveResult({
         email,
         moduleId,
-        moduleTitle: mod!.title,
+        moduleTitle: mod.title,
         answers: JSON.stringify(detailedAnswers),
         score,
         total,
       }).catch(() => {});
     }
 
-    router.push(`/results/${moduleId}?a=${answerString}`);
+    // Question ids tell the results page which random questions were asked
+    const questionIds = questions.map((qq) => qq.id).join(",");
+    router.push(`/results/${moduleId}?q=${questionIds}&a=${answerString}`);
   }
 
   function handleNext() {
-    if (!selected) return;
+    if (!currentComplete) return;
     if (isLast) {
       handleFinish();
     } else {
@@ -108,8 +140,18 @@ export default function QuizPage() {
     if (!isFirst) setCurrentIdx((i) => i - 1);
   }
 
+  // Single-answer questions lock on the first click; multi-answer questions toggle
+  // until the required number is picked, then lock.
   function selectAnswer(label: OptionLabel) {
-    setAnswers((prev) => ({ ...prev, [q.id]: label }));
+    setAnswers((prev) => {
+      const current = prev[q.id] ?? [];
+      if (current.length >= picks) return prev;
+      if (!isMulti) return { ...prev, [q.id]: [label] };
+      if (current.includes(label)) {
+        return { ...prev, [q.id]: current.filter((l) => l !== label) };
+      }
+      return { ...prev, [q.id]: [...current, label].sort() as OptionLabel[] };
+    });
   }
 
   // Mobile carousel helpers
@@ -129,7 +171,6 @@ export default function QuizPage() {
   // Keyboard handler
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (!mod) return;
       const optionLabels: OptionLabel[] = ["A", "B", "C", "D"];
       if (["1", "2", "3", "4"].includes(e.key)) {
         e.preventDefault();
@@ -143,11 +184,11 @@ export default function QuizPage() {
         if (!isFirst) setCurrentIdx((i) => i - 1);
       } else if (e.key === "ArrowRight" && !isLast) {
         e.preventDefault();
-        if (selected && !isLast) setCurrentIdx((i) => i + 1);
+        if (currentComplete && !isLast) setCurrentIdx((i) => i + 1);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [q, isFirst, isLast, selected, answers]
+    [q, isFirst, isLast, currentComplete, answers]
   );
 
   useEffect(() => {
@@ -163,9 +204,9 @@ export default function QuizPage() {
 
   // Segment progress bar
   function segmentState(i: number) {
-    const qq = mod!.questions[i];
+    const qq = questions[i];
     if (i === currentIdx) return "current";
-    if (answers[qq.id]) return "answered";
+    if (isComplete(qq)) return "answered";
     return "default";
   }
 
@@ -175,11 +216,54 @@ export default function QuizPage() {
     answered: "rgba(255,255,255,1)",
   };
 
-  function optionState(label: OptionLabel): "selected" | "default" {
-    return label === selected ? "selected" : "default";
+  type OptState = "default" | "selected" | "correct" | "wrong" | "dimmed";
+
+  function optionState(label: OptionLabel): OptState {
+    if (revealed) {
+      if (correctLabels.includes(label)) return "correct";
+      if (selected.includes(label)) return "wrong";
+      return "dimmed";
+    }
+    return selected.includes(label) ? "selected" : "default";
   }
 
-  function getOptionStyles(state: "selected" | "default") {
+  // Tag shown on an option after the answer is checked
+  function optionTag(label: OptionLabel): string | null {
+    if (!revealed) return null;
+    const picked = selected.includes(label);
+    if (correctLabels.includes(label)) return picked ? "Your answer · Correct" : "Correct answer";
+    return picked ? "Your answer · Incorrect" : null;
+  }
+
+  function getOptionStyles(state: OptState) {
+    if (state === "correct" || state === "wrong") {
+      const color = state === "correct" ? "var(--correct-text)" : "var(--incorrect-text)";
+      return {
+        wrapper: {
+          border: `2px solid ${color}`,
+          background: state === "correct" ? "var(--correct-bg)" : "var(--incorrect-bg)",
+          color: "var(--ink)",
+        },
+        badge: { background: color, color: "#ffffff", border: "none" },
+        text: { color: "var(--ink)" },
+      };
+    }
+    if (state === "dimmed") {
+      return {
+        wrapper: {
+          border: "1px solid var(--border)",
+          background: "#ffffff",
+          color: "var(--ink)",
+          opacity: 0.6,
+        },
+        badge: {
+          background: "#ffffff",
+          color: "var(--muted)",
+          border: "1px solid var(--border)",
+        },
+        text: { color: "var(--ink)" },
+      };
+    }
     if (state === "selected") {
       return {
         wrapper: {
@@ -386,7 +470,7 @@ export default function QuizPage() {
                   whiteSpace: "nowrap",
                 }}
               >
-                {Object.keys(answers).length} of {total} answered
+                {questions.filter(isComplete).length} of {total} answered
               </span>
             </div>
 
@@ -404,7 +488,7 @@ export default function QuizPage() {
                 height: "16px",
               }}
             >
-              {mod.questions.map((_, i) => {
+              {questions.map((_, i) => {
                 const state = segmentState(i);
                 return (
                   <div
@@ -480,11 +564,46 @@ export default function QuizPage() {
                   fontWeight: 600,
                   color: "var(--ink)",
                   letterSpacing: "-0.02em",
-                  margin: "0 0 28px",
+                  margin: isMulti ? "0 0 14px" : "0 0 28px",
                 }}
               >
                 {q.question}
               </p>
+
+              {isMulti && (
+                <p
+                  role="status"
+                  aria-live="polite"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "8px",
+                    fontSize: "14px",
+                    color: "var(--ink)",
+                    margin: "0 0 20px",
+                  }}
+                >
+                  <span
+                    style={{
+                      padding: "3px 10px",
+                      borderRadius: "var(--r-pill)",
+                      background: "#fff3e8",
+                      border: "1px solid var(--accent)",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      letterSpacing: "0.02em",
+                    }}
+                  >
+                    Multi-select
+                  </span>
+                  <span>
+                    {revealed
+                      ? `This question has ${picks} correct answers.`
+                      : `This question has ${picks} correct answers. Select ${picks} options (${selected.length} of ${picks} selected). Your answer is checked once all ${picks} are picked.`}
+                  </span>
+                </p>
+              )}
 
               {/* Options — Desktop list (hidden on ≤460px) */}
               <div
@@ -498,8 +617,9 @@ export default function QuizPage() {
                     <button
                       key={opt.label}
                       onClick={() => selectAnswer(opt.label)}
-                      aria-pressed={state === "selected"}
-                      className={`option-btn${state === "selected" ? " option-selected" : ""}`}
+                      disabled={revealed}
+                      aria-pressed={selected.includes(opt.label)}
+                      className={`option-btn${state === "selected" ? " option-selected" : ""}${revealed ? " option-answered" : ""}`}
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -508,7 +628,7 @@ export default function QuizPage() {
                         borderRadius: "var(--r-option)",
                         textAlign: "left",
                         width: "100%",
-                        cursor: "pointer",
+                        cursor: revealed ? "default" : "pointer",
                         ...styles.wrapper,
                         transition: "all 0.15s",
                       }}
@@ -535,6 +655,20 @@ export default function QuizPage() {
                       >
                         {opt.text}
                       </span>
+                      {optionTag(opt.label) && (
+                        <span
+                          style={{
+                            flexShrink: 0,
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            color: state === "correct" ? "var(--correct-text)" : "var(--incorrect-text)",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {state === "correct" ? "✓ " : "✗ "}
+                          {optionTag(opt.label)}
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -557,7 +691,8 @@ export default function QuizPage() {
                       <div key={opt.label} className="mobile-option-slide">
                         <button
                           onClick={() => selectAnswer(opt.label)}
-                          aria-pressed={state === "selected"}
+                          disabled={revealed}
+                          aria-pressed={selected.includes(opt.label)}
                           className="mobile-option-card"
                           style={styles.wrapper as React.CSSProperties}
                         >
@@ -573,6 +708,14 @@ export default function QuizPage() {
                           >
                             {opt.text}
                           </p>
+                          {optionTag(opt.label) && (
+                            <span
+                              className={`result-tag ${state === "correct" ? "correct-tag-mobile" : "wrong-tag-mobile"}`}
+                            >
+                              {state === "correct" ? "✓ " : "✗ "}
+                              {optionTag(opt.label)}
+                            </span>
+                          )}
                         </button>
                       </div>
                     );
@@ -592,19 +735,21 @@ export default function QuizPage() {
                 >
                   {q.options.map((opt, optIdx) => {
                     const isViewing = optIdx === visibleOptIdx;
-                    const isChosen = selected === opt.label;
+                    const isChosen = selected.includes(opt.label);
+                    const state = optionState(opt.label);
                     return (
                       <button
                         key={opt.label}
-                        onClick={() => {
-                          scrollToOpt(optIdx);
-                          selectAnswer(opt.label);
-                        }}
-                        aria-label={`Select option ${opt.label}${isChosen ? " (selected)" : ""}`}
+                        // Only scrolls to the card; tapping the card itself selects it,
+                        // so viewing an option can't accidentally lock in an answer
+                        onClick={() => scrollToOpt(optIdx)}
+                        aria-label={`View option ${opt.label}${isChosen ? " (selected)" : ""}`}
                         className={
                           "mobile-nav-btn" +
                           (isViewing ? " mnb-viewing" : "") +
-                          (isChosen ? " mnb-chosen" : "")
+                          (isChosen ? " mnb-chosen" : "") +
+                          (state === "correct" ? " mnb-correct" : "") +
+                          (state === "wrong" ? " mnb-wrong" : "")
                         }
                       >
                         <span>{opt.label}</span>
@@ -617,6 +762,27 @@ export default function QuizPage() {
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Answer feedback */}
+              <div aria-live="polite">
+                {revealed && (
+                  <div
+                    style={{
+                      marginTop: "20px",
+                      padding: "12px 16px",
+                      borderRadius: "var(--r-option)",
+                      background: currentCorrect ? "var(--correct-bg)" : "var(--incorrect-bg)",
+                      color: currentCorrect ? "var(--correct-text)" : "var(--incorrect-text)",
+                      fontSize: "15px",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {currentCorrect
+                      ? "✓ Correct!"
+                      : `✗ Incorrect. The correct answer${correctLabels.length > 1 ? "s are" : " is"} ${correctLabels.join(" and ")}.`}
+                  </div>
+                )}
               </div>
 
               {/* Primary action + Back button row */}

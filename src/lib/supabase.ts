@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import type { Difficulty, QuizModule } from "@/types/quiz";
 
 let _client: SupabaseClient | null = null;
 
@@ -9,6 +10,39 @@ function getClient(): SupabaseClient | null {
   if (!url || !key || url === "your_supabase_project_url") return null;
   _client = createClient(url, key);
   return _client;
+}
+
+export async function fetchQuizModules(): Promise<QuizModule[]> {
+  const client = getClient();
+  if (!client) throw new Error("Supabase is not configured");
+  const [mods, qs] = await Promise.all([
+    client.from("quiz_modules").select("*").order("order_index", { ascending: true }),
+    client.from("quiz_questions").select("*").order("order_index", { ascending: true }),
+  ]);
+  if (mods.error) throw mods.error;
+  if (qs.error) throw qs.error;
+
+  return (mods.data ?? []).map((m) => ({
+    id: m.id,
+    title: m.title,
+    description: m.description,
+    locked: m.locked,
+    questions: (qs.data ?? [])
+      .filter((q) => q.module_id === m.id)
+      .map((q) => ({
+        id: q.id,
+        section: q.section,
+        difficulty: q.difficulty as Difficulty,
+        question: q.question,
+        options: [
+          { label: "A" as const, text: q.option_a },
+          { label: "B" as const, text: q.option_b },
+          { label: "C" as const, text: q.option_c },
+          { label: "D" as const, text: q.option_d },
+        ],
+        answer: q.answer,
+      })),
+  }));
 }
 
 export async function saveLead(email: string) {
