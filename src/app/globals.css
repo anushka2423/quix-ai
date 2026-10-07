@@ -10,8 +10,8 @@
   --navy-700: #031C45;
   --navy-500: #1a4a92;
   --blue: #006FFF;
-  --accent: #FF6F00;
-  --accent-dark: #E86400;
+  --accent: #FEB47A;
+  --accent-hover: #FFD1AD;
 
   /* Text */
   --ink: #2B3A52;
@@ -97,7 +97,7 @@ h1, h2, h3, h4, h5, h6 {
   transition: border-color 0.12s ease, background 0.12s ease;
 }
 .option-btn:not(.option-selected):not(.option-answered):hover {
-  border-color: var(--accent-dark) !important;
+  border-color: var(--accent) !important;
 }
 
 /* ── Animations ── */
@@ -559,8 +559,8 @@ h1, h2, h3, h4, h5, h6 {
 
   /* User selected this option (but not currently viewing it) */
   .mobile-nav-btn.mnb-chosen:not(.mnb-viewing) {
-    border-color: var(--accent-dark);
-    color: var(--accent-dark);
+    border-color: var(--accent);
+    color: var(--accent);
   }
 
   /* Selection dot indicator */

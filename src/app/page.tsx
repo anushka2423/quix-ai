@@ -63,7 +63,7 @@ function SkillReportCard() {
           <circle
             cx="47" cy="47" r={SR_R}
             fill="none"
-            stroke="#c95d0a"
+            stroke="var(--accent)"
             strokeWidth="9"
             strokeLinecap="round"
             strokeDasharray={SR_CIRC}
@@ -88,7 +88,7 @@ function SkillReportCard() {
               <span style={{ fontSize: "13px", fontWeight: 600, color: "#2a3a52" }}>{s.pct}%</span>
             </div>
             <div style={{ height: "5px", background: "#e4e8f0", borderRadius: "99px" }}>
-              <div style={{ height: "100%", width: `${s.pct}%`, background: "#c95d0a", borderRadius: "99px" }} />
+              <div style={{ height: "100%", width: `${s.pct}%`, background: "var(--accent)", borderRadius: "99px" }} />
             </div>
           </div>
         ))}
@@ -98,11 +98,11 @@ function SkillReportCard() {
       <div style={{
         background: "#fff3e8",
         borderRadius: "10px",
-        borderLeft: "3px solid #c95d0a",
+        borderLeft: "3px solid var(--accent)",
         padding: "14px 16px",
         marginBottom: "16px",
       }}>
-        <p style={{ fontSize: "10px", fontWeight: 800, letterSpacing: "0.8px", color: "#c95d0a", textTransform: "uppercase", margin: "0 0 5px", fontFamily: "var(--font-manrope), sans-serif" }}>
+        <p style={{ fontSize: "10px", fontWeight: 800, letterSpacing: "0.8px", color: "var(--accent)", textTransform: "uppercase", margin: "0 0 5px", fontFamily: "var(--font-manrope), sans-serif" }}>
           Your first learning priority
         </p>
         <p style={{ fontSize: "14px", fontWeight: 700, color: "#0f1d35", margin: "0 0 4px", lineHeight: 1.4 }}>
@@ -202,7 +202,7 @@ export default function Home() {
                     letterSpacing: "-0.01em",
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLAnchorElement).style.background = "#ffb77e";
+                    (e.currentTarget as HTMLAnchorElement).style.background = "var(--accent-hover)";
                     (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-1px)";
                   }}
                   onMouseLeave={(e) => {
@@ -307,7 +307,7 @@ export default function Home() {
                   fontSize: "13px",
                   letterSpacing: "1px",
                   fontWeight: 800,
-                  color: "var(--accent-dark)",
+                  color: "var(--accent)",
                   textTransform: "uppercase",
                   fontFamily: "var(--font-manrope), sans-serif",
                   margin: "0 0 16px",
@@ -350,7 +350,7 @@ export default function Home() {
                     }}>
                       <span style={{
                         display: "block",
-                        color: "var(--accent-dark)",
+                        color: "var(--accent)",
                         fontSize: "13px",
                         fontWeight: 800,
                         letterSpacing: "0.8px",
@@ -389,7 +389,7 @@ export default function Home() {
                         justifyContent: "space-between",
                         fontSize: "14px",
                       }}>
-                        <span style={{ color: s ? "var(--correct-text)" : "var(--accent-dark)" }}>
+                        <span style={{ color: s ? "var(--correct-text)" : "var(--accent)" }}>
                           {s ? `Scored ${s.pct}%` : quizMeta(mod.questions.length)}
                         </span>
                         <span style={{ fontWeight: 700, color: "var(--navy)" }}>
@@ -496,7 +496,7 @@ export default function Home() {
                       whiteSpace: "nowrap",
                     }}
                     onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLAnchorElement).style.background = "#ffb77e";
+                      (e.currentTarget as HTMLAnchorElement).style.background = "var(--accent-hover)";
                       (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-1px)";
                     }}
                     onMouseLeave={(e) => {
@@ -634,7 +634,7 @@ export default function Home() {
                 transition: "background 0.15s, transform 0.15s",
               }}
               onMouseEnter={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.background = "#ffb77e";
+                (e.currentTarget as HTMLAnchorElement).style.background = "var(--accent-hover)";
                 (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-1px)";
               }}
               onMouseLeave={(e) => {
