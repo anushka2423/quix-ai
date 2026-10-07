@@ -13,7 +13,8 @@ export interface Question {
   difficulty: Difficulty;
   question: string;
   options: Option[];
-  answer: OptionLabel;
+  /** Correct label(s): "B" for single-answer, "A,C" for multi-answer questions */
+  answer: string;
 }
 
 export interface QuizModule {

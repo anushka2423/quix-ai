@@ -138,6 +138,7 @@ export async function createQuestionAction(data: {
 
   if (error) return { error: error.message };
   revalidatePath(`/admin/modules/${data.moduleId}`);
+  revalidatePath("/admin/questions");
   return {};
 }
 
@@ -154,9 +155,31 @@ export async function updateQuestionAction(data: {
   answer: string;
 }): Promise<{ error?: string }> {
   const sb = getAdminSupabase();
+
+  // Moving to another module puts the question at the end of that module
+  const { data: current, error: readErr } = await sb
+    .from("quiz_questions")
+    .select("module_id")
+    .eq("id", data.id)
+    .single();
+  if (readErr) return { error: readErr.message };
+  const moved = current.module_id !== data.moduleId;
+  let orderIndex: number | undefined;
+  if (moved) {
+    const { data: maxRow } = await sb
+      .from("quiz_questions")
+      .select("order_index")
+      .eq("module_id", data.moduleId)
+      .order("order_index", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    orderIndex = (maxRow?.order_index ?? 0) + 1;
+  }
+
   const { error } = await sb
     .from("quiz_questions")
     .update({
+      ...(moved && { module_id: data.moduleId, order_index: orderIndex }),
       section: data.section.trim(),
       difficulty: data.difficulty,
       question: data.question.trim(),
@@ -170,6 +193,8 @@ export async function updateQuestionAction(data: {
 
   if (error) return { error: error.message };
   revalidatePath(`/admin/modules/${data.moduleId}`);
+  if (moved) revalidatePath(`/admin/modules/${current.module_id}`);
+  revalidatePath("/admin/questions");
   return {};
 }
 

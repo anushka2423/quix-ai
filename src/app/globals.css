@@ -563,6 +563,18 @@ h1, h2, h3, h4, h5, h6 {
     color: var(--accent);
   }
 
+  /* After the answer is checked: correct option green, wrong pick red */
+  .mobile-nav-btn.mnb-correct:not(.mnb-viewing) {
+    border-color: var(--correct-text);
+    color: var(--correct-text);
+    background: var(--correct-bg);
+  }
+  .mobile-nav-btn.mnb-wrong:not(.mnb-viewing) {
+    border-color: var(--incorrect-text);
+    color: var(--incorrect-text);
+    background: var(--incorrect-bg);
+  }
+
   /* Selection dot indicator */
   .mnb-dot {
     font-size: 7px;

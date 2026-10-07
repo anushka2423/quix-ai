@@ -113,6 +113,17 @@ export async function adminFetchQuestions(moduleId: number): Promise<DbQuestion[
   return data ?? [];
 }
 
+/** Every question across all modules, ordered by module then position. */
+export async function adminFetchAllQuestions(): Promise<DbQuestion[]> {
+  const sb = getClient();
+  const { data } = await sb
+    .from("quiz_questions")
+    .select("*")
+    .order("module_id", { ascending: true })
+    .order("order_index", { ascending: true });
+  return data ?? [];
+}
+
 export type DbResponse = {
   id: number;
   email: string;
