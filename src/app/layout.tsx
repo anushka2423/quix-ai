@@ -1,17 +1,10 @@
 import type { Metadata } from "next";
-import { DM_Sans, Manrope } from "next/font/google";
+import { Golos_Text } from "next/font/google";
 import "./globals.css";
 import { EmailGateProvider } from "@/components/EmailGate";
 
-const dmSans = DM_Sans({
-  variable: "--font-dm-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-});
-
-const manrope = Manrope({
-  variable: "--font-manrope",
+const golosText = Golos_Text({
+  variable: "--font-golos",
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
   display: "swap",
@@ -26,7 +19,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${manrope.variable} h-full`}
+      className={`${golosText.variable} h-full`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">

@@ -101,8 +101,7 @@ function ResultsContent() {
       localStorage.setItem(EMAIL_KEY, trimmed);
     } catch {}
     setEmailLoading(false);
-    setShowLearningPlan(true);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.location.href = "https://calendly.com/d/d3rr-rn8-yrx/1-1-consult";
   }
 
   // ── Score preview page ─────────────────────────────────────────────────
