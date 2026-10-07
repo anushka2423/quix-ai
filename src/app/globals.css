@@ -1,58 +1,63 @@
 @import "tailwindcss";
 
 :root {
-  /* Brand — orange/navy system */
-  --navy: #071b39;
-  --navy-700: #0a2a5c;
+  /* Font aliases — all map to Golos Text */
+  --font-dm-sans: var(--font-golos);
+  --font-manrope: var(--font-golos);
+
+  /* Brand */
+  --navy: #04275E;
+  --navy-700: #031C45;
   --navy-500: #1a4a92;
-  --accent: #ff9b50;
-  --accent-dark: #ec7626;
+  --blue: #006FFF;
+  --accent: #FF6F00;
+  --accent-dark: #E86400;
 
   /* Text */
-  --ink: #10213b;
-  --ink-2: #273b56;
-  --muted: #44536a;
-  --faint: #7a8da6;
-  --disabled: #c3c8d8;
+  --ink: #2B3A52;
+  --ink-2: #3A4C65;
+  --muted: #5A6782;
+  --faint: #8C96AA;
+  --disabled: #C7CFDD;
 
   /* Surfaces */
-  --canvas: #f1f5fa;
-  --wash: #edf1f7;
+  --canvas: #F5F7FA;
+  --wash: #EEF5FF;
 
   /* Borders */
-  --border: #dce3ed;
-  --border-hover: #b0bdd0;
+  --border: #E2E7F0;
+  --border-hover: #C7CFDD;
 
   /* On-navy text */
-  --on-navy: #d6e4f0;
-  --on-navy-2: #a9bcdf;
+  --on-navy: #ffffff;
+  --on-navy-2: #B7C4DC;
 
   /* Status */
-  --correct-text: #1f7a52;
-  --correct-bg: #e6f5ed;
-  --incorrect-text: #c23b3b;
-  --incorrect-bg: #fbeaea;
+  --correct-text: #16A34A;
+  --correct-bg: #EAF7EF;
+  --incorrect-text: #DC2626;
+  --incorrect-bg: #FDECEC;
 
   /* Gradient */
-  --gradient: linear-gradient(135deg, #071b39 0%, #0a2a5c 100%);
+  --gradient: linear-gradient(135deg, #04275E 0%, #031C45 100%);
 
   /* Radius */
   --r-pill: 200px;
   --r-feature: 16px;
   --r-quiz-card: 16px;
   --r-card: 10px;
-  --r-option: 8px;
-  --r-input: 7px;
+  --r-option: 6px;
+  --r-input: 10px;
 
   /* Shadows */
-  --shadow-card: 0 1px 2px rgba(7,27,57,.05), 0 10px 28px rgba(7,27,57,.07);
-  --shadow-feature: 0 25px 70px rgba(7,27,57,.15);
+  --shadow-card: 0 1px 2px rgba(4,39,94,.06), 0 8px 24px -8px rgba(4,39,94,.10);
+  --shadow-feature: 0 24px 48px -16px rgba(4,39,94,.22);
 }
 
 @theme inline {
   --color-background: var(--canvas);
   --color-foreground: var(--ink);
-  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-golos), ui-sans-serif, system-ui, sans-serif;
 }
 
 *, *::before, *::after {
@@ -66,7 +71,7 @@ html {
 body {
   background: var(--canvas);
   color: var(--ink);
-  font-family: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-golos), ui-sans-serif, system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.6;
 }
