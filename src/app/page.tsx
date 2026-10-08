@@ -943,7 +943,8 @@ export default function Home() {
             color: "var(--muted)",
             flexWrap: "wrap",
           }}>
-            <span style={{ fontWeight: 700, color: "var(--ink)" }}>Quix AI</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/agentic-ai-logo-cropped.png" alt="Agentic AI Institute" style={{ height: "36px", width: "auto" }} />
             <span>Claude Certification Module Assessment</span>
             <a
               href={CALENDLY_URL}
