@@ -582,3 +582,67 @@ h1, h2, h3, h4, h5, h6 {
     opacity: 0.8;
   }
 }
+
+/* ── New landing-page sections ── */
+
+.outcomes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr;
+  gap: 80px;
+  align-items: center;
+  padding-top: 70px;
+  padding-bottom: 70px;
+}
+
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 36px;
+}
+
+.faq-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 60px;
+}
+
+.faq-details {
+  border-bottom: 1px solid var(--border);
+  padding: 18px 0;
+}
+.faq-details:first-child { border-top: 1px solid var(--border); }
+.faq-details summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--ink);
+  list-style: none;
+  position: relative;
+  padding-right: 30px;
+}
+.faq-details summary::-webkit-details-marker { display: none; }
+.faq-details summary::after {
+  content: '+';
+  position: absolute;
+  right: 4px;
+  font-size: 22px;
+  color: #214f91;
+  line-height: 1.2;
+}
+.faq-details[open] summary::after { content: '−'; }
+.faq-details p {
+  font-size: 15px;
+  color: var(--muted);
+  margin: 14px 24px 0 0;
+  line-height: 1.65;
+}
+
+@media (max-width: 860px) {
+  .outcomes-grid { grid-template-columns: 1fr; gap: 36px; padding-top: 48px; padding-bottom: 48px; }
+  .steps-grid { grid-template-columns: 1fr; gap: 27px; }
+  .faq-grid { grid-template-columns: 1fr; gap: 25px; }
+}
+@media (max-width: 640px) {
+  .faq-details summary { font-size: 15px; }
+  .faq-details p { font-size: 14px; }
+}
