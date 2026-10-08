@@ -1068,7 +1068,7 @@ export const modules: QuizModule[] = [
     title: "Security and Safety",
     description:
       "Practice prompt injection defence, trust hierarchies, least-privilege tool access, PII handling, credential management, and safe-messaging guidelines.",
-    locked: true,
+    locked: false,
     questions: [
       {
         id: 701,
@@ -1245,7 +1245,7 @@ export const modules: QuizModule[] = [
     title: "Tools and MCPs",
     description:
       "Practice tool schema design, tool selection behaviour, MCP architecture, resources versus tools, authentication, error handling, and building MCP servers.",
-    locked: true,
+    locked: false,
     questions: [
       {
         id: 801,
