@@ -944,7 +944,7 @@ export default function Home() {
             flexWrap: "wrap",
           }}>
             <span style={{ fontWeight: 700, color: "var(--ink)" }}>Quix AI</span>
-            <span>Educational quiz. Not an official certification exam.</span>
+            <span>Claude Certification Module Assessment</span>
             <a
               href={CALENDLY_URL}
               target="_blank"
