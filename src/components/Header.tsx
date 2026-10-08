@@ -24,55 +24,24 @@ export default function Header({ moduleTitle }: { moduleTitle?: string }) {
         position: "relative",
       }}>
 
-        {/* Brand mark + wordmark */}
+        {/* Brand mark */}
         <Link
           href="/"
           style={{
             textDecoration: "none",
             display: "flex",
             alignItems: "center",
-            gap: "12px",
             flexShrink: 0,
-            fontSize: "15px",
-            lineHeight: "1.15",
-            color: "var(--ink)",
           }}
           aria-label="Agentic AI Institute home"
         >
-          {/* Coded "Ai" mark matching reference HTML */}
-          <span style={{
-            width: "42px",
-            height: "42px",
-            background: "#071b39",
-            color: "#ff9b50",
-            borderRadius: "11px",
-            fontFamily: "var(--font-manrope), Arial, sans-serif",
-            fontWeight: 800,
-            fontSize: "26px",
-            display: "grid",
-            placeContent: "center",
-            position: "relative",
-            flexShrink: 0,
-          }} aria-hidden="true">
-            A
-            <span style={{
-              fontSize: "14px",
-              position: "absolute",
-              right: "7px",
-              bottom: "5px",
-              color: "white",
-              fontWeight: 800,
-              lineHeight: 1,
-            }}>
-              i
-            </span>
-          </span>
-
-          {/* Wordmark */}
-          <span style={{ color: "var(--ink)" }}>
-            Agentic AI<br />
-            <strong style={{ fontWeight: 800 }}>Institute</strong>
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/agentic-ai-logo-cropped.png"
+            alt="Agentic AI Institute"
+            className="nav-logo-img"
+            style={{ height: "52px", width: "auto" }}
+          />
         </Link>
 
         {/* Center label */}
