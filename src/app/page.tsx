@@ -209,8 +209,6 @@ export default function Home() {
     } catch {}
   }, []);
 
-  const unlocked = modules.filter((m) => !m.locked);
-  const locked = modules.filter((m) => m.locked);
   const completed = Object.keys(scores).length;
 
   return (
@@ -324,12 +322,12 @@ export default function Home() {
                     color: "white",
                     fontSize: "14px",
                   }}>
-                    AI
+                    MY
                   </span>
                   <div style={{ minWidth: 0 }}>
-                    <span style={{ display: "block" }}>Claude Certification · Module Assessment</span>
+                    <span style={{ display: "block" }}>Created by Agentic AI Institute</span>
                     <span style={{ display: "block", color: "#b5c5dc", fontSize: "14px", marginTop: "3px" }}>
-                      {completed} of {modules.length} modules completed
+                      From Mahesh Yadav&apos;s Claude certification preparation program
                     </span>
                   </div>
                 </div>
@@ -412,10 +410,85 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Unlocked module cards */}
+            {/* All module cards in one unified grid */}
             <div className="module-grid">
-              {unlocked.map((mod) => {
+              {modules.map((mod) => {
                 const s = scores[String(mod.id)];
+                if (mod.locked) {
+                  return (
+                    <a
+                      key={mod.id}
+                      href={CALENDLY_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ textDecoration: "none", display: "flex" }}
+                    >
+                      <article style={{
+                        border: "1.5px dashed #dce3ed",
+                        borderRadius: "10px",
+                        padding: "23px 19px",
+                        background: "white",
+                        display: "flex",
+                        flexDirection: "column",
+                        width: "100%",
+                        opacity: 0.8,
+                      }}>
+                        <span style={{
+                          display: "block",
+                          color: "#9aa5b4",
+                          fontSize: "14px",
+                          fontWeight: 800,
+                          letterSpacing: "1px",
+                          marginBottom: "27px",
+                          fontFamily: "var(--font-manrope), sans-serif",
+                        }}>
+                          Module {mod.id} / 🔒 Locked
+                        </span>
+                        <h3 style={{
+                          fontFamily: "var(--font-manrope), sans-serif",
+                          fontSize: "19px",
+                          lineHeight: 1.35,
+                          fontWeight: 800,
+                          color: "#6b7a8f",
+                          margin: "0 0 14px",
+                          letterSpacing: "-0.025em",
+                        }}>
+                          {mod.title}
+                        </h3>
+                        <p style={{ fontSize: "14px", color: "#9aa5b4", lineHeight: 1.7, margin: 0, flex: 1 }}>
+                          {mod.description}
+                        </p>
+                        <span style={{
+                          display: "block",
+                          fontSize: "14px",
+                          color: "#9aa5b4",
+                          borderTop: "1px solid #dce3ed",
+                          paddingTop: "14px",
+                          marginTop: "24px",
+                        }}>
+                          {mod.questions.length} practice questions · ~18 min
+                        </span>
+                        <button style={{
+                          width: "100%",
+                          marginTop: "16px",
+                          padding: "12px 18px",
+                          borderRadius: "9px",
+                          border: "1px solid #dce3ed",
+                          background: "white",
+                          color: "#9aa5b4",
+                          fontWeight: 700,
+                          fontSize: "14px",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                          lineHeight: 1.3,
+                          minHeight: "44px",
+                        }}>
+                          Book to unlock →
+                        </button>
+                      </article>
+                    </a>
+                  );
+                }
                 return (
                   <Link key={mod.id} href={`/quiz/${mod.id}`} style={{ textDecoration: "none", display: "flex" }}>
                     <article style={{
@@ -485,7 +558,7 @@ export default function Home() {
                         fontFamily: "inherit",
                         lineHeight: 1.3,
                         minHeight: "44px",
-                        transition: "border-color .15s, background .15s",
+                        transition: "border-color .15s",
                       }}>
                         {s ? "Retake module →" : "Practice this module →"}
                       </button>
@@ -757,68 +830,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Locked module cards */}
-            {locked.length > 0 && (
-              <div className="locked-grid" style={{ marginTop: "16px" }}>
-                {locked.map((mod) => (
-                  <a
-                    key={mod.id}
-                    href={CALENDLY_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      textDecoration: "none",
-                      display: "flex",
-                      flexDirection: "column",
-                      border: "1.5px dashed #dce3ed",
-                      borderRadius: "10px",
-                      padding: "23px 19px",
-                      background: "white",
-                      opacity: 0.85,
-                      cursor: "pointer",
-                      transition: "opacity .2s, border-color .2s",
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLAnchorElement).style.opacity = "1";
-                      (e.currentTarget as HTMLAnchorElement).style.borderColor = "#9aaabe";
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLAnchorElement).style.opacity = "0.85";
-                      (e.currentTarget as HTMLAnchorElement).style.borderColor = "#dce3ed";
-                    }}
-                  >
-                    <span style={{
-                      display: "block",
-                      color: "#9aa5b4",
-                      fontSize: "14px",
-                      fontWeight: 800,
-                      letterSpacing: "1px",
-                      marginBottom: "27px",
-                      fontFamily: "var(--font-manrope), sans-serif",
-                    }}>
-                      Module {mod.id} / 🔒 Locked
-                    </span>
-                    <h3 style={{
-                      fontFamily: "var(--font-manrope), sans-serif",
-                      fontSize: "19px",
-                      lineHeight: 1.35,
-                      fontWeight: 800,
-                      color: "#6b7a8f",
-                      margin: "0 0 14px",
-                      letterSpacing: "-0.025em",
-                    }}>
-                      {mod.title}
-                    </h3>
-                    <p style={{ fontSize: "14px", color: "#9aa5b4", lineHeight: 1.7, margin: "0 0 14px", flex: 1 }}>
-                      {mod.description}
-                    </p>
-                    <span style={{ fontSize: "14px", fontWeight: 600, color: "var(--navy)" }}>
-                      Book a call to unlock →
-                    </span>
-                  </a>
-                ))}
-              </div>
-            )}
           </div>
         </section>
 
