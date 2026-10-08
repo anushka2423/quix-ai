@@ -110,6 +110,7 @@ function ResultsView({ mod, modules }: { mod: QuizModule; modules: QuizModule[] 
   const sortedDomains = [...domains].sort((a, b) => a.pct - b.pct);
   const weakest = sortedDomains[0];
   const allPerfect = score === total;
+  const missed = results.filter((r) => !r.isCorrect);
 
   // ── Email submit ───────────────────────────────────────────────────────
   async function handleEmailSubmit(e: React.FormEvent) {
@@ -131,261 +132,231 @@ function ResultsView({ mod, modules }: { mod: QuizModule; modules: QuizModule[] 
 
   // ── Score preview page ─────────────────────────────────────────────────
   if (!showLearningPlan) {
+    const btnOutline: React.CSSProperties = {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "14px 18px",
+      border: "1px solid #dce3ed",
+      borderRadius: "9px",
+      background: "white",
+      color: "#10213b",
+      fontWeight: 700,
+      fontSize: "15px",
+      cursor: "pointer",
+      fontFamily: "inherit",
+      textDecoration: "none",
+      minHeight: "52px",
+      lineHeight: 1.3,
+    };
+    const btnDark: React.CSSProperties = {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "100%",
+      padding: "16px 18px",
+      border: "none",
+      borderRadius: "9px",
+      background: "#071b39",
+      color: "white",
+      fontWeight: 700,
+      fontSize: "15px",
+      cursor: "pointer",
+      fontFamily: "inherit",
+      textDecoration: "none",
+      minHeight: "52px",
+      marginTop: "12px",
+      lineHeight: 1.3,
+    };
+
     return (
       <>
-        <Header />
-        <main
-          style={{
-            minHeight: "calc(100vh - 64px)",
-            background: "var(--canvas)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            padding: "60px 24px 80px",
-          }}
-        >
-          <div style={{ maxWidth: "520px", width: "100%" }}>
-            {/* Back link */}
-            <Link
-              href="/"
-              style={{ fontSize: "14px", color: "var(--muted)", textDecoration: "none" }}
-            >
-              ← All tracks
+        <Header moduleTitle={mod.title} />
+        <main style={{ minHeight: "calc(100vh - 88px)", background: "#ffffff" }}>
+          <div style={{ maxWidth: "660px", margin: "0 auto", padding: "28px 28px 80px" }}>
+
+            {/* Dialog-style header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "18px" }}>
+              <span style={{
+                fontSize: "13px",
+                fontWeight: 800,
+                letterSpacing: ".8px",
+                color: "#214f91",
+                textTransform: "uppercase",
+                fontFamily: "var(--font-manrope), sans-serif",
+              }}>
+                CLAUDE CERTIFICATION preparation
+              </span>
+              <Link href="/" style={{
+                display: "grid",
+                placeContent: "center",
+                width: "44px",
+                height: "44px",
+                borderRadius: "50%",
+                background: "#f1f5fa",
+                color: "#10213b",
+                fontSize: "22px",
+                textDecoration: "none",
+                flexShrink: 0,
+              }}>×</Link>
+            </div>
+
+            {/* Note box */}
+            <div style={{
+              background: "#fff4db",
+              color: "#65501f",
+              padding: "10px 13px",
+              borderRadius: "6px",
+              fontSize: "14px",
+              lineHeight: 1.6,
+              marginBottom: "22px",
+            }}>
+              Practice questions prepared for Claude certification. The email report is a
+              preview of your revision plan.
+            </div>
+
+            {/* Heading */}
+            <h1 style={{
+              fontFamily: "var(--font-manrope), sans-serif",
+              fontSize: "25px",
+              fontWeight: 800,
+              letterSpacing: "-0.025em",
+              color: "#10213b",
+              margin: "22px 0",
+              lineHeight: 1.4,
+            }}>
+              Your practice score
+            </h1>
+
+            {/* Big score % */}
+            <div style={{
+              fontSize: "62px",
+              fontWeight: 800,
+              lineHeight: 1.3,
+              letterSpacing: "-2px",
+              color: "#10213b",
+              fontFamily: "var(--font-manrope), sans-serif",
+              marginBottom: "16px",
+            }}>
+              {scaledScore}
+              <small style={{ fontSize: "20px", letterSpacing: 0, color: "var(--muted)", fontWeight: 500 }}>
+                %
+              </small>
+            </div>
+
+            {/* Description */}
+            <p style={{ fontSize: "16px", color: "#10213b", margin: "0 0 24px", lineHeight: 1.6 }}>
+              {score} of {total} correct in this session. This is practice accuracy, not
+              an official scaled exam score or pass prediction.
+            </p>
+
+            {/* Action buttons */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <Link href={`/quiz/${mod.id}`} style={btnOutline}>
+                Repeat this session
+              </Link>
+              {missed.length > 0 ? (
+                <Link href={`/quiz/${mod.id}`} style={btnOutline}>
+                  Retry missed questions
+                </Link>
+              ) : (
+                <button disabled style={{ ...btnOutline, opacity: 0.45, cursor: "not-allowed" }}>
+                  Retry missed questions
+                </button>
+              )}
+            </div>
+            <Link href="/" style={btnDark}>
+              Choose any domain
             </Link>
 
-            {/* Score card */}
-            <div
-              style={{
-                background: "#ffffff",
-                borderRadius: "var(--r-feature)",
-                boxShadow: "var(--shadow-feature)",
-                padding: "48px 40px",
-                marginTop: "28px",
-                textAlign: "center",
-              }}
-            >
-              {/* Eyebrow */}
-              <p
-                style={{
-                  fontSize: "12px",
-                  fontWeight: 700,
-                  letterSpacing: "0.1em",
-                  textTransform: "uppercase",
-                  color: "var(--muted)",
-                  margin: "0 0 20px",
-                }}
-              >
-                {mod.title}
-              </p>
+            {/* Email / revision report */}
+            <h2 style={{
+              fontFamily: "var(--font-manrope), sans-serif",
+              fontSize: "20px",
+              fontWeight: 800,
+              letterSpacing: "-0.025em",
+              color: "#10213b",
+              margin: "24px 0 8px",
+            }}>
+              Get your personalized revision report
+            </h2>
+            <p style={{ fontSize: "15px", color: "var(--muted)", margin: "0 0 18px", lineHeight: 1.6 }}>
+              Domains, retakes and answer explanations remain freely accessible.
+            </p>
 
-              <h1
-                style={{
-                  fontSize: "clamp(26px, 4vw, 36px)",
-                  fontWeight: 700,
-                  color: "var(--ink)",
-                  letterSpacing: "-0.03em",
-                  margin: "0 0 24px",
-                  lineHeight: 1.2,
-                  fontFamily: "var(--font-manrope), sans-serif",
-                }}
+            <form onSubmit={handleEmailSubmit}>
+              <label
+                htmlFor="result-email"
+                style={{ display: "block", fontSize: "14px", fontWeight: 600, color: "#10213b", marginBottom: "8px" }}
               >
-                Your score is ready.
-              </h1>
-
-              {/* Big score */}
-              <div
+                Email address
+              </label>
+              <input
+                id="result-email"
+                type="email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => { setEmail(e.target.value); setEmailError(""); }}
+                required
                 style={{
-                  display: "inline-flex",
-                  alignItems: "baseline",
-                  gap: "4px",
-                  marginBottom: "12px",
+                  width: "100%",
+                  border: emailError ? "1px solid var(--incorrect-text)" : "1px solid #99abc2",
+                  borderRadius: "7px",
+                  padding: "13px",
+                  fontSize: "16px",
+                  color: "#10213b",
+                  outline: "none",
+                  boxSizing: "border-box",
+                  background: "#fff",
+                  fontFamily: "inherit",
+                  transition: "border-color 0.15s",
                 }}
-              >
-                <span
-                  style={{
-                    fontSize: "80px",
-                    fontWeight: 800,
-                    color: "var(--navy)",
-                    lineHeight: 1,
-                    fontFamily: "var(--font-manrope), sans-serif",
-                    letterSpacing: "-4px",
-                  }}
-                >
-                  {scaledScore}
-                </span>
-                <span
-                  style={{
-                    fontSize: "28px",
-                    color: "var(--muted)",
-                    fontWeight: 500,
-                    letterSpacing: "-1px",
-                  }}
-                >
-                  / 100
-                </span>
-              </div>
-
-              <p style={{ fontSize: "15px", color: "var(--muted)", margin: "0 0 8px" }}>
-                You answered{" "}
-                <strong style={{ color: "var(--ink)" }}>
-                  {score} of {total}
-                </strong>{" "}
-                scenarios correctly.
-              </p>
-              <p
-                style={{
-                  fontSize: "14px",
-                  color: "var(--faint)",
-                  margin: "0 0 36px",
-                  lineHeight: 1.6,
-                }}
-              >
-                Your detailed report shows what to practise next.
-              </p>
-
-              {/* Unlock callout */}
-              <div
-                style={{
-                  background: "var(--canvas)",
-                  borderRadius: "12px",
-                  padding: "20px 24px",
-                  marginBottom: "32px",
-                  textAlign: "left",
-                }}
-              >
-                <p
-                  style={{
-                    fontSize: "13px",
-                    fontWeight: 700,
-                    color: "var(--ink)",
-                    margin: "0 0 6px",
-                    letterSpacing: "-0.01em",
-                  }}
-                >
-                  Unlock your skill breakdown
+                onFocus={(e) => { if (!emailError) (e.target as HTMLInputElement).style.borderColor = "#214f91"; }}
+                onBlur={(e) => { if (!emailError) (e.target as HTMLInputElement).style.borderColor = "#99abc2"; }}
+              />
+              {emailError && (
+                <p style={{ fontSize: "13px", color: "var(--incorrect-text)", margin: "6px 0 0" }}>
+                  {emailError}
                 </p>
-                <p style={{ fontSize: "13px", color: "var(--muted)", margin: 0, lineHeight: 1.55 }}>
-                  See your results in all {domains.length} areas and a learning exercise for each.
-                </p>
-              </div>
+              )}
 
-              {/* Email form */}
-              <form onSubmit={handleEmailSubmit} style={{ textAlign: "left" }}>
-                <label
-                  htmlFor="result-email"
-                  style={{
-                    display: "block",
-                    fontSize: "13px",
-                    fontWeight: 600,
-                    color: "var(--ink)",
-                    marginBottom: "8px",
-                  }}
-                >
-                  Email address
-                </label>
+              <label style={{ display: "flex", alignItems: "flex-start", gap: "9px", fontSize: "14px", color: "var(--muted)", marginTop: "14px", cursor: "pointer", lineHeight: 1.55 }}>
                 <input
-                  id="result-email"
-                  type="email"
-                  placeholder="you@company.com"
-                  value={email}
-                  onChange={(e) => {
-                    setEmail(e.target.value);
-                    setEmailError("");
-                  }}
-                  required
-                  style={{
-                    width: "100%",
-                    padding: "13px 16px",
-                    borderRadius: "var(--r-input)",
-                    border: emailError
-                      ? "1.5px solid var(--incorrect-text)"
-                      : "1.5px solid var(--border)",
-                    fontSize: "15px",
-                    color: "var(--ink)",
-                    outline: "none",
-                    boxSizing: "border-box",
-                    background: "#fff",
-                    fontFamily: "inherit",
-                    transition: "border-color 0.15s",
-                  }}
-                  onFocus={(e) => {
-                    if (!emailError)
-                      (e.target as HTMLInputElement).style.borderColor = "var(--accent)";
-                  }}
-                  onBlur={(e) => {
-                    if (!emailError)
-                      (e.target as HTMLInputElement).style.borderColor = "var(--border)";
-                  }}
+                  type="checkbox"
+                  checked={optIn}
+                  onChange={(e) => setOptIn(e.target.checked)}
+                  style={{ width: "18px", height: "18px", flexShrink: 0, marginTop: "2px" }}
                 />
-                {emailError && (
-                  <p
-                    style={{
-                      fontSize: "13px",
-                      color: "var(--incorrect-text)",
-                      margin: "6px 0 0",
-                    }}
-                  >
-                    {emailError}
-                  </p>
-                )}
+                Send me optional learning tips and Mahesh&apos;s cohort updates.
+              </label>
 
-                {/* Opt-in checkbox */}
-                <label
-                  style={{
-                    display: "flex",
-                    alignItems: "flex-start",
-                    gap: "10px",
-                    marginTop: "14px",
-                    cursor: "pointer",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={optIn}
-                    onChange={(e) => setOptIn(e.target.checked)}
-                    style={{ marginTop: "2px", flexShrink: 0, accentColor: "var(--accent)" }}
-                  />
-                  <span style={{ fontSize: "13px", color: "var(--muted)", lineHeight: 1.5 }}>
-                    Send me optional learning tips and Mahesh&apos;s cohort updates.
-                  </span>
-                </label>
+              <button
+                type="submit"
+                disabled={emailLoading}
+                style={{
+                  marginTop: "16px",
+                  width: "100%",
+                  padding: "16px",
+                  borderRadius: "9px",
+                  border: "none",
+                  background: "#071b39",
+                  color: "white",
+                  fontSize: "16px",
+                  fontWeight: 700,
+                  cursor: emailLoading ? "not-allowed" : "pointer",
+                  opacity: emailLoading ? 0.7 : 1,
+                  fontFamily: "inherit",
+                  minHeight: "54px",
+                  transition: "background 0.15s",
+                }}
+              >
+                {emailLoading ? "Saving…" : "View my revision report"}
+              </button>
 
-                <button
-                  type="submit"
-                  disabled={emailLoading}
-                  style={{
-                    marginTop: "20px",
-                    width: "100%",
-                    padding: "15px",
-                    borderRadius: "9px",
-                    border: "none",
-                    background: "var(--accent)",
-                    color: "var(--navy)",
-                    fontSize: "16px",
-                    fontWeight: 700,
-                    cursor: emailLoading ? "not-allowed" : "pointer",
-                    opacity: emailLoading ? 0.7 : 1,
-                    transition: "background 0.15s",
-                    fontFamily: "inherit",
-                    letterSpacing: "-0.01em",
-                    minHeight: "52px",
-                  }}
-                >
-                  {emailLoading ? "Saving…" : "Unlock my learning plan →"}
-                </button>
-
-                <p
-                  style={{
-                    fontSize: "11px",
-                    color: "var(--faint)",
-                    textAlign: "center",
-                    marginTop: "10px",
-                  }}
-                >
-                  No spam. Used only to deliver your results.
-                </p>
-              </form>
-            </div>
+              <p style={{ fontSize: "14px", color: "var(--muted)", textAlign: "center", marginTop: "12px" }}>
+                Preview only. This form does not collect or send your email.
+              </p>
+            </form>
           </div>
         </main>
       </>
