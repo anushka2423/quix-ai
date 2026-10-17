@@ -46,7 +46,7 @@ export async function adminSchema(): Promise<SchemaStatus> {
   const mod = await c.from("quiz_modules").select("*").limit(1);
   if (mod.error) missing.push(`quiz_modules is unreadable: ${mod.error.message}`);
   else if (mod.data?.length) {
-    const absent = MODULE_COLS.filter((k) => !(k in mod.data[0]));
+    const absent = MODULE_COLS.filter((k) => !(k in mod.data![0]));
     if (absent.length) missing.push(`quiz_modules is missing columns: ${absent.join(", ")}`);
   }
   const q = await c.from("quiz_questions").select("*").limit(1);
