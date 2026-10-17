@@ -11,6 +11,12 @@ import {
   flattenQuestions,
 } from "@/lib/liveq/db";
 import { tick } from "@/lib/liveq/engine";
+import {
+  getCachedParticipants,
+  setCachedParticipants,
+  shouldSkipTouch,
+  recordTouch,
+} from "@/lib/liveq/cache";
 import type { ParticipantState, PublicQuestionState, ParticipantResultPayload, LiveLeaderboardEntry } from "@/types/liveq";
 
 export const dynamic = "force-dynamic";
@@ -25,8 +31,11 @@ export async function GET(request: NextRequest) {
   const participant = await getParticipantByToken(token);
   if (!participant) return Response.json({ error: "Invalid token" }, { status: 401 });
 
-  // Update last_seen
-  await touchParticipant(participant.id);
+  // Update last_seen (debounced — skip if touched within the last 10s)
+  if (!shouldSkipTouch(participant.id)) {
+    recordTouch(participant.id);
+    touchParticipant(participant.id); // fire-and-forget
+  }
 
   // Trigger tick (advance quiz if deadline passed)
   let session = await tick(participant.session_id);
@@ -71,8 +80,12 @@ export async function GET(request: NextRequest) {
     answered &&
     snapshot.config.show_leaderboard_live
   ) {
-    const allParticipants = await getSessionParticipants(session.id);
-    const sorted = [...allParticipants].sort((a, b) => b.score - a.score);
+    let cached = getCachedParticipants(session.id);
+    if (!cached) {
+      cached = await getSessionParticipants(session.id);
+      setCachedParticipants(session.id, cached);
+    }
+    const sorted = [...cached].sort((a, b) => b.score - a.score);
     const myIdx = sorted.findIndex((p) => p.id === participant.id);
     const myRank = myIdx + 1;
 

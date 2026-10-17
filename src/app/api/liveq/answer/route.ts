@@ -9,6 +9,7 @@ import {
 } from "@/lib/liveq/db";
 import { scoreAnswer } from "@/lib/liveq/engine";
 import { badRequestJson } from "@/lib/liveq/auth";
+import { invalidateLeaderboardCache } from "@/lib/liveq/cache";
 
 export const dynamic = "force-dynamic";
 
@@ -100,6 +101,9 @@ export async function POST(request: NextRequest) {
       .update({ score: participant.score + points_awarded })
       .eq("id", participant.id);
   }
+
+  // Invalidate cached leaderboard so next poll reflects the new score
+  invalidateLeaderboardCache(session.id);
 
   return Response.json({ ok: true, is_correct, points_awarded, correct_answer: privateQ.correct_answer });
 }
