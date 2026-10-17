@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { AdminSessionState, AdminParticipantRow } from "@/types/liveq";
 
@@ -39,6 +40,7 @@ function Countdown({ deadline, remaining }: { deadline: string | null; remaining
 }
 
 export default function SessionControlCenter({ sessionId }: { sessionId: string }) {
+  const router = useRouter();
   const [state, setState] = useState<AdminSessionState | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -88,6 +90,15 @@ export default function SessionControlCenter({ sessionId }: { sessionId: string 
     } catch { setError("Network error"); }
     finally { setBusy(false); }
   }, [fetchState]);
+
+  const deleteSession = useCallback(async () => {
+    if (!confirm("Delete this session and all its participant data? This cannot be undone.")) return;
+    setBusy(true);
+    try {
+      await fetch(`/api/liveq/admin/sessions/${sessionId}`, { method: "DELETE" });
+      router.push("/admin/liveq");
+    } catch { setError("Failed to delete session"); setBusy(false); }
+  }, [sessionId, router]);
 
   const copyJoinLink = () => {
     if (!state?.session?.join_code) return;
@@ -232,7 +243,7 @@ export default function SessionControlCenter({ sessionId }: { sessionId: string 
           )}
 
           {/* Controls */}
-          <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
+          <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap", alignItems: "center" }}>
             {session.status === "active" && (
               <button style={btn} disabled={busy} onClick={() => action(`/api/liveq/admin/sessions/${sessionId}/pause`)}>
                 ⏸ Pause
@@ -243,8 +254,25 @@ export default function SessionControlCenter({ sessionId }: { sessionId: string 
                 ▶ Resume
               </button>
             )}
+            {/* Next Question — skips remaining timer and advances immediately */}
+            <button
+              style={{ ...btnGreen, padding: "8px 20px", fontSize: 14 }}
+              disabled={busy}
+              onClick={() => {
+                const totalQs = quiz_snapshot.modules.flatMap((m) => m.questions).length;
+                const currentIdx = current_question?.index ?? 0;
+                const isLast = currentIdx >= totalQs - 1;
+                const msg = isLast
+                  ? "This is the last question — advancing will end the quiz and publish results."
+                  : `Skip to question ${currentIdx + 2} of ${totalQs}?`;
+                if (confirm(msg)) action(`/api/liveq/admin/sessions/${sessionId}/next`);
+              }}
+            >
+              Next Question →
+            </button>
+            <div style={{ flex: 1 }} />
             <button style={btnDanger} disabled={busy} onClick={() => {
-              if (confirm("End the quiz early? This will finalize scores with current progress.")) {
+              if (confirm("End the quiz early? This will finalize and publish scores immediately.")) {
                 action(`/api/liveq/admin/sessions/${sessionId}/end`);
               }
             }}>
@@ -285,12 +313,12 @@ export default function SessionControlCenter({ sessionId }: { sessionId: string 
           <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
           <h2 style={{ margin: "0 0 8px" }}>Quiz Completed!</h2>
           <p style={{ color: "var(--muted)", margin: "0 0 20px" }}>{participants.length} participants · Completed {session.completed_at ? new Date(session.completed_at).toLocaleString() : ""}</p>
-          <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             <Link href={`/admin/liveq/sessions/${sessionId}/results`} style={{ ...btnPrimary, textDecoration: "none", display: "inline-block" }}>
               View Full Results →
             </Link>
-            <button style={btn} onClick={() => action(`/api/liveq/admin/sessions/${sessionId}/publish-results`)}>
-              Publish Results to Participants
+            <button style={{ ...btnDanger }} disabled={busy} onClick={deleteSession}>
+              🗑 Delete Session
             </button>
           </div>
         </div>

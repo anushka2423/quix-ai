@@ -310,6 +310,75 @@ export async function generateFinalResults(
   }
 }
 
+// ── Admin: force-advance to the next question ─────────────────────────────────
+
+/**
+ * Immediately advances the quiz to the next question regardless of the deadline.
+ * Marks unanswered for the current question, then moves on (or ends the quiz).
+ * Called when the admin clicks "Next Question".
+ */
+export async function advanceToNextQuestion(sessionId: string): Promise<{ ok: boolean; done: boolean; error?: string }> {
+  const c = db();
+  if (!c) return { ok: false, done: false, error: "Database not configured" };
+
+  const session = await getSession(sessionId);
+  if (!session) return { ok: false, done: false, error: "Session not found" };
+  if (session.status !== "active" && session.status !== "paused") {
+    return { ok: false, done: false, error: "Session is not active" };
+  }
+
+  const snapshot = await getPrivateSnapshot(session.quiz_version_id);
+  if (!snapshot) return { ok: false, done: false, error: "Snapshot not found" };
+
+  const allQuestions = flattenQuestions(snapshot);
+  const currentIndex = session.current_question_index ?? 0;
+  const currentQuestion = allQuestions[currentIndex];
+  if (!currentQuestion) return { ok: false, done: false, error: "No current question" };
+
+  const now = new Date().toISOString();
+
+  // Mark unanswered for participants who haven't submitted yet
+  await markUnanswered(sessionId, currentQuestion.id, snapshot.config.points_unanswered);
+
+  const nextIndex = currentIndex + 1;
+  const isLast = nextIndex >= allQuestions.length;
+
+  if (isLast) {
+    await c
+      .from("lq_sessions")
+      .update({ status: "completed", completed_at: now, question_deadline: null, results_published: true })
+      .eq("id", sessionId);
+
+    await generateFinalResults(sessionId, snapshot);
+    await logSessionEvent(sessionId, "quiz_completed", { completed_at: now, triggered_by: "admin_next" });
+    return { ok: true, done: true };
+  }
+
+  const nextQuestion = allQuestions[nextIndex];
+  const timerSecs = nextQuestion.timer_secs;
+  const deadline = new Date(Date.now() + timerSecs * 1000).toISOString();
+
+  await c
+    .from("lq_sessions")
+    .update({
+      status: "active",
+      current_question_index: nextIndex,
+      question_started_at: now,
+      question_deadline: deadline,
+      question_remaining_secs: null,
+    })
+    .eq("id", sessionId);
+
+  await logSessionEvent(sessionId, "question_started", {
+    question_index: nextIndex,
+    question_id: nextQuestion.id,
+    deadline,
+    triggered_by: "admin_next",
+  });
+
+  return { ok: true, done: false };
+}
+
 // ── Score a single answer submission ──────────────────────────────────────────
 
 export function scoreAnswer(

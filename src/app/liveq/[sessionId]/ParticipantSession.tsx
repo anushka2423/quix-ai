@@ -109,11 +109,11 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
 
   const [token, setToken] = useState<string | null>(null);
   const [state, setState] = useState<ParticipantState | null>(null);
-  const [error, setError] = useState("");
+  const [error] = useState("");
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
-  const [submitResult, setSubmitResult] = useState<{ is_correct: boolean; points_awarded: number } | null>(null);
+  const [submitResult, setSubmitResult] = useState<{ is_correct: boolean; points_awarded: number; correct_answer?: string } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -363,8 +363,12 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {q.options.map((opt) => {
                   let optState: OptState = "default";
-                  if (submitResult && selectedAnswer === opt.label) {
-                    optState = submitResult.is_correct ? "correct" : "wrong";
+                  if (submitResult) {
+                    if (submitResult.correct_answer && opt.label === submitResult.correct_answer) {
+                      optState = "correct";
+                    } else if (selectedAnswer === opt.label && !submitResult.is_correct) {
+                      optState = "wrong";
+                    }
                   } else if (selectedAnswer === opt.label) {
                     optState = "selected";
                   }
@@ -434,7 +438,7 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
                   }}>
                     {submitResult.is_correct
                       ? `✓ Correct! +${submitResult.points_awarded} pts`
-                      : "✗ Incorrect — waiting for next question…"}
+                      : `✗ Incorrect — correct answer: ${submitResult.correct_answer}`}
                   </div>
                 )}
                 {locked && !submitResult && (

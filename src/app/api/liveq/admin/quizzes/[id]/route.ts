@@ -103,10 +103,23 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const c = db();
   if (!c) return Response.json({ error: "Database not configured" }, { status: 503 });
 
-  const { data: existing } = await c.from("lq_quizzes").select("status").eq("id", id).single();
+  const { data: existing } = await c.from("lq_quizzes").select("id").eq("id", id).single();
   if (!existing) return notFoundJson("Quiz not found");
-  if (existing.status === "published") return badRequestJson("Cannot delete a published quiz");
 
+  // Cascade-delete sessions and all their data first
+  const { data: sessions } = await c.from("lq_sessions").select("id").eq("quiz_id", id);
+  for (const s of sessions ?? []) {
+    await c.from("lq_participant_results").delete().eq("session_id", s.id);
+    await c.from("lq_responses").delete().eq("session_id", s.id);
+    await c.from("lq_session_events").delete().eq("session_id", s.id);
+    await c.from("lq_participants").delete().eq("session_id", s.id);
+    await c.from("lq_sessions").delete().eq("id", s.id);
+  }
+
+  // Delete quiz data
+  await c.from("lq_quiz_versions").delete().eq("quiz_id", id);
+  await c.from("lq_questions").delete().eq("quiz_id", id);
+  await c.from("lq_modules").delete().eq("quiz_id", id);
   const { error } = await c.from("lq_quizzes").delete().eq("id", id);
   if (error) return Response.json({ error: error.message }, { status: 500 });
   return Response.json({ ok: true });

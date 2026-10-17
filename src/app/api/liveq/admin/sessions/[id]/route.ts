@@ -68,3 +68,22 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
   return Response.json(state);
 }
+
+export async function DELETE(_req: NextRequest, { params }: Ctx) {
+  try { await requireAdminAuth(); } catch { return unauthorizedJson(); }
+  const { id } = await params;
+  const c = db();
+  if (!c) return Response.json({ error: "Database not configured" }, { status: 503 });
+
+  const session = await getSession(id);
+  if (!session) return notFoundJson("Session not found");
+
+  // Delete in FK-safe order
+  await c.from("lq_participant_results").delete().eq("session_id", id);
+  await c.from("lq_responses").delete().eq("session_id", id);
+  await c.from("lq_session_events").delete().eq("session_id", id);
+  await c.from("lq_participants").delete().eq("session_id", id);
+  await c.from("lq_sessions").delete().eq("id", id);
+
+  return Response.json({ ok: true });
+}

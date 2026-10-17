@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { db } from "@/lib/server/db";
 import { card, PageHead } from "../_components/ui";
+import DeleteSessionBtn from "./_components/DeleteSessionBtn";
+import DeleteQuizBtn from "./_components/DeleteQuizBtn";
 
 export const dynamic = "force-dynamic";
 
@@ -121,13 +123,14 @@ export default async function LiveQDashboard() {
                     {new Date(q.created_at).toLocaleDateString()}
                   </td>
                   <td style={{ padding: "12px 16px" }}>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
                       {q.status === "draft" && (
                         <Link href={`/admin/liveq/${q.id}/edit`} style={{ color: "var(--navy)", fontSize: 13, textDecoration: "none", fontWeight: 500 }}>Edit</Link>
                       )}
                       {q.status === "published" && (
                         <Link href={`/admin/liveq/${q.id}/edit`} style={{ color: "var(--navy)", fontSize: 13, textDecoration: "none", fontWeight: 500 }}>View / Session</Link>
                       )}
+                      <DeleteQuizBtn quizId={q.id} quizTitle={q.title} />
                     </div>
                   </td>
                 </tr>
@@ -166,13 +169,14 @@ export default async function LiveQDashboard() {
                     {s.started_at ? new Date(s.started_at).toLocaleString() : "—"}
                   </td>
                   <td style={{ padding: "12px 16px" }}>
-                    <div style={{ display: "flex", gap: 8 }}>
+                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                       {(s.status === "lobby" || s.status === "active" || s.status === "paused") && (
                         <Link href={`/admin/liveq/sessions/${s.id}`} style={{ color: "var(--correct-text)", fontSize: 13, textDecoration: "none", fontWeight: 600 }}>Open →</Link>
                       )}
                       {s.status === "completed" && (
                         <Link href={`/admin/liveq/sessions/${s.id}/results`} style={{ color: "var(--navy)", fontSize: 13, textDecoration: "none", fontWeight: 500 }}>Results</Link>
                       )}
+                      <DeleteSessionBtn sessionId={s.id} />
                     </div>
                   </td>
                 </tr>

@@ -101,5 +101,5 @@ export async function POST(request: NextRequest) {
       .eq("id", participant.id);
   }
 
-  return Response.json({ ok: true, is_correct, points_awarded });
+  return Response.json({ ok: true, is_correct, points_awarded, correct_answer: privateQ.correct_answer });
 }
