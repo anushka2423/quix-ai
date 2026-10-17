@@ -22,7 +22,7 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
   const now = new Date().toISOString();
   const { error } = await c
     .from("lq_sessions")
-    .update({ status: "completed", completed_at: now, question_deadline: null })
+    .update({ status: "completed", completed_at: now, question_deadline: null, results_published: true })
     .eq("id", id);
 
   if (error) return Response.json({ error: error.message }, { status: 500 });

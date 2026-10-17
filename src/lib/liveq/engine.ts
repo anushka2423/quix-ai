@@ -65,10 +65,10 @@ export async function tick(sessionId: string): Promise<LQSession | null> {
   const isLast = nextIndex >= allQuestions.length;
 
   if (isLast) {
-    // Quiz complete
+    // Quiz complete — auto-publish results immediately
     await c
       .from("lq_sessions")
-      .update({ status: "completed", completed_at: now, current_question_index: currentIndex })
+      .update({ status: "completed", completed_at: now, current_question_index: currentIndex, results_published: true })
       .eq("id", sessionId)
       .eq("status", "active")
       .lt("question_deadline", now);

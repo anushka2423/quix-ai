@@ -2,27 +2,10 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Header from "@/components/Header";
 import type { ParticipantState, PublicQuestionState, ConceptResult } from "@/types/liveq";
 
-// ── Shared styles ─────────────────────────────────────────────────────────────
-
-const screenWrap: React.CSSProperties = {
-  minHeight: "100vh", background: "var(--canvas)", display: "flex",
-  flexDirection: "column", alignItems: "center", justifyContent: "center",
-  padding: "20px", fontFamily: "var(--font-golos), ui-sans-serif, system-ui, sans-serif",
-};
-const card: React.CSSProperties = {
-  background: "#fff", borderRadius: 12, padding: 28,
-  boxShadow: "var(--shadow-card)", width: "100%", maxWidth: 560,
-};
-const optionBase: React.CSSProperties = {
-  display: "flex", alignItems: "center", gap: 12, padding: "14px 18px",
-  border: "2px solid var(--border)", borderRadius: 8, cursor: "pointer",
-  background: "#fff", textAlign: "left", width: "100%", fontFamily: "inherit",
-  fontSize: 15, color: "var(--ink)", marginBottom: 10, transition: "border-color 0.15s",
-};
-
-// ── Countdown ─────────────────────────────────────────────────────────────────
+// ── Countdown bar ──────────────────────────────────────────────────────────────
 
 function Countdown({ question }: { question: PublicQuestionState }) {
   const [secs, setSecs] = useState<number>(0);
@@ -48,20 +31,30 @@ function Countdown({ question }: { question: PublicQuestionState }) {
     <div style={{ marginBottom: 20 }}>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: "var(--muted)", marginBottom: 6 }}>
         <span>{question.module_title}</span>
-        <span style={{ fontWeight: 700, color: danger ? "var(--incorrect-text)" : "var(--ink)" }}>{secs}s</span>
+        <span
+          role="timer"
+          style={{
+            fontWeight: 700,
+            color: danger ? "var(--incorrect-text)" : "var(--ink)",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {secs}s
+        </span>
       </div>
       <div style={{ height: 6, background: "var(--border)", borderRadius: 100, overflow: "hidden" }}>
         <div style={{
-          height: "100%", borderRadius: 100, transition: "width 0.5s linear",
+          height: "100%", borderRadius: 100,
+          transition: "width 0.5s linear, background 0.3s",
           width: `${pct}%`,
-          background: danger ? "var(--incorrect-text)" : "var(--navy)",
+          background: danger ? "var(--incorrect-text)" : "var(--accent)",
         }} />
       </div>
     </div>
   );
 }
 
-// ── Concept Performance ───────────────────────────────────────────────────────
+// ── Concept badge ──────────────────────────────────────────────────────────────
 
 function ConceptBadge({ concept }: { concept: ConceptResult }) {
   const { accuracy, status } = concept;
@@ -73,9 +66,9 @@ function ConceptBadge({ concept }: { concept: ConceptResult }) {
   const c = colors[status];
   return (
     <div style={{ background: c.bg, borderRadius: 8, padding: "12px 14px" }}>
-      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2 }}>{concept.concept}</div>
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 2, color: "var(--ink)" }}>{concept.concept}</div>
       <div style={{ fontSize: 22, fontWeight: 700, color: c.color }}>{Math.round(accuracy * 100)}%</div>
-      <div style={{ fontSize: 11, color: c.color, textTransform: "uppercase", fontWeight: 600 }}>
+      <div style={{ fontSize: 11, color: c.color, textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.04em" }}>
         {status.replace("_", " ")}
       </div>
       <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 4 }}>
@@ -83,6 +76,29 @@ function ConceptBadge({ concept }: { concept: ConceptResult }) {
       </div>
     </div>
   );
+}
+
+// ── Option button styles (matching existing quiz page) ─────────────────────────
+
+type OptState = "default" | "selected" | "correct" | "wrong";
+
+function getOptionStyles(state: OptState) {
+  if (state === "correct") return {
+    wrapper: { border: "2px solid var(--correct-text)", background: "var(--correct-bg)" },
+    badge: { background: "var(--correct-text)", color: "#fff", border: "none" },
+  };
+  if (state === "wrong") return {
+    wrapper: { border: "2px solid var(--incorrect-text)", background: "var(--incorrect-bg)" },
+    badge: { background: "var(--incorrect-text)", color: "#fff", border: "none" },
+  };
+  if (state === "selected") return {
+    wrapper: { border: "2px solid var(--accent)", background: "#fff3e8" },
+    badge: { background: "var(--accent)", color: "var(--navy)", border: "none" },
+  };
+  return {
+    wrapper: { border: "1px solid var(--border)", background: "#fff" },
+    badge: { background: "#fff", color: "var(--muted)", border: "1px solid var(--border)" },
+  };
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -100,19 +116,13 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
   const [submitResult, setSubmitResult] = useState<{ is_correct: boolean; points_awarded: number } | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Resolve token from URL or localStorage
   useEffect(() => {
     const urlToken = searchParams.get("token");
     const storedToken = localStorage.getItem("liveq_token");
     const storedSession = localStorage.getItem("liveq_session_id");
     const resolvedToken = urlToken ?? (storedSession === sessionId ? storedToken : null);
-
-    if (!resolvedToken) {
-      router.replace("/liveq");
-      return;
-    }
+    if (!resolvedToken) { router.replace("/liveq"); return; }
     setToken(resolvedToken);
-    // Persist
     localStorage.setItem("liveq_token", resolvedToken);
     localStorage.setItem("liveq_session_id", sessionId);
   }, [sessionId, searchParams, router]);
@@ -125,7 +135,6 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
       if (!res.ok) return;
       const data: ParticipantState = await res.json();
       setState((prev) => {
-        // Reset answer selection when question changes
         if (prev?.current_question?.id !== data.current_question?.id) {
           setSelectedAnswer(null);
           setSubmitResult(null);
@@ -154,7 +163,7 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
         body: JSON.stringify({ token, question_id: state.current_question.id, selected_answer: selectedAnswer }),
       });
       const data = await res.json();
-      if (!res.ok) { setSubmitError(data.error ?? "Failed to submit"); }
+      if (!res.ok) setSubmitError(data.error ?? "Failed to submit");
       else { setSubmitResult(data); fetchState(); }
     } catch {
       setSubmitError("Network error");
@@ -168,42 +177,61 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
     router.push("/liveq");
   };
 
+  // ── Connecting ──────────────────────────────────────────────────────────────
+
   if (!token || !state) {
     return (
-      <div style={screenWrap}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 36, marginBottom: 12 }}>⚡</div>
+      <>
+        <Header moduleTitle="Live Quiz" />
+        <div style={{ minHeight: "calc(100vh - 88px)", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--canvas)" }}>
           <p style={{ color: "var(--muted)" }}>Connecting…</p>
         </div>
-      </div>
+      </>
     );
   }
 
-  // ── Waiting room ────────────────────────────────────────────────────────────
+  if (error) {
+    return (
+      <>
+        <Header moduleTitle="Live Quiz" />
+        <div style={{ minHeight: "calc(100vh - 88px)", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--canvas)" }}>
+          <p style={{ color: "var(--incorrect-text)" }}>{error}</p>
+        </div>
+      </>
+    );
+  }
+
+  // ── Lobby ───────────────────────────────────────────────────────────────────
 
   if (state.status === "lobby") {
     return (
-      <div style={screenWrap}>
-        <div style={card}>
-          <div style={{ textAlign: "center", marginBottom: 20 }}>
-            <div style={{ fontSize: 36, marginBottom: 8 }}>⚡</div>
-            <h1 style={{ fontSize: 22, fontWeight: 800, margin: 0 }}>{state.quiz_title}</h1>
-          </div>
-          <div style={{ background: "var(--correct-bg)", borderRadius: 8, padding: "14px 18px", textAlign: "center", marginBottom: 20 }}>
-            <div style={{ fontSize: 13, color: "var(--correct-text)", fontWeight: 600 }}>✓ You've joined successfully</div>
-            <div style={{ fontWeight: 700, fontSize: 18, marginTop: 4 }}>{state.display_name}</div>
-          </div>
-          {state.instructions && (
-            <div style={{ background: "var(--canvas)", borderRadius: 8, padding: 14, marginBottom: 20, fontSize: 14, color: "var(--ink-2)" }}>
-              {state.instructions}
-            </div>
-          )}
-          <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 32, marginBottom: 8 }}>⏳</div>
-            <p style={{ color: "var(--muted)", margin: 0 }}>Waiting for the host to start the quiz…</p>
+      <>
+        <Header moduleTitle={state.quiz_title} />
+        <div style={{ background: "var(--gradient)", padding: "28px 0 36px" }}>
+          <div style={{ maxWidth: "860px", margin: "0 auto", padding: "0 48px", textAlign: "center" }}>
+            <h1 style={{ fontSize: "26px", fontWeight: 800, color: "#ffffff", margin: "0 0 4px" }}>{state.quiz_title}</h1>
+            <p style={{ color: "var(--on-navy-2)", margin: 0, fontSize: 15 }}>Live Quiz Session</p>
           </div>
         </div>
-      </div>
+
+        <div style={{ background: "var(--canvas)", padding: "40px 20px 80px" }}>
+          <div style={{ maxWidth: "560px", margin: "0 auto" }}>
+            <div style={{ background: "#fff", borderRadius: "var(--r-quiz-card)", boxShadow: "var(--shadow-feature)", padding: "40px", textAlign: "center" }}>
+              <div style={{ background: "var(--correct-bg)", borderRadius: 8, padding: "14px 18px", marginBottom: 24 }}>
+                <div style={{ fontSize: 13, color: "var(--correct-text)", fontWeight: 600 }}>✓ You've joined successfully</div>
+                <div style={{ fontWeight: 800, fontSize: 20, marginTop: 4, color: "var(--ink)" }}>{state.display_name}</div>
+              </div>
+              {state.instructions && (
+                <div style={{ background: "var(--canvas)", borderRadius: 8, padding: "14px 18px", marginBottom: 24, fontSize: 14, color: "var(--ink)", textAlign: "left", lineHeight: 1.6 }}>
+                  {state.instructions}
+                </div>
+              )}
+              <div style={{ fontSize: 40, marginBottom: 12 }}>⏳</div>
+              <p style={{ color: "var(--muted)", margin: 0, fontSize: 15 }}>Waiting for the host to start the quiz…</p>
+            </div>
+          </div>
+        </div>
+      </>
     );
   }
 
@@ -211,14 +239,27 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
 
   if (state.status === "paused") {
     return (
-      <div style={screenWrap}>
-        <div style={{ ...card, textAlign: "center" }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>⏸</div>
-          <h2 style={{ fontSize: 20, margin: "0 0 8px" }}>Quiz Paused</h2>
-          <p style={{ color: "var(--muted)", margin: 0 }}>The host has paused the quiz. It will resume shortly.</p>
-          <div style={{ marginTop: 16, fontSize: 14, color: "var(--muted)" }}>Your score: <strong>{state.score}</strong></div>
+      <>
+        <Header moduleTitle={state.quiz_title} />
+        <div style={{ background: "var(--gradient)", padding: "28px 0 36px" }}>
+          <div style={{ maxWidth: "860px", margin: "0 auto", padding: "0 48px" }} />
         </div>
-      </div>
+        <div style={{ background: "var(--canvas)", padding: "40px 20px 80px" }}>
+          <div style={{ maxWidth: "560px", margin: "0 auto" }}>
+            <div style={{ background: "#fff", borderRadius: "var(--r-quiz-card)", boxShadow: "var(--shadow-feature)", padding: "40px", textAlign: "center" }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>⏸</div>
+              <h2 style={{ fontSize: 22, fontWeight: 800, margin: "0 0 8px", color: "var(--ink)" }}>Quiz Paused</h2>
+              <p style={{ color: "var(--muted)", margin: "0 0 20px" }}>The host has paused the quiz. It will resume shortly.</p>
+              <div style={{
+                display: "inline-block", padding: "8px 20px", borderRadius: "var(--r-pill)",
+                background: "var(--accent)", color: "var(--navy)", fontWeight: 800, fontSize: 18,
+              }}>
+                Score: {state.score}
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
     );
   }
 
@@ -227,105 +268,199 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
   if (state.status === "active" && state.current_question) {
     const q = state.current_question;
     const locked = state.answered || !!submitResult;
+    const qIdx = state.current_question_index ?? 0;
+    const total = state.total_questions;
 
     return (
-      <div style={{ ...screenWrap, justifyContent: "flex-start", paddingTop: 24 }}>
-        {/* Progress bar */}
-        <div style={{ width: "100%", maxWidth: 560, marginBottom: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--muted)", marginBottom: 4 }}>
-            <span>Question {(state.current_question_index ?? 0) + 1} of {state.total_questions}</span>
-            <span>Score: {state.score}</span>
-          </div>
-          <div style={{ height: 4, background: "var(--border)", borderRadius: 100 }}>
-            <div style={{
-              height: "100%", borderRadius: 100, background: "var(--navy)",
-              width: `${(((state.current_question_index ?? 0) + 1) / state.total_questions) * 100}%`,
-            }} />
-          </div>
-        </div>
+      <>
+        <Header moduleTitle={`${state.quiz_title} · Live Quiz`} />
 
-        <div style={card}>
-          <Countdown question={q} />
+        {/* Navy band */}
+        <div style={{ background: "var(--gradient)", padding: "28px 0 36px", flexShrink: 0 }}>
+          <div style={{ maxWidth: "860px", margin: "0 auto", padding: "0 48px" }}>
+            {/* Row: leave + timer pill + score */}
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
+              <button
+                onClick={leave}
+                style={{ fontSize: 14, color: "var(--on-navy-2)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", padding: 0, flexShrink: 0 }}
+              >
+                ← Leave
+              </button>
+              <div style={{ flex: 1 }} />
+              <span style={{
+                fontSize: 14, fontWeight: 700,
+                color: (q.paused_remaining_secs ?? Math.ceil((new Date(q.deadline).getTime() - Date.now()) / 1000)) <= 10
+                  ? "var(--accent)" : "#fff",
+                background: "rgba(255,255,255,.12)",
+                borderRadius: "var(--r-pill)", padding: "4px 12px",
+                whiteSpace: "nowrap", fontVariantNumeric: "tabular-nums",
+              }}>
+                ⏱ {q.paused_remaining_secs !== null ? q.paused_remaining_secs : Math.max(0, Math.ceil((new Date(q.deadline).getTime() - Date.now()) / 1000))}s
+              </span>
+              <span style={{ fontSize: 14, color: "var(--on-navy-2)", whiteSpace: "nowrap" }}>
+                Score: <strong style={{ color: "#fff" }}>{state.score}</strong>
+              </span>
+            </div>
 
-          <div style={{ fontWeight: 700, fontSize: 18, marginBottom: 20, lineHeight: 1.4 }}>{q.question}</div>
-
-          {/* Options */}
-          <div>
-            {q.options.map((opt) => {
-              const selected = selectedAnswer === opt.label;
-              const isLocked = locked;
-              const wasSubmitted = submitResult && selectedAnswer === opt.label;
-
-              let borderColor = "var(--border)";
-              let bg = "#fff";
-              if (selected && !isLocked) { borderColor = "var(--navy)"; bg = "var(--wash)"; }
-              if (wasSubmitted) {
-                borderColor = submitResult.is_correct ? "var(--correct-text)" : "var(--incorrect-text)";
-                bg = submitResult.is_correct ? "var(--correct-bg)" : "var(--incorrect-bg)";
-              }
-
-              return (
-                <button
-                  key={opt.label}
-                  disabled={isLocked}
-                  onClick={() => !isLocked && setSelectedAnswer(opt.label)}
-                  style={{ ...optionBase, borderColor, background: bg, cursor: isLocked ? "default" : "pointer" }}
-                >
-                  <span style={{
-                    width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
-                    background: selected ? "var(--navy)" : "var(--canvas)",
-                    color: selected ? "#fff" : "var(--muted)", fontWeight: 700, fontSize: 13, flexShrink: 0,
-                  }}>
-                    {opt.label}
-                  </span>
-                  <span>{opt.text}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Submit / feedback */}
-          {!locked && (
-            <button
-              style={{
-                width: "100%", padding: "13px", borderRadius: 8, border: "none",
-                background: selectedAnswer ? "var(--navy)" : "var(--disabled)",
-                color: "#fff", fontFamily: "inherit", fontSize: 16, fontWeight: 700,
-                cursor: selectedAnswer ? "pointer" : "not-allowed", marginTop: 4,
-              }}
-              disabled={!selectedAnswer || submitting}
-              onClick={submitAnswer}
+            {/* Segmented progress */}
+            <div
+              role="progressbar"
+              aria-valuenow={qIdx + 1}
+              aria-valuemin={1}
+              aria-valuemax={total}
+              aria-label={`Question ${qIdx + 1} of ${total}`}
+              style={{ display: "flex", gap: 4, alignItems: "center", height: 16 }}
             >
-              {submitting ? "Submitting…" : "Submit Answer"}
-            </button>
-          )}
-
-          {submitResult && (
-            <div style={{
-              marginTop: 12, padding: "12px 16px", borderRadius: 8, textAlign: "center",
-              background: submitResult.is_correct ? "var(--correct-bg)" : "var(--incorrect-bg)",
-              color: submitResult.is_correct ? "var(--correct-text)" : "var(--incorrect-text)",
-              fontWeight: 700, fontSize: 16,
-            }}>
-              {submitResult.is_correct ? `✓ Correct! +${submitResult.points_awarded} pts` : "✗ Incorrect"}
+              {Array.from({ length: total }, (_, i) => {
+                const isCurrent = i === qIdx;
+                return (
+                  <div key={i} style={{
+                    flex: 1, borderRadius: "var(--r-pill)",
+                    background: isCurrent ? "var(--accent)" : i < qIdx ? "rgba(255,255,255,1)" : "rgba(255,255,255,.18)",
+                    height: isCurrent ? 8 : 4,
+                    transition: "background 0.2s, height 0.2s",
+                  }} />
+                );
+              })}
             </div>
-          )}
-
-          {locked && !submitResult && (
-            <div style={{ marginTop: 12, padding: "12px 16px", borderRadius: 8, textAlign: "center", background: "var(--canvas)", color: "var(--muted)", fontSize: 14 }}>
-              Answer locked — waiting for next question…
-            </div>
-          )}
-
-          {submitError && (
-            <div style={{ marginTop: 8, padding: "10px 14px", borderRadius: 6, background: "var(--incorrect-bg)", color: "var(--incorrect-text)", fontSize: 14 }}>{submitError}</div>
-          )}
+          </div>
         </div>
 
-        <button onClick={leave} style={{ marginTop: 16, background: "none", border: "none", color: "var(--muted)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-          Leave session
-        </button>
-      </div>
+        {/* Content */}
+        <div style={{ flex: 1, padding: "40px 0 80px", background: "var(--canvas)" }}>
+          <div style={{ maxWidth: "860px", margin: "0 auto", padding: "0 48px" }}>
+            <div style={{
+              background: "#ffffff", borderRadius: "var(--r-quiz-card)",
+              boxShadow: "var(--shadow-feature)", padding: "40px",
+            }}>
+              {/* Card header */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
+                <span style={{
+                  padding: "5px 14px", borderRadius: "var(--r-pill)",
+                  background: "var(--accent)", color: "var(--navy)",
+                  fontSize: 13, fontWeight: 800, letterSpacing: "0.04em", flexShrink: 0,
+                  fontFamily: "var(--font-manrope), sans-serif",
+                }}>
+                  {String(qIdx + 1).padStart(2, "0")}
+                </span>
+                <span style={{ fontSize: 14, color: "var(--muted)" }}>
+                  Question {qIdx + 1} of {total} · {q.module_title}
+                </span>
+              </div>
+
+              {/* Countdown bar */}
+              <Countdown question={q} />
+
+              {/* Question text */}
+              <p style={{
+                fontSize: 22, lineHeight: "32px", fontWeight: 600,
+                color: "var(--ink)", letterSpacing: "-0.02em", margin: "0 0 28px",
+              }}>
+                {q.question}
+              </p>
+
+              {/* Options */}
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {q.options.map((opt) => {
+                  let optState: OptState = "default";
+                  if (submitResult && selectedAnswer === opt.label) {
+                    optState = submitResult.is_correct ? "correct" : "wrong";
+                  } else if (selectedAnswer === opt.label) {
+                    optState = "selected";
+                  }
+                  const styles = getOptionStyles(optState);
+
+                  return (
+                    <button
+                      key={opt.label}
+                      onClick={() => !locked && setSelectedAnswer(opt.label)}
+                      disabled={locked}
+                      aria-pressed={selectedAnswer === opt.label}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 14,
+                        padding: "14px 18px", borderRadius: "var(--r-option)",
+                        textAlign: "left", width: "100%",
+                        cursor: locked ? "default" : "pointer",
+                        fontFamily: "inherit",
+                        transition: "all 0.15s",
+                        ...styles.wrapper,
+                      }}
+                    >
+                      <span style={{
+                        width: 28, height: 28, borderRadius: "var(--r-option)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 13, fontWeight: 600, flexShrink: 0,
+                        transition: "all 0.15s",
+                        ...styles.badge,
+                      }}>
+                        {opt.label}
+                      </span>
+                      <span style={{ flex: 1, fontSize: 15, lineHeight: "24px", color: "var(--ink)" }}>
+                        {opt.text}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Submit */}
+              {!locked && (
+                <button
+                  disabled={!selectedAnswer || submitting}
+                  onClick={submitAnswer}
+                  style={{
+                    width: "100%", marginTop: 20, padding: "15px 32px",
+                    borderRadius: "9px", border: "none",
+                    background: selectedAnswer ? "var(--accent)" : "var(--disabled)",
+                    color: selectedAnswer ? "var(--navy)" : "#fff",
+                    fontFamily: "inherit", fontSize: 16, fontWeight: 700,
+                    cursor: selectedAnswer && !submitting ? "pointer" : "not-allowed",
+                    transition: "background 0.2s",
+                    minHeight: 52,
+                  }}
+                >
+                  {submitting ? "Submitting…" : "Submit Answer"}
+                </button>
+              )}
+
+              {/* Feedback */}
+              <div aria-live="polite">
+                {submitResult && (
+                  <div style={{
+                    marginTop: 16, padding: "12px 16px", borderRadius: "var(--r-option)",
+                    textAlign: "center", fontWeight: 700, fontSize: 16,
+                    background: submitResult.is_correct ? "var(--correct-bg)" : "var(--incorrect-bg)",
+                    color: submitResult.is_correct ? "var(--correct-text)" : "var(--incorrect-text)",
+                  }}>
+                    {submitResult.is_correct
+                      ? `✓ Correct! +${submitResult.points_awarded} pts`
+                      : "✗ Incorrect — waiting for next question…"}
+                  </div>
+                )}
+                {locked && !submitResult && (
+                  <div style={{ marginTop: 16, padding: "12px 16px", borderRadius: "var(--r-option)", textAlign: "center", background: "var(--canvas)", color: "var(--muted)", fontSize: 14 }}>
+                    Answer locked — waiting for next question…
+                  </div>
+                )}
+                {submitError && (
+                  <div style={{ marginTop: 10, padding: "10px 14px", borderRadius: 6, background: "var(--incorrect-bg)", color: "var(--incorrect-text)", fontSize: 14 }}>
+                    {submitError}{" "}
+                    <button onClick={submitAnswer} style={{ background: "none", border: "none", color: "var(--navy)", textDecoration: "underline", cursor: "pointer", fontFamily: "inherit", fontSize: 14 }}>
+                      Retry
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div style={{ marginTop: 16, textAlign: "center" }}>
+              <button onClick={leave} style={{ background: "none", border: "none", color: "var(--muted)", textDecoration: "underline", cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>
+                Leave session
+              </button>
+            </div>
+          </div>
+        </div>
+      </>
     );
   }
 
@@ -334,14 +469,24 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
   if (state.status === "completed") {
     if (!state.results) {
       return (
-        <div style={screenWrap}>
-          <div style={{ ...card, textAlign: "center" }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🎉</div>
-            <h2 style={{ margin: "0 0 8px" }}>Quiz Completed!</h2>
-            <p style={{ color: "var(--muted)" }}>Results will be published by the host shortly.</p>
-            <div style={{ marginTop: 12, fontSize: 14 }}>Your score: <strong>{state.score}</strong></div>
+        <>
+          <Header moduleTitle={state.quiz_title} />
+          <div style={{ background: "var(--gradient)", padding: "28px 0 36px" }}>
+            <div style={{ maxWidth: "860px", margin: "0 auto", padding: "0 48px" }} />
           </div>
-        </div>
+          <div style={{ background: "var(--canvas)", padding: "40px 20px 80px" }}>
+            <div style={{ maxWidth: "560px", margin: "0 auto" }}>
+              <div style={{ background: "#fff", borderRadius: "var(--r-quiz-card)", boxShadow: "var(--shadow-feature)", padding: "40px", textAlign: "center" }}>
+                <div style={{ fontSize: 48, marginBottom: 12 }}>🎉</div>
+                <h2 style={{ fontSize: 24, fontWeight: 800, margin: "0 0 8px", color: "var(--ink)" }}>Quiz Completed!</h2>
+                <p style={{ color: "var(--muted)", margin: "0 0 20px" }}>Results will be published by the host shortly.</p>
+                <div style={{ display: "inline-block", padding: "8px 24px", borderRadius: "var(--r-pill)", background: "var(--accent)", color: "var(--navy)", fontWeight: 800, fontSize: 20 }}>
+                  Score: {state.score}
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
       );
     }
 
@@ -350,86 +495,126 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
     const weakConcepts = r.concept_results.filter((c) => c.status === "needs_improvement");
 
     return (
-      <div style={{ ...screenWrap, justifyContent: "flex-start", paddingTop: 24, paddingBottom: 40 }}>
-        <div style={{ width: "100%", maxWidth: 560 }}>
-          {/* Score card */}
-          <div style={{ ...card, textAlign: "center", marginBottom: 20 }}>
-            <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
-            <h1 style={{ fontSize: 26, fontWeight: 800, margin: "0 0 4px" }}>Quiz Complete!</h1>
-            <div style={{ fontSize: 48, fontWeight: 900, color: "var(--navy)", margin: "12px 0" }}>{r.score}</div>
-            <div style={{ fontSize: 15, color: "var(--muted)", marginBottom: 4 }}>points</div>
-            {r.rank && (
-              <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>
-                Rank #{r.rank} of {r.total_participants}
+      <>
+        <Header moduleTitle={`${state.quiz_title} · Results`} />
+        <div style={{ background: "var(--gradient)", padding: "28px 0 36px" }}>
+          <div style={{ maxWidth: "860px", margin: "0 auto", padding: "0 48px", textAlign: "center" }}>
+            <h1 style={{ fontSize: 26, fontWeight: 800, color: "#fff", margin: "0 0 4px" }}>{state.quiz_title}</h1>
+            <p style={{ color: "var(--on-navy-2)", margin: 0, fontSize: 15 }}>Your results</p>
+          </div>
+        </div>
+
+        <div style={{ background: "var(--canvas)", padding: "40px 0 80px" }}>
+          <div style={{ maxWidth: "860px", margin: "0 auto", padding: "0 48px" }}>
+
+            {/* Score card */}
+            <div style={{ background: "#fff", borderRadius: "var(--r-quiz-card)", boxShadow: "var(--shadow-feature)", padding: "40px", textAlign: "center", marginBottom: 20 }}>
+              <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
+              <h2 style={{ fontSize: 26, fontWeight: 800, margin: "0 0 4px", color: "var(--ink)" }}>Quiz Complete!</h2>
+              <div style={{ fontSize: 56, fontWeight: 900, color: "var(--navy)", margin: "16px 0 4px", letterSpacing: "-0.03em" }}>
+                {r.score}
+              </div>
+              <div style={{ fontSize: 15, color: "var(--muted)", marginBottom: 16 }}>points</div>
+              {r.rank && (
+                <div style={{
+                  display: "inline-block", padding: "6px 20px", marginBottom: 24,
+                  borderRadius: "var(--r-pill)", background: "var(--accent)", color: "var(--navy)",
+                  fontWeight: 800, fontSize: 18,
+                }}>
+                  Rank #{r.rank} of {r.total_participants}
+                </div>
+              )}
+              <div style={{ display: "flex", justifyContent: "center", gap: 32 }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontWeight: 700, color: "var(--correct-text)", fontSize: 24 }}>{r.correct_count}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Correct</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontWeight: 700, color: "var(--incorrect-text)", fontSize: 24 }}>{r.incorrect_count}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Incorrect</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontWeight: 700, color: "var(--muted)", fontSize: 24 }}>{r.unanswered_count}</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Unanswered</div>
+                </div>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontWeight: 700, fontSize: 24, color: "var(--ink)" }}>{Math.round(r.accuracy * 100)}%</div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 2 }}>Accuracy</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Module results */}
+            {r.module_results.length > 0 && (
+              <div style={{ background: "#fff", borderRadius: "var(--r-quiz-card)", boxShadow: "var(--shadow-feature)", padding: "32px 40px", marginBottom: 20 }}>
+                <h3 style={{ margin: "0 0 16px", fontSize: 17, fontWeight: 700, color: "var(--ink)" }}>Module Results</h3>
+                {r.module_results.map((m, i) => (
+                  <div key={m.module_id} style={{
+                    display: "flex", justifyContent: "space-between", alignItems: "center",
+                    padding: "12px 0",
+                    borderBottom: i < r.module_results.length - 1 ? "1px solid var(--border)" : "none",
+                  }}>
+                    <span style={{ fontSize: 15, color: "var(--ink)" }}>{m.title}</span>
+                    <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                      <span style={{ fontSize: 13, color: "var(--muted)" }}>{m.correct}/{m.total}</span>
+                      <span style={{
+                        fontWeight: 800, fontSize: 15, color: "var(--navy)",
+                        background: "var(--canvas)", borderRadius: "var(--r-pill)",
+                        padding: "3px 12px",
+                      }}>{Math.round(m.accuracy * 100)}%</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
-            <div style={{ display: "flex", justifyContent: "center", gap: 24 }}>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontWeight: 700, color: "var(--correct-text)", fontSize: 20 }}>{r.correct_count}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>Correct</div>
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontWeight: 700, color: "var(--incorrect-text)", fontSize: 20 }}>{r.incorrect_count}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>Incorrect</div>
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontWeight: 700, color: "var(--muted)", fontSize: 20 }}>{r.unanswered_count}</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>Unanswered</div>
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <div style={{ fontWeight: 700, fontSize: 20 }}>{Math.round(r.accuracy * 100)}%</div>
-                <div style={{ fontSize: 12, color: "var(--muted)" }}>Accuracy</div>
-              </div>
-            </div>
-          </div>
 
-          {/* Module results */}
-          {r.module_results.length > 0 && (
-            <div style={{ ...card, marginBottom: 20 }}>
-              <h3 style={{ margin: "0 0 12px", fontSize: 16 }}>Module Results</h3>
-              {r.module_results.map((m) => (
-                <div key={m.module_id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid var(--border)" }}>
-                  <span style={{ fontSize: 14 }}>{m.title}</span>
-                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                    <span style={{ fontSize: 13, color: "var(--muted)" }}>{m.correct}/{m.total}</span>
-                    <span style={{ fontWeight: 700 }}>{Math.round(m.accuracy * 100)}%</span>
-                  </div>
+            {/* Concept analytics */}
+            {r.concept_results.length > 0 && (
+              <div style={{ background: "#fff", borderRadius: "var(--r-quiz-card)", boxShadow: "var(--shadow-feature)", padding: "32px 40px", marginBottom: 20 }}>
+                <h3 style={{ margin: "0 0 16px", fontSize: 17, fontWeight: 700, color: "var(--ink)" }}>Concept Performance</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
+                  {r.concept_results.map((c) => <ConceptBadge key={c.concept} concept={c} />)}
                 </div>
-              ))}
-            </div>
-          )}
-
-          {/* Concept analytics */}
-          {r.concept_results.length > 0 && (
-            <div style={{ ...card, marginBottom: 20 }}>
-              <h3 style={{ margin: "0 0 12px", fontSize: 16 }}>Concept Performance</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 10 }}>
-                {r.concept_results.map((c) => <ConceptBadge key={c.concept} concept={c} />)}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Strengths and weaknesses */}
-          {topConcepts.length > 0 && (
-            <div style={{ ...card, background: "var(--correct-bg)", borderColor: "var(--correct-text)", marginBottom: 12 }}>
-              <h4 style={{ margin: "0 0 8px", color: "var(--correct-text)", fontSize: 14 }}>💪 Strong Areas</h4>
-              {topConcepts.map((c) => <div key={c.concept} style={{ fontSize: 14, margin: "2px 0" }}>{c.concept}</div>)}
-            </div>
-          )}
-          {weakConcepts.length > 0 && (
-            <div style={{ ...card, background: "var(--incorrect-bg)", borderColor: "var(--incorrect-text)", marginBottom: 20 }}>
-              <h4 style={{ margin: "0 0 8px", color: "var(--incorrect-text)", fontSize: 14 }}>📚 Focus Areas</h4>
-              {weakConcepts.map((c) => <div key={c.concept} style={{ fontSize: 14, margin: "2px 0" }}>{c.concept}</div>)}
-            </div>
-          )}
+            {/* Strengths & weaknesses */}
+            {topConcepts.length > 0 && (
+              <div style={{ background: "var(--correct-bg)", borderRadius: "var(--r-quiz-card)", padding: "24px 32px", marginBottom: 12 }}>
+                <h4 style={{ margin: "0 0 10px", color: "var(--correct-text)", fontSize: 15, fontWeight: 700 }}>💪 Strong Areas</h4>
+                {topConcepts.map((c) => <div key={c.concept} style={{ fontSize: 14, margin: "3px 0", color: "var(--ink)" }}>{c.concept}</div>)}
+              </div>
+            )}
+            {weakConcepts.length > 0 && (
+              <div style={{ background: "var(--incorrect-bg)", borderRadius: "var(--r-quiz-card)", padding: "24px 32px", marginBottom: 24 }}>
+                <h4 style={{ margin: "0 0 10px", color: "var(--incorrect-text)", fontSize: 15, fontWeight: 700 }}>📚 Focus Areas</h4>
+                {weakConcepts.map((c) => <div key={c.concept} style={{ fontSize: 14, margin: "3px 0", color: "var(--ink)" }}>{c.concept}</div>)}
+              </div>
+            )}
 
-          <button onClick={leave} style={{ width: "100%", padding: "13px", borderRadius: 8, border: "1px solid var(--border)", background: "#fff", fontFamily: "inherit", fontSize: 15, cursor: "pointer" }}>
-            Done
-          </button>
+            <button
+              onClick={leave}
+              style={{
+                width: "100%", padding: "15px", borderRadius: "9px",
+                border: "1.5px solid var(--border)", background: "#fff",
+                fontFamily: "inherit", fontSize: 15, fontWeight: 600,
+                cursor: "pointer", color: "var(--ink)",
+              }}
+            >
+              Done
+            </button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
-  return <div style={screenWrap}><p style={{ color: "var(--muted)" }}>Unknown session state</p></div>;
+  return (
+    <>
+      <Header moduleTitle="Live Quiz" />
+      <div style={{ minHeight: "calc(100vh - 88px)", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--canvas)" }}>
+        <p style={{ color: "var(--muted)" }}>Unknown session state</p>
+      </div>
+    </>
+  );
 }
