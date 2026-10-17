@@ -5,7 +5,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { CheckResult, OptionLabel, PublicQuestion } from "@/types/quiz";
 import { MODES, TRACKS } from "@/lib/blueprint";
-import { flags } from "@/lib/config";
 import { track as trackEvent } from "@/lib/analytics";
 import {
   getAttempt,
@@ -18,7 +17,6 @@ import {
   type StoredAttempt,
 } from "@/lib/client/store";
 import { useEmailGate } from "@/components/EmailGate";
-import TutorPanel from "@/components/TutorPanel";
 import Header from "@/components/Header";
 
 export default function QuizPage() {
@@ -775,7 +773,6 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
                       </strong>
                       {check.explanation}
                     </div>
-                    {flags.tutor && <TutorPanel key={q.id} question={q} seed={attempt.seed} answered />}
                   </>
                 )}
                 {!feedback && currentComplete && (
