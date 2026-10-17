@@ -140,6 +140,20 @@ export default function AdminDashboardLayout({
           >
             Question bank
           </Link>
+          <div style={{ margin: "8px 18px 4px", borderTop: "1px solid rgba(255,255,255,.08)" }} />
+          <Link
+            href="/admin/liveq"
+            style={{
+              display: "block",
+              padding: "9px 18px",
+              color: "var(--accent)",
+              fontSize: "13px",
+              fontWeight: 700,
+              textDecoration: "none",
+            }}
+          >
+            ⚡ Quiz Mode
+          </Link>
           <a
             href="/"
             target="_blank"
