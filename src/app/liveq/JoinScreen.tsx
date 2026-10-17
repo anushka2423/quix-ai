@@ -18,12 +18,28 @@ export default function JoinScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Restore an active session from localStorage — but only if it's not already completed
   useEffect(() => {
     const savedToken = localStorage.getItem("liveq_token");
     const savedSession = localStorage.getItem("liveq_session_id");
-    if (savedToken && savedSession) {
-      router.replace(`/liveq/${savedSession}?token=${savedToken}`);
-    }
+    if (!savedToken || !savedSession) return;
+
+    fetch(`/api/liveq/state?token=${encodeURIComponent(savedToken)}`)
+      .then((r) => {
+        if (r.status === 401) { localStorage.removeItem("liveq_token"); localStorage.removeItem("liveq_session_id"); return; }
+        return r.json();
+      })
+      .then((data) => {
+        if (!data) return;
+        if (data.status === "completed") {
+          // Previous session done — clear so the user can join a new one
+          localStorage.removeItem("liveq_token");
+          localStorage.removeItem("liveq_session_id");
+        } else {
+          router.replace(`/liveq/${savedSession}?token=${savedToken}`);
+        }
+      })
+      .catch(() => {});
   }, [router]);
 
   const join = async (e: React.FormEvent) => {
@@ -54,7 +70,7 @@ export default function JoinScreen() {
 
   return (
     <>
-      <Header />
+      <Header hideBooking />
 
       {/* Navy band */}
       <div style={{ background: "var(--gradient)", padding: "36px 0 44px" }}>

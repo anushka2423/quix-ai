@@ -10,6 +10,7 @@ export interface QuizConfig {
   results_released_by_admin: boolean;
   allow_pause: boolean;
   allow_early_end: boolean;
+  session_duration_mins?: number;
 }
 
 export type QuizStatus = "draft" | "published" | "archived";
@@ -147,6 +148,13 @@ export interface PrivateQuizSnapshot extends QuizSnapshot {
 
 // ── API payloads ──────────────────────────────────────────────────────────────
 
+export interface LiveLeaderboardEntry {
+  rank: number;
+  display_name: string;
+  score: number;
+  is_me: boolean;
+}
+
 /** Payload returned by GET /api/liveq/state (participant view). */
 export interface ParticipantState {
   session_id: string;
@@ -166,6 +174,12 @@ export interface ParticipantState {
   answered: boolean;
   /** Results data (when status=completed and results are published) */
   results: ParticipantResultPayload | null;
+  /** When the session started (ISO) — used for 40-min total timer */
+  session_started_at: string | null;
+  /** Total session duration in minutes (from quiz config, default 40) */
+  session_duration_mins: number;
+  /** Live leaderboard: shown after participant answers; top 3 + own entry */
+  leaderboard: LiveLeaderboardEntry[] | null;
 }
 
 export interface PublicQuestionState {

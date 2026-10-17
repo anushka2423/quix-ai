@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
-import type { ParticipantState, PublicQuestionState, ConceptResult } from "@/types/liveq";
+import type { ParticipantState, PublicQuestionState, ConceptResult, LiveLeaderboardEntry } from "@/types/liveq";
 
 // ── Countdown bar ──────────────────────────────────────────────────────────────
 
@@ -50,6 +50,78 @@ function Countdown({ question }: { question: PublicQuestionState }) {
           background: danger ? "var(--incorrect-text)" : "var(--accent)",
         }} />
       </div>
+    </div>
+  );
+}
+
+// ── Session timer (40-min total countdown) ────────────────────────────────────
+
+function SessionTimer({ startedAt, durationMins }: { startedAt: string; durationMins: number }) {
+  const endMs = new Date(startedAt).getTime() + durationMins * 60 * 1000;
+  const [remaining, setRemaining] = useState(() => Math.max(0, Math.ceil((endMs - Date.now()) / 1000)));
+
+  useEffect(() => {
+    const id = setInterval(() => setRemaining(Math.max(0, Math.ceil((endMs - Date.now()) / 1000))), 1000);
+    return () => clearInterval(id);
+  }, [endMs]);
+
+  const mins = Math.floor(remaining / 60);
+  const secs = remaining % 60;
+  const danger = remaining <= 300; // last 5 minutes
+  const fmt = `${mins}:${String(secs).padStart(2, "0")}`;
+
+  return (
+    <span style={{
+      fontSize: 13, fontWeight: 700, fontVariantNumeric: "tabular-nums",
+      color: danger ? "var(--accent)" : "rgba(255,255,255,.7)",
+      background: "rgba(255,255,255,.1)", borderRadius: "var(--r-pill)",
+      padding: "3px 10px", whiteSpace: "nowrap",
+    }}>
+      🕐 {fmt}
+    </span>
+  );
+}
+
+// ── Live leaderboard card ─────────────────────────────────────────────────────
+
+function LiveLeaderboard({ entries }: { entries: LiveLeaderboardEntry[] }) {
+  const medals = ["🥇", "🥈", "🥉"];
+  return (
+    <div style={{
+      background: "#fff", borderRadius: "var(--r-quiz-card)",
+      boxShadow: "var(--shadow-feature)", padding: "20px 24px", marginTop: 16,
+    }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: "var(--muted)", marginBottom: 12, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+        Live Rankings
+      </div>
+      {entries.map((e, i) => {
+        const isGap = i > 0 && e.rank > entries[i - 1].rank + 1;
+        return (
+          <div key={e.rank + e.display_name}>
+            {isGap && (
+              <div style={{ textAlign: "center", color: "var(--muted)", fontSize: 12, padding: "2px 0 6px" }}>· · ·</div>
+            )}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 12,
+              padding: e.is_me ? "8px 10px" : "8px 0",
+              borderTop: i === 0 ? "none" : "1px solid var(--border)",
+              background: e.is_me ? "var(--canvas)" : "transparent",
+              borderRadius: e.is_me ? 6 : 0,
+              margin: e.is_me ? "0 -10px" : "0",
+            }}>
+              <span style={{ fontSize: 20, width: 28, textAlign: "center", flexShrink: 0 }}>
+                {e.rank <= 3 ? medals[e.rank - 1] : `#${e.rank}`}
+              </span>
+              <span style={{ flex: 1, fontWeight: e.is_me ? 800 : 500, fontSize: 15, color: "var(--ink)" }}>
+                {e.display_name} {e.is_me && <span style={{ fontSize: 11, color: "var(--muted)", fontWeight: 400 }}>(you)</span>}
+              </span>
+              <span style={{ fontWeight: 700, fontSize: 16, color: e.is_me ? "var(--navy)" : "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
+                {e.score}
+              </span>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -182,7 +254,7 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
   if (!token || !state) {
     return (
       <>
-        <Header moduleTitle="Live Quiz" />
+        <Header hideBooking moduleTitle="Live Quiz" />
         <div style={{ minHeight: "calc(100vh - 88px)", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--canvas)" }}>
           <p style={{ color: "var(--muted)" }}>Connecting…</p>
         </div>
@@ -193,7 +265,7 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
   if (error) {
     return (
       <>
-        <Header moduleTitle="Live Quiz" />
+        <Header hideBooking moduleTitle="Live Quiz" />
         <div style={{ minHeight: "calc(100vh - 88px)", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--canvas)" }}>
           <p style={{ color: "var(--incorrect-text)" }}>{error}</p>
         </div>
@@ -206,7 +278,7 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
   if (state.status === "lobby") {
     return (
       <>
-        <Header moduleTitle={state.quiz_title} />
+        <Header hideBooking moduleTitle={state.quiz_title} />
         <div style={{ background: "var(--gradient)", padding: "28px 0 36px" }}>
           <div style={{ maxWidth: "860px", margin: "0 auto", padding: "0 48px", textAlign: "center" }}>
             <h1 style={{ fontSize: "26px", fontWeight: 800, color: "#ffffff", margin: "0 0 4px" }}>{state.quiz_title}</h1>
@@ -240,7 +312,7 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
   if (state.status === "paused") {
     return (
       <>
-        <Header moduleTitle={state.quiz_title} />
+        <Header hideBooking moduleTitle={state.quiz_title} />
         <div style={{ background: "var(--gradient)", padding: "28px 0 36px" }}>
           <div style={{ maxWidth: "860px", margin: "0 auto", padding: "0 48px" }} />
         </div>
@@ -273,7 +345,7 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
 
     return (
       <>
-        <Header moduleTitle={`${state.quiz_title} · Live Quiz`} />
+        <Header hideBooking moduleTitle={`${state.quiz_title} · Live Quiz`} />
 
         {/* Navy band */}
         <div style={{ background: "var(--gradient)", padding: "28px 0 36px", flexShrink: 0 }}>
@@ -297,6 +369,9 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
               }}>
                 ⏱ {q.paused_remaining_secs !== null ? q.paused_remaining_secs : Math.max(0, Math.ceil((new Date(q.deadline).getTime() - Date.now()) / 1000))}s
               </span>
+              {state.session_started_at && (
+                <SessionTimer startedAt={state.session_started_at} durationMins={state.session_duration_mins} />
+              )}
               <span style={{ fontSize: 14, color: "var(--on-navy-2)", whiteSpace: "nowrap" }}>
                 Score: <strong style={{ color: "#fff" }}>{state.score}</strong>
               </span>
@@ -457,6 +532,11 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
               </div>
             </div>
 
+            {/* Live leaderboard — shown after answering */}
+            {locked && state.leaderboard && state.leaderboard.length > 0 && (
+              <LiveLeaderboard entries={state.leaderboard} />
+            )}
+
             <div style={{ marginTop: 16, textAlign: "center" }}>
               <button onClick={leave} style={{ background: "none", border: "none", color: "var(--muted)", textDecoration: "underline", cursor: "pointer", fontSize: 13, fontFamily: "inherit" }}>
                 Leave session
@@ -474,7 +554,7 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
     if (!state.results) {
       return (
         <>
-          <Header moduleTitle={state.quiz_title} />
+          <Header hideBooking moduleTitle={state.quiz_title} />
           <div style={{ background: "var(--gradient)", padding: "28px 0 36px" }}>
             <div style={{ maxWidth: "860px", margin: "0 auto", padding: "0 48px" }} />
           </div>
@@ -500,7 +580,7 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
 
     return (
       <>
-        <Header moduleTitle={`${state.quiz_title} · Results`} />
+        <Header hideBooking moduleTitle={`${state.quiz_title} · Results`} />
         <div style={{ background: "var(--gradient)", padding: "28px 0 36px" }}>
           <div style={{ maxWidth: "860px", margin: "0 auto", padding: "0 48px", textAlign: "center" }}>
             <h1 style={{ fontSize: 26, fontWeight: 800, color: "#fff", margin: "0 0 4px" }}>{state.quiz_title}</h1>
@@ -615,7 +695,7 @@ export default function ParticipantSession({ sessionId }: { sessionId: string })
 
   return (
     <>
-      <Header moduleTitle="Live Quiz" />
+      <Header hideBooking moduleTitle="Live Quiz" />
       <div style={{ minHeight: "calc(100vh - 88px)", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--canvas)" }}>
         <p style={{ color: "var(--muted)" }}>Unknown session state</p>
       </div>

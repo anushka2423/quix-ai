@@ -11,7 +11,7 @@ import {
   flattenQuestions,
 } from "@/lib/liveq/db";
 import { tick } from "@/lib/liveq/engine";
-import type { ParticipantState, PublicQuestionState, ParticipantResultPayload } from "@/types/liveq";
+import type { ParticipantState, PublicQuestionState, ParticipantResultPayload, LiveLeaderboardEntry } from "@/types/liveq";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +64,33 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // Live leaderboard — shown after participant answers the current question
+  let leaderboard: LiveLeaderboardEntry[] | null = null;
+  if (
+    (session.status === "active" || session.status === "paused") &&
+    answered &&
+    snapshot.config.show_leaderboard_live
+  ) {
+    const allParticipants = await getSessionParticipants(session.id);
+    const sorted = [...allParticipants].sort((a, b) => b.score - a.score);
+    const myIdx = sorted.findIndex((p) => p.id === participant.id);
+    const myRank = myIdx + 1;
+
+    // Build ranked list and pick top-3 + me (if outside top 3)
+    const ranked = sorted.map((p, i) => ({
+      rank: i + 1,
+      display_name: p.display_name,
+      score: p.score,
+      is_me: p.id === participant.id,
+    }));
+
+    const top3 = ranked.slice(0, 3);
+    const meEntry = ranked[myIdx];
+    const showMe = meEntry && myRank > 3;
+
+    leaderboard = showMe ? [...top3, meEntry] : top3;
+  }
+
   // Results
   let results: ParticipantResultPayload | null = null;
   if (session.status === "completed") {
@@ -110,6 +137,9 @@ export async function GET(request: NextRequest) {
     current_question_index: session.current_question_index,
     answered,
     results,
+    session_started_at: session.started_at,
+    session_duration_mins: snapshot.config.session_duration_mins ?? 40,
+    leaderboard,
   };
 
   return Response.json(state);

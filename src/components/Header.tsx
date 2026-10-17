@@ -6,8 +6,8 @@ import { BOOKING_URL } from "@/lib/config";
 
 const CALENDLY_URL = BOOKING_URL;
 
-export default function Header({ moduleTitle }: { moduleTitle?: string }) {
-  const onQuizPage = !!moduleTitle;
+export default function Header({ moduleTitle, hideBooking }: { moduleTitle?: string; hideBooking?: boolean }) {
+  const onQuizPage = !!moduleTitle && !hideBooking;
 
   return (
     <header style={{
