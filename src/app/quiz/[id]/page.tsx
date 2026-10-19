@@ -12,11 +12,13 @@ import {
   getSeen,
   getSkillHistory,
   recordAnswer,
+  recordDemoAnswer,
   saveAttempt,
   type StoredAnswer,
   type StoredAttempt,
 } from "@/lib/client/store";
 import { useEmailGate } from "@/components/EmailGate";
+import SkillJarLinks from "@/components/SkillJarLinks";
 import Header from "@/components/Header";
 
 export default function QuizPage() {
@@ -139,12 +141,14 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
       const res = await fetch("/api/check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ seed: attempt.seed, id: qq.id, picks: chosen, learner: getLearner() }),
+        body: JSON.stringify({ seed: attempt.seed, id: qq.id, picks: chosen, learner: getLearner(), mode: attempt.mode, module: attempt.module }),
       });
       if (!res.ok) throw new Error("check failed");
       const result = (await res.json()) as CheckResult;
       setChecks((prev) => ({ ...prev, [qq.id]: result }));
-      recordAnswer(qq, result.correct);
+      // The demo is kept out of the learner's practice history; it only counts towards the email gate
+      if (attempt.mode === "demo") recordDemoAnswer();
+      else recordAnswer(qq, result.correct);
       trackEvent("question_answered", {
         correct: result.correct,
         domain: qq.domain,
@@ -364,7 +368,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
     };
   }
 
-  const modeTitle = `${trackDef.short} · ${MODES[attempt.mode].title}${attempt.domain ? `: ${attempt.domain}` : ""}`;
+  const modeTitle = `${trackDef.short} · ${MODES[attempt.mode].title}${attempt.domain ? `: ${attempt.domain}` : ""}${attempt.module ? `: ${attempt.module}` : ""}`;
   const remaining = deadline ? deadline - now : null;
 
   return (
@@ -772,6 +776,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
                         Explanation
                       </strong>
                       {check.explanation}
+                      <SkillJarLinks resources={check.resources} />
                     </div>
                   </>
                 )}

@@ -9,6 +9,8 @@ export interface StartOptions {
   track: TrackId;
   mode: ModeId;
   domain?: string;
+  /** Practice by module: the module name */
+  module?: string;
   examConditions?: boolean;
 }
 
@@ -22,6 +24,7 @@ export async function startAttempt(o: StartOptions): Promise<{ id: string } | { 
         track: o.track,
         mode: o.mode,
         domain: o.domain,
+        module: o.module,
         wrongIds: o.mode === "review" ? getWrongIds(o.track) : undefined, // used only if the database list is unavailable
         learner: getLearner(),
         history: MODES[o.mode].adaptive ? getSkillHistory(o.track) : undefined,
@@ -39,6 +42,7 @@ export async function startAttempt(o: StartOptions): Promise<{ id: string } | { 
       track: o.track,
       mode: o.mode,
       domain: o.domain,
+      module: o.module,
       examConditions: !!o.examConditions && o.mode === "full",
       startedAt: Date.now(),
       limitSeconds: minutes ? minutes * 60 : null,

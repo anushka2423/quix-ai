@@ -23,6 +23,7 @@ import { startAttempt } from "@/lib/client/start";
 import { track as trackEvent } from "@/lib/analytics";
 import { useEmailGate } from "@/components/EmailGate";
 import BookingCTA from "@/components/BookingCTA";
+import SkillJarLinks from "@/components/SkillJarLinks";
 import Header from "@/components/Header";
 
 const btnOutline: React.CSSProperties = {
@@ -100,6 +101,7 @@ function Results({ attempt }: { attempt: StoredAttempt }) {
     track: attempt.track,
     mode: attempt.mode,
     domain: attempt.domain,
+    module: attempt.module,
     questionIds: attempt.questions.map((q) => q.id),
     answers: Object.entries(attempt.answers).map(([qid, a]) => ({ id: Number(qid), picks: a.picks, ms: a.ms })),
     totalSeconds: Math.round(((attempt.finishedAt ?? openedAt) - attempt.startedAt) / 1000),
@@ -125,7 +127,8 @@ function Results({ attempt }: { attempt: StoredAttempt }) {
           attempt.questions.forEach((q) => recordAnswer(q, !missed.has(q.id) && !!attempt.answers[q.id]));
         }
         if (record) saveAttempt({ ...attempt, recordedAt: Date.now() });
-        addHistory(attempt.track, { id: attempt.id, mode: attempt.mode, readiness: res.readiness, pct: res.pct, at: Date.now() });
+        // The demo is not part of the learner's history or readiness
+        if (attempt.mode !== "demo") addHistory(attempt.track, { id: attempt.id, mode: attempt.mode, readiness: res.readiness, pct: res.pct, at: Date.now() });
         setReady(isReady(fullMockReadiness(attempt.track)));
         trackEvent("module_completed", { track: res.track, mode: res.mode, score: res.correct, total: res.total, readiness: res.readiness });
         if (res.readiness !== null && res.readiness < PASS_SCORE) {
@@ -176,9 +179,9 @@ function Results({ attempt }: { attempt: StoredAttempt }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result, email]);
 
-  async function again(mode: typeof attempt.mode, domain?: string) {
+  async function again(mode: typeof attempt.mode, domain?: string, module?: string) {
     setStarting(mode);
-    const r = await startAttempt({ track: attempt.track, mode, domain });
+    const r = await startAttempt({ track: attempt.track, mode, domain, module });
     if ("id" in r) router.push(`/quiz/${r.id}`);
     else {
       setStarting(null);
@@ -441,6 +444,7 @@ function Results({ attempt }: { attempt: StoredAttempt }) {
                     ✓ Correct: {m.keys.map((l) => `${l}) ${m.options.find((o) => o.label === l)?.text}`).join("; ")}
                   </p>
                   <p style={{ margin: "8px 0 0", fontSize: "15px", lineHeight: 1.65 }}>{m.explanation}</p>
+                  <SkillJarLinks resources={m.resources} />
                 </details>
               ))}
             </div>
@@ -448,7 +452,7 @@ function Results({ attempt }: { attempt: StoredAttempt }) {
 
           {/* Next actions */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "32px" }}>
-            <button onClick={() => again(attempt.mode, attempt.domain)} disabled={!!starting} style={btnOutline}>
+            <button onClick={() => again(attempt.mode, attempt.domain, attempt.module)} disabled={!!starting} style={btnOutline}>
               Repeat this module
             </button>
             {result.missed.length > 0 ? (

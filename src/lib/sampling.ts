@@ -1,5 +1,5 @@
-import type { BankQuestion, TrackId } from "@/types/quiz";
-import { TRACKS, type DomainDef } from "@/lib/blueprint";
+import type { BankQuestion, ModuleQuiz, TrackId } from "@/types/quiz";
+import { DEMO_SIZE, MODULE_SIZE, TRACKS, type DomainDef } from "@/lib/blueprint";
 
 export type Rng = () => number;
 
@@ -123,6 +123,37 @@ export function buildDiagnostic(domainDefs: DomainDef[], pool: BankQuestion[], r
 export function buildReview(pool: BankQuestion[], wrongIds: number[], rng: Rng): BankQuestion[] {
   const ids = new Set(wrongIds);
   return shuffle(pool.filter((q) => ids.has(q.id)), rng);
+}
+
+/** A domain's demo: the questions the admin marked, in their fixed order. Never random, never more than DEMO_SIZE. */
+export function buildDemo(pool: BankQuestion[], domain: string): BankQuestion[] {
+  return pool
+    .filter((q) => q.domain === domain && q.demoOrder != null)
+    .sort((a, b) => (a.demoOrder as number) - (b.demoOrder as number) || a.id - b.id)
+    .slice(0, DEMO_SIZE);
+}
+
+/**
+ * Practice by module: a random draw from the module's questions, spread across its lessons. Each lesson gives one
+ * question before any lesson gives a second, so a session covers as many lessons as it has room for. When the module has
+ * more lessons than questions in a session, which lessons appear changes from session to session. The course's questions
+ * that belong to no lesson are used only after the lessons run out. The order of the questions is random.
+ */
+export function buildModulePractice(module: ModuleQuiz, rng: Rng, n = MODULE_SIZE): BankQuestion[] {
+  const queues = shuffle(module.lessons.filter((l) => l.questions.length), rng).map((l) => shuffle(l.questions, rng));
+  const picked: BankQuestion[] = [];
+  const taken = new Set<number>();
+  const take = (q: BankQuestion) => {
+    if (picked.length < n && !taken.has(q.id)) {
+      taken.add(q.id);
+      picked.push(q);
+    }
+  };
+  for (let round = 0; picked.length < n && queues.some((qs) => qs.length > round); round++) {
+    for (const qs of queues) if (qs.length > round) take(qs[round]);
+  }
+  for (const q of shuffle(module.extras, rng)) take(q);
+  return shuffle(picked, rng);
 }
 
 // ── Adaptive selection (sprints and drills) ───────────────────────────────

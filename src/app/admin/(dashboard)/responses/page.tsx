@@ -32,7 +32,7 @@ export default async function ResponsesPage({ searchParams }: { searchParams: Pr
         <select name="track" defaultValue={sp.track ?? ""} style={{ padding: 8 }}><option value="">All tracks</option><option value="associate">Associate</option><option value="developer">Developer</option></select>
         <select name="mode" defaultValue={sp.mode ?? ""} style={{ padding: 8 }}>
           <option value="">All modules</option>
-          {["diagnostic", "sprint", "drill", "full", "review"].map((m) => <option key={m} value={m}>{m}</option>)}
+          {["diagnostic", "sprint", "drill", "full", "review", "module", "demo"].map((m) => <option key={m} value={m}>{m}</option>)}
         </select>
         <input name="q" defaultValue={sp.q ?? ""} placeholder="Email contains" style={{ padding: 8 }} />
         <button style={{ padding: "8px 14px" }}>Filter</button>

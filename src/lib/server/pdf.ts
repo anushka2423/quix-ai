@@ -175,5 +175,5 @@ export async function buildReportPdf(result: ResultSummary, opts: PdfOptions = {
 }
 
 function modeName(r: ResultSummary): string {
-  return { diagnostic: "Readiness diagnostic", full: "Full mock exam", sprint: "Quick sprint", drill: "Domain drill", review: "Review mistakes" }[r.mode];
+  return { diagnostic: "Readiness diagnostic", full: "Full mock exam", sprint: "Quick sprint", drill: "Domain drill", review: "Review mistakes", demo: "Module demo", module: "Module practice" }[r.mode];
 }

@@ -10,7 +10,8 @@
     "test": "vitest run",
     "bank:coverage": "tsx scripts/bank-coverage.ts",
     "bank:import": "tsx scripts/import-questions.ts",
-    "bank:sql": "tsx scripts/generate-seed-sql.ts"
+    "bank:sql": "tsx scripts/generate-seed-sql.ts",
+    "bank:submodule-sql": "tsx scripts/generate-submodule-seed-sql.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.0",

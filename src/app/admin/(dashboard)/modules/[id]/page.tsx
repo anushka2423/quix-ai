@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { adminDomains, adminSchema } from "@/lib/server/admin-data";
 import { PageHead, SchemaBanner } from "../../_components/ui";
 import DomainEditor from "../../_components/DomainEditor";
+import SubmodulesEditor from "../../_components/SubmodulesEditor";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,7 @@ export default async function DomainPage({ params }: { params: Promise<{ id: str
       </PageHead>
       <SchemaBanner schema={schema} />
       <DomainEditor domain={domain} />
+      <SubmodulesEditor domain={domain} />
     </div>
   );
 }
