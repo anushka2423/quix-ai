@@ -6,6 +6,7 @@ import type {
   MissedItem,
   ModeId,
   OptionLabel,
+  Resource,
   ResultSummary,
   SubSkillStat,
   TrackId,
@@ -54,6 +55,8 @@ export interface ScoreInput {
   /** Options as displayed (for the missed-question list) */
   optionsFor: (q: BankQuestion) => { label: OptionLabel; text: string }[];
   explain: (q: BankQuestion) => string;
+  /** Skill Jar links to show with a missed question's explanation */
+  resourcesFor?: (q: BankQuestion) => Resource[];
   totalSeconds: number;
 }
 
@@ -62,7 +65,7 @@ export function modeProducesReadiness(mode: ModeId): boolean {
 }
 
 export function computeResult(input: ScoreInput): ResultSummary {
-  const { track, mode, asked, answers, keysFor, optionsFor, explain } = input;
+  const { track, mode, asked, answers, keysFor, optionsFor, explain, resourcesFor } = input;
   const defDomains = input.domains;
   const byId = new Map(answers.map((a) => [a.id, a]));
 
@@ -120,6 +123,7 @@ export function computeResult(input: ScoreInput): ResultSummary {
         userPicks: picks,
         keys,
         explanation: explain(q),
+        resources: resourcesFor?.(q) ?? [],
         multi,
         ms: a?.ms ?? 0,
       });

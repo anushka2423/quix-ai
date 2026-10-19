@@ -1,5 +1,5 @@
-import type { BankQuestion, Difficulty, Option, OptionLabel, PublicQuestion, TrackId } from "@/types/quiz";
-import { TRACKS, TRACK_IDS, type DocLink, type DomainDef, type SubSkillDef } from "@/lib/blueprint";
+import type { BankQuestion, Difficulty, ModuleLesson, ModuleQuiz, Option, OptionLabel, PublicQuestion, Resource, TrackId } from "@/types/quiz";
+import { DEMO_SIZE, TRACKS, TRACK_IDS, type DocLink, type DomainDef, type SubSkillDef, type SubmoduleDef } from "@/lib/blueprint";
 import { parseAnswer, requiredPicks } from "@/lib/answers";
 import { db } from "@/lib/server/db";
 import { CODE_BANK } from "./code-bank";
@@ -11,7 +11,9 @@ import { CODE_BANK } from "./code-bank";
  * Everything is read from Supabase:
  *   quiz_modules     one row per exam domain (track, weight, objective, course_module, doc_links)
  *   quiz_sub_skills  the weighted sub-skills of a domain
- *   quiz_questions   questions (section = sub-skill, explanation)
+ *   quiz_questions   questions (section = sub-skill, explanation, submodule_id, demo_order)
+ *   quiz_submodules  Skill Jar courses under a domain (navigation and content only; never scored)
+ *   quiz_skilljar_topics  the links shown with a question's explanation
  * Built-in defaults (src/lib/blueprint.ts, src/lib/bank/code-bank.ts) are used only when the database
  * is not configured, errors, or holds no recognised domains; columns/rows missing from the database
  * fall back to the default for that domain name.
@@ -37,7 +39,16 @@ interface QuestionRow {
   id: number; module_id: number; section: string; difficulty: string; question: string;
   option_a: string; option_b: string; option_c: string; option_d: string; answer: string;
   explanation?: string | null; order_index?: number;
+  submodule_id?: number | null; demo_order?: number | null; topic_id?: number | null; module_only?: boolean | null;
 }
+interface MemberRow { id?: number; topic_id: number; question_id: number }
+interface SubmoduleRow { id: number; module_id: number; title: string; description?: string | null; order_index?: number | null; course_position?: number | null }
+interface TopicRow { id: number; submodule_id: number; course_title: string; lesson_title?: string | null; url?: string | null; order_index?: number | null }
+
+const isHttpUrl = (u: unknown): u is string => typeof u === "string" && /^https?:\/\//i.test(u.trim());
+
+/** A topic's link text: the lesson first, with its course in brackets; a course-level topic is just the course. */
+const topicTitle = (t: TopicRow) => (t.lesson_title?.trim() ? `${t.lesson_title.trim()} (${t.course_title.trim()})` : t.course_title.trim());
 
 const defaultDomain = (title: string): { track: TrackId; def: DomainDef } | undefined => {
   for (const t of TRACK_IDS) {
@@ -55,9 +66,29 @@ function parseDocLinks(v: unknown): DocLink[] | undefined {
 }
 
 /** Builds the blueprint and the question list from raw database rows. Pure, so it is unit tested. */
-export function buildFromRows(modules: ModuleRow[], subSkillRows: SubSkillRow[], questionRows: QuestionRow[]): { domains: Blueprint; bank: BankQuestion[] } {
+export function buildFromRows(
+  modules: ModuleRow[],
+  subSkillRows: SubSkillRow[],
+  questionRows: QuestionRow[],
+  submoduleRows: SubmoduleRow[] = [],
+  topicRows: TopicRow[] = [],
+  memberRows: MemberRow[] = []
+): { domains: Blueprint; bank: BankQuestion[]; modules: Record<TrackId, ModuleQuiz[]> } {
   const domains: Blueprint = { associate: [], developer: [] };
   const byModule = new Map<number, { track: TrackId; name: string }>();
+
+  const submoduleNames = new Map(submoduleRows.map((x) => [x.id, x.title.trim()]));
+
+  // Skill Jar links: only topics with a usable URL can be shown as links. A topic that names a lesson is shown only to
+  // the questions that point at it; the topics without a lesson are the course-level link of the whole submodule.
+  const bySubmodule = new Map<number, Resource[]>();
+  const lessonTopic = new Map<number, { submoduleId: number; link: Resource; lesson: string }>();
+  for (const t of [...topicRows].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0) || a.id - b.id)) {
+    if (!isHttpUrl(t.url) || !t.course_title?.trim()) continue;
+    const link = { title: topicTitle(t), url: t.url.trim() };
+    if (t.lesson_title?.trim()) lessonTopic.set(t.id, { submoduleId: t.submodule_id, link, lesson: t.lesson_title.trim() });
+    else bySubmodule.set(t.submodule_id, [...(bySubmodule.get(t.submodule_id) ?? []), link]);
+  }
 
   for (const m of [...modules].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0))) {
     const name = m.title.trim();
@@ -73,16 +104,33 @@ export function buildFromRows(modules: ModuleRow[], subSkillRows: SubSkillRow[],
       .map<SubSkillDef>((s) => ({ name: s.name.trim(), weight: s.weight == null || s.weight === "" ? null : Number(s.weight) }));
     const subSkills = own.length ? own : (dflt?.def.subSkills ?? []);
 
+    const submodules = submoduleRows
+      .filter((x) => x.module_id === m.id)
+      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0) || a.id - b.id)
+      .map<SubmoduleDef>((x) => ({ id: x.id, name: x.title.trim(), description: x.description?.trim() ?? "", position: x.course_position ?? null, topics: bySubmodule.get(x.id) ?? [] }));
+
     domains[track].push({
       name,
       weight,
       subSkills: [...subSkills],
+      submodules,
       docLinks: parseDocLinks(m.doc_links) ?? dflt?.def.docLinks ?? [],
       courseModule: m.course_module ?? dflt?.def.courseModule ?? domains[track].length + 1,
       objective: m.objective?.trim() || dflt?.def.objective || m.description?.trim() || name,
     });
     byModule.set(m.id, { track, name });
   }
+
+  // The lesson the question points at (if it belongs to the question's own submodule), else its course-level link
+  const lessonOf = (r: QuestionRow) => {
+    const lesson = r.topic_id != null ? lessonTopic.get(r.topic_id) : undefined;
+    return lesson && lesson.submoduleId === r.submodule_id ? lesson : undefined;
+  };
+  const resourcesOf = (r: QuestionRow): Resource[] => {
+    if (r.submodule_id == null) return [];
+    const lesson = lessonOf(r);
+    return lesson ? [lesson.link] : (bySubmodule.get(r.submodule_id) ?? []);
+  };
 
   const bank: BankQuestion[] = [];
   for (const r of questionRows) {
@@ -109,15 +157,83 @@ export function buildFromRows(modules: ModuleRow[], subSkillRows: SubSkillRow[],
       answer: r.answer,
       explanation: r.explanation?.trim() || undefined,
       guideVersion: "v1.0",
+      submoduleId: r.submodule_id ?? null,
+      topicId: r.topic_id ?? null,
+      lessonName: lessonOf(r)?.lesson ?? null,
+      submoduleName: r.submodule_id != null ? (submoduleNames.get(r.submodule_id) ?? null) : null,
+      moduleOnly: r.module_only === true,
+      demoOrder: r.demo_order != null && r.demo_order >= 1 && r.demo_order <= DEMO_SIZE ? r.demo_order : null,
+      resources: resourcesOf(r),
     });
   }
-  return { domains, bank };
+  const moduleQuizzes = buildModuleQuizzes({ submodules: submoduleRows, topics: topicRows, members: memberRows, trackOf: (id) => byModule.get(id)?.track, bank });
+  return { domains, bank, modules: moduleQuizzes };
 }
+
+/**
+ * The module quiz of every course. A module is a submodule name: a course taught under several domains is one module.
+ * A lesson is a topic that names a lesson, grouped by its name across those domains, and its questions are the
+ * members the admin put in it. A question belongs to at most one lesson of a course (the first membership wins).
+ */
+export function buildModuleQuizzes(input: {
+  submodules: SubmoduleRow[];
+  topics: TopicRow[];
+  members: MemberRow[];
+  trackOf: (moduleId: number) => TrackId | undefined;
+  bank: BankQuestion[];
+}): Record<TrackId, ModuleQuiz[]> {
+  const out: Record<TrackId, ModuleQuiz[]> = { associate: [], developer: [] };
+  const topicById = new Map(input.topics.map((t) => [t.id, t]));
+  const bankById = new Map(input.bank.map((q) => [q.id, q]));
+  const topicsInOrder = [...input.topics].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0) || a.id - b.id);
+  const members = [...input.members].sort((a, b) => (a.id ?? 0) - (b.id ?? 0) || a.topic_id - b.topic_id || a.question_id - b.question_id);
+
+  for (const track of TRACK_IDS) {
+    const courses = new Map<string, { position: number; description: string; subIds: Set<number> }>();
+    for (const sm of input.submodules) {
+      if (input.trackOf(sm.module_id) !== track) continue;
+      const name = sm.title.trim();
+      const c = courses.get(name) ?? { position: Infinity, description: "", subIds: new Set<number>() };
+      c.position = Math.min(c.position, sm.course_position ?? Infinity);
+      if (!c.description && sm.description?.trim()) c.description = sm.description.trim();
+      c.subIds.add(sm.id);
+      courses.set(name, c);
+    }
+    for (const [name, c] of courses) {
+      const lessons = new Map<string, ModuleLesson>();
+      for (const t of topicsInOrder) {
+        const lesson = t.lesson_title?.trim();
+        if (!c.subIds.has(t.submodule_id) || !lesson || !isHttpUrl(t.url) || lessons.has(lesson)) continue;
+        lessons.set(lesson, { name: lesson, link: { title: `${lesson} (${name})`, url: t.url.trim() }, questions: [] });
+      }
+      const claimed = new Set<number>();
+      for (const m of members) {
+        const t = topicById.get(m.topic_id);
+        const q = bankById.get(m.question_id);
+        const lesson = t && c.subIds.has(t.submodule_id) ? lessons.get(t.lesson_title?.trim() ?? "") : undefined;
+        if (!lesson || !q || q.track !== track || claimed.has(q.id)) continue;
+        claimed.add(q.id);
+        lesson.questions.push(q);
+      }
+      out[track].push({
+        name,
+        description: c.description,
+        position: Number.isFinite(c.position) ? c.position : null,
+        lessons: [...lessons.values()],
+        extras: input.bank.filter((q) => q.track === track && q.submoduleName === name && !claimed.has(q.id)),
+      });
+    }
+  }
+  return out;
+}
+
+/** Every question a module quiz can draw: its lessons' questions, then the course's lesson-less ones. */
+export const moduleQuestions = (m: ModuleQuiz): BankQuestion[] => [...m.lessons.flatMap((l) => l.questions), ...m.extras];
 
 /** Kept for tests and callers that only need the question mapping. */
 export const rowsToBank = (modules: ModuleRow[], rows: QuestionRow[]) => buildFromRows(modules, [], rows).bank;
 
-interface Loaded { at: number; domains: Blueprint; bank: BankQuestion[]; source: "database" | "code" }
+interface Loaded { at: number; domains: Blueprint; bank: BankQuestion[]; modules: Record<TrackId, ModuleQuiz[]>; source: "database" | "code" }
 let cache: Loaded | null = null;
 
 const defaults = (): Blueprint => ({ associate: [...TRACKS.associate.domains], developer: [...TRACKS.developer.domains] });
@@ -128,19 +244,29 @@ async function load(): Promise<Loaded> {
   const c = db();
   if (c) {
     try {
-      const [mods, subs, qs] = await Promise.all([
+      const [mods, subs, qs, submods, topics, members] = await Promise.all([
         c.from("quiz_modules").select("*"),
         c.from("quiz_sub_skills").select("*"), // missing before the migration: treated as empty
         c.from("quiz_questions").select("*").order("order_index", { ascending: true }),
+        c.from("quiz_submodules").select("*"), // submodules and their links are optional too
+        c.from("quiz_skilljar_topics").select("*"),
+        c.from("quiz_lesson_questions").select("*"), // module quiz lessons: optional until the migration has run
       ]);
       if (mods.error || qs.error) throw new Error((mods.error ?? qs.error)?.message);
-      const built = buildFromRows(mods.data as ModuleRow[], (subs.error ? [] : subs.data) as SubSkillRow[], qs.data as QuestionRow[]);
+      const built = buildFromRows(
+        mods.data as ModuleRow[],
+        (subs.error ? [] : subs.data) as SubSkillRow[],
+        qs.data as QuestionRow[],
+        (submods.error ? [] : submods.data) as SubmoduleRow[],
+        (topics.error ? [] : topics.data) as TopicRow[],
+        (members.error ? [] : members.data) as MemberRow[]
+      );
       if (built.bank.length) result = { at: Date.now(), ...built, source: "database" };
     } catch (err) {
       console.warn("[bank] database read failed, using built-in questions:", err instanceof Error ? err.message : err);
     }
   }
-  cache = result ?? { at: Date.now(), domains: defaults(), bank: CODE_BANK, source: "code" };
+  cache = result ?? { at: Date.now(), domains: defaults(), bank: CODE_BANK, modules: { associate: [], developer: [] }, source: "code" };
   return cache;
 }
 
@@ -165,25 +291,66 @@ export async function getQuestion(id: number): Promise<BankQuestion | undefined>
   return (await getBank()).find((q) => q.id === id);
 }
 
+/** The questions the exam-weighted modes (diagnostic, sprint, drill, full mock) draw from: module-quiz-only questions are left out. */
 export async function trackBank(track: TrackId): Promise<BankQuestion[]> {
+  return (await getBank()).filter((q) => q.track === track && !q.moduleOnly);
+}
+
+/** Every question of a track, module-quiz-only ones included (for review of missed questions). */
+export async function allTrackBank(track: TrackId): Promise<BankQuestion[]> {
   return (await getBank()).filter((q) => q.track === track);
+}
+
+export async function getModuleQuizzes(): Promise<Record<TrackId, ModuleQuiz[]>> {
+  return (await load()).modules;
+}
+
+/**
+ * The link under a question's explanation while a module quiz is being taken: the lesson of that module the question
+ * belongs to, else the question's own link.
+ */
+export async function moduleResourcesFor(q: BankQuestion, moduleName: string | undefined): Promise<Resource[]> {
+  if (!moduleName) return q.resources ?? [];
+  const mod = (await getModuleQuizzes())[q.track].find((m) => m.name === moduleName);
+  const lesson = mod?.lessons.find((l) => l.questions.some((x) => x.id === q.id));
+  return lesson ? [lesson.link] : (q.resources ?? []);
+}
+
+export interface TrackModule {
+  name: string;
+  /** One-line description for the module card; empty when the admin has not written one */
+  description: string;
+  /** Questions in the track that belong to it */
+  count: number;
 }
 
 export interface TrackMeta {
   track: TrackId;
   total: number;
   domains: { name: string; weight: number; count: number }[];
+  /** Practice-by-module list: the Skill Jar courses that have questions, in path order */
+  modules: TrackModule[];
+}
+
+/** The practice-by-module list of a track: modules that have questions, ordered by the admin's position, then by name. */
+export function trackModules(modules: ModuleQuiz[]): TrackModule[] {
+  return modules
+    .map((m) => ({ m, count: moduleQuestions(m).length }))
+    .filter((x) => x.count > 0)
+    .sort((a, b) => (a.m.position ?? Infinity) - (b.m.position ?? Infinity) || a.m.name.localeCompare(b.m.name))
+    .map((x) => ({ name: x.m.name, description: x.m.description, count: x.count }));
 }
 
 export async function bankMeta(): Promise<Record<TrackId, TrackMeta>> {
-  const { bank, domains } = await load();
+  const { bank, domains, modules } = await load();
   const out = {} as Record<TrackId, TrackMeta>;
   for (const id of TRACK_IDS) {
-    const items = bank.filter((q) => q.track === id);
+    const items = bank.filter((q) => q.track === id && !q.moduleOnly);
     out[id] = {
       track: id,
       total: items.length,
       domains: domains[id].map((d) => ({ name: d.name, weight: d.weight, count: items.filter((q) => q.domain === d.name).length })),
+      modules: trackModules(modules[id]),
     };
   }
   return out;

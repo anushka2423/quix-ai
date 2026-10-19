@@ -34,6 +34,8 @@ export interface StoredAttempt {
   track: TrackId;
   mode: ModeId;
   domain?: string;
+  /** Set for practice by module */
+  module?: string;
   examConditions: boolean;
   startedAt: number;
   /** null = untimed */
@@ -109,9 +111,17 @@ export function recordAnswer(q: PublicQuestion, correct: boolean): void {
   write("quix_wrong", wrong);
 }
 
-/** Total questions answered across every attempt (qualified lead = email + 10 answers). */
+/**
+ * Demo answers are kept out of the practice history above (they feed no readiness, sprint or review list),
+ * so they are counted on their own. This is what lets the email gate fire after the first demo answer.
+ */
+const DEMO_COUNT_KEY = "quix_demo_answered";
+export const getDemoAnswered = (): number => read<number>(DEMO_COUNT_KEY, 0);
+export const recordDemoAnswer = (): void => write(DEMO_COUNT_KEY, getDemoAnswered() + 1);
+
+/** Total questions answered across every attempt, demo included: this drives the email gate. */
 export function answeredTotal(): number {
-  return Object.values(getSkills()).reduce((n, h) => n + Object.values(h ?? {}).reduce((m, s) => m + s.total, 0), 0);
+  return getDemoAnswered() + Object.values(getSkills()).reduce((n, h) => n + Object.values(h ?? {}).reduce((m, s) => m + s.total, 0), 0);
 }
 
 // ── Email identity (once per person) ─────────────────────────────────────

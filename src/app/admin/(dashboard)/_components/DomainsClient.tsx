@@ -75,7 +75,7 @@ export default function DomainsClient({ domains }: { domains: AdminDomain[] }) {
                   <div>
                     <strong>{d.title}</strong>
                     <div style={{ fontSize: 13, color: "var(--muted)", marginTop: 4 }}>
-                      {d.subSkills.length} sub-skills · {d.questionCount} questions · course module {d.courseModule ?? "not set"}
+                      {d.subSkills.length} sub-skills · {d.submodules.length} submodules · {d.questionCount} questions · demo {d.demoCount}/5 · course module {d.courseModule ?? "not set"}
                     </div>
                   </div>
                   <div style={{ textAlign: "right", fontWeight: 700 }}>{d.weight != null ? `${d.weight}%` : "no weight"}</div>

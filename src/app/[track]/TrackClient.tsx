@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { ModeId, TrackId } from "@/types/quiz";
-import { MODES, MODE_IDS, TRACKS } from "@/lib/blueprint";
+import { MODES, MODE_IDS, MODULE_SIZE, TRACKS } from "@/lib/blueprint";
 import type { TrackMeta } from "@/lib/bank";
 import { PASS_SCORE, flags } from "@/lib/config";
 import { startAttempt } from "@/lib/client/start";
@@ -23,6 +23,8 @@ export default function TrackClient({ track, meta }: { track: TrackId; meta: Tra
   const [domain, setDomain] = useState(meta.domains.find((d) => d.count > 0)?.name ?? meta.domains[0]?.name ?? "");
   const [exam, setExam] = useState(false);
   const [busy, setBusy] = useState<ModeId | null>(null);
+  const [view, setView] = useState<"overall" | "module">("overall");
+  const [moduleBusy, setModuleBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -51,6 +53,22 @@ export default function TrackClient({ track, meta }: { track: TrackId; meta: Tra
       setBusy(null);
     }
   }
+
+  async function goModule(name: string) {
+    setModuleBusy(name);
+    setError("");
+    const r = await startAttempt({ track, mode: "module", module: name });
+    if ("id" in r) router.push(`/quiz/${r.id}`);
+    else {
+      setError(r.error);
+      setModuleBusy(null);
+    }
+  }
+
+  const switchBtn = (active: boolean): React.CSSProperties => ({
+    padding: "10px 20px", borderRadius: "999px", border: "1px solid #dce3ed", fontFamily: "inherit", fontSize: "14px", fontWeight: 700, cursor: "pointer", minHeight: "44px",
+    background: active ? "#071b39" : "#fff", color: active ? "#fff" : "var(--ink)",
+  });
 
   return (
     <>
@@ -92,13 +110,40 @@ export default function TrackClient({ track, meta }: { track: TrackId; meta: Tra
         <section style={{ padding: "64px 0", background: "#ffffff" }}>
           <div className="page-wrap">
             <p style={{ fontSize: "14px", letterSpacing: "1px", fontWeight: 800, color: BLUE, textTransform: "uppercase", margin: "0 0 14px", fontFamily: "var(--font-manrope), sans-serif" }}>
-              Practice by module
+              Practice
             </p>
             <h2 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "clamp(28px, 3vw, 38px)", fontWeight: 800, color: "var(--ink)", margin: "0 0 28px", letterSpacing: "-0.035em" }}>
               Pick any module. Nothing is locked.
             </h2>
             {error && <p role="alert" style={{ color: "var(--incorrect-text)" }}>✗ {error}</p>}
 
+            {meta.modules.length > 0 && (
+              <div role="group" aria-label="How to practice" style={{ display: "flex", flexWrap: "wrap", gap: "10px", margin: "0 0 24px" }}>
+                <button aria-pressed={view === "overall"} onClick={() => setView("overall")} style={switchBtn(view === "overall")}>Overall: all modules at once</button>
+                <button aria-pressed={view === "module"} onClick={() => setView("module")} style={switchBtn(view === "module")}>By module: one Skill Jar course</button>
+              </div>
+            )}
+
+            {view === "module" ? (
+              <div className="module-grid">
+                {meta.modules.map((m) => (
+                  <article key={m.name} style={{ border: "1px solid #dce3ed", borderRadius: "10px", padding: "23px 19px", background: "white", display: "flex", flexDirection: "column" }}>
+                    <h3 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "19px", lineHeight: 1.35, fontWeight: 800, color: "var(--ink)", margin: "0 0 12px", letterSpacing: "-0.025em" }}>{m.name}</h3>
+                    <p style={{ fontSize: "15px", color: "var(--muted)", lineHeight: 1.7, margin: 0, flex: 1 }}>{m.description}</p>
+                    <span style={{ fontSize: "14px", color: "#654a39", borderTop: "1px solid #dce3ed", paddingTop: "14px", marginTop: "20px" }}>
+                      {Math.min(m.count, MODULE_SIZE)} question{Math.min(m.count, MODULE_SIZE) === 1 ? "" : "s"} · untimed
+                    </span>
+                    <button
+                      onClick={() => goModule(m.name)}
+                      disabled={!!moduleBusy}
+                      style={{ width: "100%", marginTop: "14px", padding: "12px 18px", borderRadius: "9px", border: "1px solid #dce3ed", background: "white", color: "var(--ink)", fontWeight: 700, fontSize: "14px", cursor: moduleBusy ? "not-allowed" : "pointer", fontFamily: "inherit", minHeight: "44px" }}
+                    >
+                      {moduleBusy === m.name ? "Starting…" : "Start →"}
+                    </button>
+                  </article>
+                ))}
+              </div>
+            ) : (
             <div className="module-grid">
               {MODE_IDS.map((mode) => {
                 const m = MODES[mode];
@@ -153,6 +198,7 @@ export default function TrackClient({ track, meta }: { track: TrackId; meta: Tra
                 );
               })}
             </div>
+            )}
           </div>
         </section>
 

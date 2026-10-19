@@ -140,6 +140,19 @@ export default function AdminDashboardLayout({
           >
             Question bank
           </Link>
+          <Link
+            href="/admin/module-quizzes"
+            style={{
+              display: "block",
+              padding: "9px 18px",
+              color: "var(--on-navy)",
+              fontSize: "13px",
+              fontWeight: 500,
+              textDecoration: "none",
+            }}
+          >
+            Module quizzes
+          </Link>
           <div style={{ margin: "8px 18px 4px", borderTop: "1px solid rgba(255,255,255,.08)" }} />
           <Link
             href="/admin/liveq"
