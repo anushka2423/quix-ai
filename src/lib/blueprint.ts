@@ -18,10 +18,23 @@ export interface SubSkillDef {
   weight: number | null;
 }
 
+/** A Skill Jar course that teaches part of a domain. Read from the database (admin-editable), never built in. */
+export interface SubmoduleDef {
+  id: number;
+  name: string;
+  description: string;
+  /** Place in the track's module list (Skill Jar path order). null when the admin has not set one. */
+  position: number | null;
+  /** Where to read about it: one link per Skill Jar topic */
+  topics: DocLink[];
+}
+
 export interface DomainDef {
   name: string;
   weight: number;
   subSkills: SubSkillDef[];
+  /** Submodules of the domain, in display order. Empty when none are defined. */
+  submodules?: SubmoduleDef[];
   docLinks: DocLink[];
   /** Module of the Agentic AI Institute course that covers this domain (editable) */
   courseModule: number;
@@ -380,9 +393,32 @@ export const MODES: Record<ModeId, ModeDef> = {
     minutes: null,
     adaptive: false,
   },
+  module: {
+    id: "module",
+    title: "Module practice",
+    purpose: "Practice the questions behind one Skill Jar course. Counts as normal practice, with no readiness estimate.",
+    questions: () => MODULE_SIZE,
+    minutes: null,
+    adaptive: false,
+  },
+  demo: {
+    id: "demo",
+    title: "Module demo",
+    purpose: "A short taster of one domain: 5 fixed questions. Not part of your readiness score.",
+    questions: () => DEMO_SIZE,
+    minutes: null,
+    adaptive: false,
+  },
 };
 
+/** The five practice modes shown as cards. The demo is offered on each domain card instead. */
 export const MODE_IDS: ModeId[] = ["diagnostic", "sprint", "drill", "full", "review"];
+
+/** Questions in a domain's demo */
+export const DEMO_SIZE = 5;
+
+/** Questions in one practice-by-module session (fewer only when the module holds fewer) */
+export const MODULE_SIZE = 5;
 
 /** Share of the exam (0..1) a domain's sub-skills sum to; used to weight readiness. */
 export function weightFraction(track: TrackId, domain: string): number {

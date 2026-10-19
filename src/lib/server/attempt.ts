@@ -1,5 +1,5 @@
-import type { AttemptAnswer, BankQuestion, OptionLabel } from "@/types/quiz";
-import { displayKeys, getBank, getBlueprint, presentOptions } from "@/lib/bank";
+import type { AttemptAnswer, BankQuestion, OptionLabel, Resource } from "@/types/quiz";
+import { displayKeys, getBank, getBlueprint, getModuleQuizzes, presentOptions } from "@/lib/bank";
 import { parseAnswer } from "@/lib/answers";
 import { computeResult } from "@/lib/scoring";
 import { isTrack } from "@/lib/blueprint";
@@ -24,6 +24,8 @@ export interface ResultRequest {
   track: string;
   mode: ModeId;
   domain?: string;
+  /** Practice by module: the module (course) name, so missed questions link to the lesson of that module */
+  module?: string;
   questionIds: number[];
   answers: { id: number; picks: unknown; ms: number }[];
   totalSeconds: number;
@@ -40,6 +42,10 @@ export async function resultFromRequest(body: ResultRequest): Promise<ResultSumm
     .filter((a) => asked.some((q) => q.id === a.id))
     .map((a) => ({ id: a.id, picks: cleanPicks(a.picks), ms: Math.max(0, Math.min(Number(a.ms) || 0, 3_600_000)) }))
     .filter((a) => a.picks.length > 0);
+  // In a module quiz, a missed question links to the lesson of that module it belongs to
+  const moduleQuiz = typeof body.module === "string" ? (await getModuleQuizzes())[body.track as TrackId].find((m) => m.name === body.module) : undefined;
+  const lessonLink = new Map<number, Resource>();
+  for (const l of moduleQuiz?.lessons ?? []) for (const q of l.questions) if (!lessonLink.has(q.id)) lessonLink.set(q.id, l.link);
   return computeResult({
     track: body.track as TrackId,
     domains: (await getBlueprint())[body.track as TrackId],
@@ -50,6 +56,7 @@ export async function resultFromRequest(body: ResultRequest): Promise<ResultSumm
     keysFor: (q) => displayKeys(q, body.seed),
     optionsFor: (q) => presentOptions(q, body.seed),
     explain: explanationFor,
+    resourcesFor: (q) => (lessonLink.has(q.id) ? [lessonLink.get(q.id) as Resource] : (q.resources ?? [])),
     totalSeconds: Math.max(0, Math.round(Number(body.totalSeconds) || 0)),
   });
 }

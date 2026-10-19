@@ -23,7 +23,7 @@ export function SchemaBanner({ schema }: { schema: SchemaStatus }) {
     <>
       {schema.missing.length > 0 && (
         <div style={{ background: "#fff4db", color: "#65501f", padding: "10px 14px", borderRadius: 6, marginBottom: 12 }}>
-          <strong>The database needs an update.</strong> Run <code>supabase/migrations/0001_cert_readiness.sql</code> in the Supabase SQL editor.
+          <strong>The database needs an update.</strong> Run the missing migrations from <code>supabase/migrations/</code> (<code>0001_cert_readiness.sql</code>, <code>0006_submodules_and_demo.sql</code>) in your SQL client.
           <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>{schema.missing.map((m) => <li key={m}>{m}</li>)}</ul>
         </div>
       )}
