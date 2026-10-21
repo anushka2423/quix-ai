@@ -196,7 +196,11 @@ export interface AdminCourse {
   /** Domains the course is set up under: a new question for the course is filed under one of them */
   domains: { id: number; title: string; sections: string[] }[];
 }
-export interface AdminBankQuestion { id: number; track: TrackId; domainId: number; domain: string; section: string; question: string; moduleOnly: boolean }
+export interface AdminBankQuestion {
+  id: number; track: TrackId; domainId: number; domain: string; section: string; question: string; moduleOnly: boolean;
+  /** The rest of the question, so the module quiz page can edit it in place */
+  difficulty: string; options: [string, string, string, string]; answer: string; explanation: string;
+}
 export interface AdminModuleQuizzes {
   /** False until 0013_module_quizzes.sql has run */
   ready: boolean;
@@ -221,7 +225,10 @@ export async function adminModuleQuizzes(): Promise<AdminModuleQuizzes> {
   const moduleById = new Map((mods.data ?? []).map((m) => [m.id as number, { title: String(m.title), track: trackOf(m) }]));
   const bank: AdminBankQuestion[] = (qs.data ?? []).flatMap((r) => {
     const m = moduleById.get(r.module_id);
-    return m?.track ? [{ id: r.id, track: m.track, domainId: r.module_id, domain: m.title, section: String(r.section ?? ""), question: String(r.question), moduleOnly: r.module_only === true }] : [];
+    return m?.track ? [{
+      id: r.id, track: m.track, domainId: r.module_id, domain: m.title, section: String(r.section ?? ""), question: String(r.question), moduleOnly: r.module_only === true,
+      difficulty: String(r.difficulty ?? "Medium"), options: [r.option_a, r.option_b, r.option_c, r.option_d].map((o) => String(o ?? "")) as AdminBankQuestion["options"], answer: String(r.answer ?? ""), explanation: String(r.explanation ?? ""),
+    }] : [];
   });
   const bankById = new Map(bank.map((b) => [b.id, b]));
   const questionRows = new Map((qs.data ?? []).map((r) => [r.id as number, r]));

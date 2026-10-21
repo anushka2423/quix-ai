@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { deleteSubmoduleAction, reorderSubmodulesAction, saveSubmoduleAction } from "@/app/admin/actions";
 import { moveId } from "@/lib/admin-validate";
 import type { AdminDomain, AdminSubmodule } from "@/lib/server/admin-data";
-import { btn, btnDanger, btnPrimary, card, input, label } from "./ui";
+import { BusyButton, btn, btnDanger, btnPrimary, card, input, label } from "./ui";
 
 interface Draft {
   id?: number;
@@ -26,16 +26,25 @@ export default function SubmodulesEditor({ domain }: { domain: AdminDomain }) {
   const [msg, setMsg] = useState("");
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [busy, setBusy] = useState("");
   const list = [...domain.submodules].sort((a, b) => a.order - b.order || a.id - b.id);
 
-  function run(fn: () => Promise<{ error?: string }>, done?: () => void) {
+  /** `key` names the button that shows the spinner; every button is blocked until the action ends */
+  function run(key: string, fn: () => Promise<{ error?: string }>, done?: () => void) {
     setMsg("");
+    setBusy(key);
     start(async () => {
-      const r = await fn();
-      if (r.error) setMsg(`✗ ${r.error}`);
-      else {
-        done?.();
-        router.refresh();
+      try {
+        const r = await fn();
+        if (r.error) setMsg(`✗ ${r.error}`);
+        else {
+          done?.();
+          router.refresh();
+        }
+      } catch {
+        setMsg("✗ Could not reach the server. Reload the page and retry.");
+      } finally {
+        setBusy("");
       }
     });
   }
@@ -44,18 +53,18 @@ export default function SubmodulesEditor({ domain }: { domain: AdminDomain }) {
     if (!draft) return;
     const { position, positionAtOpen, ...rest } = draft;
     const coursePosition = position === positionAtOpen ? undefined : position.trim() === "" ? null : Number(position);
-    run(() => saveSubmoduleAction({ ...rest, moduleId: domain.id, coursePosition }), () => setDraft(null));
+    run("save", () => saveSubmoduleAction({ ...rest, moduleId: domain.id, coursePosition }), () => setDraft(null));
   }
 
   function remove(s: AdminSubmodule) {
     const note = s.questionCount ? ` ${s.questionCount} question(s) are assigned to it, so this will be refused until they are reassigned.` : "";
     if (!window.confirm(`Delete submodule "${s.title}" and its Skill Jar topics?${note}`)) return;
-    run(() => deleteSubmoduleAction(s.id));
+    run(`delete:${s.id}`, () => deleteSubmoduleAction(s.id));
   }
 
   function move(s: AdminSubmodule, dir: "up" | "down") {
     const next = moveId(list.map((x) => x.id), s.id, dir);
-    if (next) run(() => reorderSubmodulesAction(domain.id, next));
+    if (next) run(`move:${s.id}:${dir}`, () => reorderSubmodulesAction(domain.id, next));
   }
 
   const setTopic = (i: number, patch: Partial<Draft["topics"][number]>) =>
@@ -79,10 +88,10 @@ export default function SubmodulesEditor({ domain }: { domain: AdminDomain }) {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-                <button style={btn} disabled={pending || i === 0} onClick={() => move(s, "up")} aria-label={`Move ${s.title} up`}>↑</button>
-                <button style={btn} disabled={pending || i === list.length - 1} onClick={() => move(s, "down")} aria-label={`Move ${s.title} down`}>↓</button>
+                <BusyButton style={btn} busy={busy === `move:${s.id}:up`} block={pending || i === 0} onClick={() => move(s, "up")} aria-label={`Move ${s.title} up`}>↑</BusyButton>
+                <BusyButton style={btn} busy={busy === `move:${s.id}:down`} block={pending || i === list.length - 1} onClick={() => move(s, "down")} aria-label={`Move ${s.title} down`}>↓</BusyButton>
                 <button style={btn} disabled={pending} onClick={() => { setDraft(toDraft(s)); setMsg(""); }}>Edit</button>
-                <button style={btnDanger} disabled={pending} onClick={() => remove(s)}>Delete</button>
+                <BusyButton style={btnDanger} busy={busy === `delete:${s.id}`} block={pending} busyLabel="Deleting…" onClick={() => remove(s)}>Delete</BusyButton>
               </div>
             </div>
             {s.description && <p style={{ margin: "8px 0 0", fontSize: 14 }}>{s.description}</p>}
@@ -126,7 +135,7 @@ export default function SubmodulesEditor({ domain }: { domain: AdminDomain }) {
           </div>
 
           <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <button style={btnPrimary} disabled={pending} onClick={save}>Save submodule</button>
+            <BusyButton style={btnPrimary} busy={busy === "save"} block={pending} busyLabel="Saving…" onClick={save}>Save submodule</BusyButton>
             <button style={btn} disabled={pending} onClick={() => { setDraft(null); setMsg(""); }}>Cancel</button>
           </div>
         </div>

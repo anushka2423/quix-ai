@@ -45,7 +45,7 @@ export async function POST(req: Request) {
   }
 
   let items;
-  if (body.mode === "module") items = buildModulePractice(moduleQuiz as ModuleQuiz, rng);
+  if (body.mode === "module") items = buildModulePractice(moduleQuiz as ModuleQuiz, rng, undefined, body.seen ?? {});
   else if (body.mode === "demo") items = buildDemo(pool, body.domain as string);
   else if (body.mode === "full") items = buildFullMock(track, domains, pool, rng);
   else if (body.mode === "diagnostic") items = buildDiagnostic(domains, pool, rng);

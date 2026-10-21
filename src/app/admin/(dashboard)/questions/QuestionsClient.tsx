@@ -1,10 +1,12 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { deleteQuestionAction, moveQuestionAction, saveQuestionAction } from "@/app/admin/actions";
 import { DEMO_SIZE } from "@/lib/blueprint";
 import type { AdminDomain, AdminQuestion } from "@/lib/server/admin-data";
-import { btn, btnDanger, btnPrimary, card, input, label } from "../_components/ui";
+import { questionFieldErrors } from "@/lib/admin-validate";
+import { BusyButton, FieldError, btn, btnDanger, btnPrimary, card, input, inputError, label } from "../_components/ui";
 
 const PAGE = 25;
 const LABELS = ["A", "B", "C", "D"] as const;
@@ -44,7 +46,14 @@ export default function QuestionsClient({ domains, questions, initialDomain, ini
     return x ? toDraft(x) : null;
   });
   const [msg, setMsg] = useState("");
+  const [notice, setNotice] = useState("");
+  /** Set after a save attempt with empty fields: the fields then show what is missing, and clear as they are filled */
+  const [showErrors, setShowErrors] = useState(false);
+  /** Which action is running, so only its own button shows the spinner while every button is blocked */
+  const [busy, setBusy] = useState("");
   const [pending, start] = useTransition();
+  const router = useRouter();
+  const formRef = useRef<HTMLDivElement>(null);
 
   const domainById = useMemo(() => new Map(domains.map((d) => [d.id, d])), [domains]);
   const visibleDomains = domains.filter((d) => !track || d.track === track);
@@ -63,38 +72,71 @@ export default function QuestionsClient({ domains, questions, initialDomain, ini
   const pageItems = filtered.slice(page * PAGE, page * PAGE + PAGE);
   const subOptions = [...new Set([...(domainById.get(domain)?.subSkills.map((s) => s.name) ?? []), ...questions.filter((x) => !domain || x.moduleId === domain).map((x) => x.section)])].sort();
 
+  // Bring the form into view when it opens, so Edit on a long list visibly does something
+  useEffect(() => {
+    if (draft) formRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [draft?.id, !!draft]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function edit(x: AdminQuestion) {
     setDraft(toDraft(x));
+    setShowErrors(false);
     setMsg("");
+    setNotice("");
+  }
+
+  /** Runs a server action with every button blocked until it finishes. A thrown error (session expired, network) is shown, never lost. */
+  function run(key: string, fn: () => Promise<{ error?: string; id?: number; replaced?: boolean }>, done: (r: { id?: number; replaced?: boolean }) => void) {
+    setMsg("");
+    setNotice("");
+    setBusy(key);
+    start(async () => {
+      try {
+        const r = await fn();
+        if (r.error) setMsg(`✗ ${r.error}`);
+        else done(r);
+      } catch {
+        setMsg("✗ Could not reach the server. Reload the page, sign in again if asked, and retry.");
+      } finally {
+        setBusy("");
+      }
+    });
+  }
+
+  /** Reloading the page would reopen the form, because the address still says ?edit=ID. Drop it and refresh the data instead. */
+  function finish(text: string) {
+    if (initialEdit) window.history.replaceState(null, "", `${window.location.pathname}${domain ? `?domain=${domain}` : ""}`);
+    setDraft(null);
+    setShowErrors(false);
+    setNotice(text);
+    router.refresh();
   }
 
   function save() {
     if (!draft) return;
-    start(async () => {
-      const { topicIdAtOpen, moduleOnlyAtOpen, ...rest } = draft;
-      const r = await saveQuestionAction({ ...rest, topicId: draft.topicId === topicIdAtOpen ? undefined : draft.topicId, moduleOnly: draft.moduleOnly === moduleOnlyAtOpen ? undefined : draft.moduleOnly, answer: [...draft.answer].sort().join(",") });
-      if (r.error) setMsg(`✗ ${r.error}`);
-      else window.location.reload();
-    });
+    if (errs) {
+      setShowErrors(true);
+      setMsg("");
+      const first = errs.question ? "qf-question" : errs.section ? "qf-section" : errs.options.findIndex(Boolean) >= 0 ? `qf-opt-${errs.options.findIndex(Boolean)}` : errs.answer ? "qf-opt-0" : "qf-explanation";
+      document.getElementById(first)?.focus();
+      return;
+    }
+    const { topicIdAtOpen, moduleOnlyAtOpen, ...rest } = draft;
+    run("save", () => saveQuestionAction({ ...rest, topicId: draft.topicId === topicIdAtOpen ? undefined : draft.topicId, moduleOnly: draft.moduleOnly === moduleOnlyAtOpen ? undefined : draft.moduleOnly, answer: [...draft.answer].sort().join(",") }), (r) =>
+      finish(r.replaced ? `✓ A question with exactly this text already existed, so question #${r.id} was overwritten with the new version.` : draft.id ? `✓ Question #${draft.id} saved.` : `✓ Question #${r.id} added.`),
+    );
   }
 
   function remove(id: number) {
     if (!window.confirm("Delete this question?")) return;
-    start(async () => {
-      const r = await deleteQuestionAction(id);
-      if (r.error) setMsg(`✗ ${r.error}`);
-      else window.location.reload();
-    });
+    run(`delete:${id}`, () => deleteQuestionAction(id), () => { setNotice(`✓ Question #${id} deleted.`); router.refresh(); });
   }
 
   function move(id: number, direction: "up" | "down") {
-    start(async () => {
-      const r = await moveQuestionAction(id, direction);
-      if (r.error) setMsg(`✗ ${r.error}`);
-      else window.location.reload();
-    });
+    run(`move:${id}:${direction}`, () => moveQuestionAction(id, direction), () => router.refresh());
   }
 
+  const errs = draft ? questionFieldErrors(draft, !draft.moduleOnly) : null;
+  const shown = showErrors ? errs : null;
   const dSubs = draft ? (domainById.get(draft.moduleId)?.subSkills ?? []) : [];
   const dSubmodules = draft ? (domainById.get(draft.moduleId)?.submodules ?? []) : [];
   const dLessons = (dSubmodules.find((s) => s.id === draft?.submoduleId)?.topics ?? []).filter((t) => t.id !== undefined && t.lessonTitle.trim());
@@ -117,12 +159,14 @@ export default function QuestionsClient({ domains, questions, initialDomain, ini
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
           <input type="checkbox" checked={demoOnly} onChange={(e) => { setDemoOnly(e.target.checked); setPage(0); }} /> Demo picks only
         </label>
-        <button style={btnPrimary} onClick={() => { setDraft(blank(domain || visibleDomains[0]?.id || 0)); setMsg(""); }} disabled={!domains.length}>+ New question</button>
+        <BusyButton style={btnPrimary} onClick={() => { setDraft(blank(domain || visibleDomains[0]?.id || 0)); setShowErrors(false); setMsg(""); setNotice(""); }} block={!domains.length || pending}>+ New question</BusyButton>
       </div>
       <p style={{ color: "var(--muted)", fontSize: 13, margin: "0 0 12px" }}>{filtered.length} of {questions.length} questions</p>
+      {notice && <p role="status" style={{ background: "var(--correct-bg)", color: "var(--correct-text)", padding: "8px 12px", borderRadius: 6, fontSize: 14, margin: "0 0 12px" }}>{notice}</p>}
+      {msg && !draft && <p role="alert" style={{ color: "var(--incorrect-text)", fontSize: 14, margin: "0 0 12px" }}>{msg}</p>}
 
       {draft && (
-        <div style={{ ...card, margin: "0 0 16px", borderColor: "var(--navy)" }}>
+        <div ref={formRef} style={{ ...card, margin: "0 0 16px", borderColor: "var(--navy)" }}>
           <strong>{draft.id ? `Edit question #${draft.id}` : "New question"}</strong>
           <div style={{ display: "grid", gridTemplateColumns: draft.moduleOnly ? "1fr 140px" : "1fr 1fr 140px", gap: 12 }}>
             <div>
@@ -134,7 +178,8 @@ export default function QuestionsClient({ domains, questions, initialDomain, ini
             {!draft.moduleOnly && (
               <div>
                 <label style={label}>Sub-skill</label>
-                <input list="subskills" value={draft.section} onChange={(e) => setDraft({ ...draft, section: e.target.value })} style={input} />
+                <input id="qf-section" list="subskills" value={draft.section} onChange={(e) => setDraft({ ...draft, section: e.target.value })} style={shown?.section ? inputError : input} aria-invalid={!!shown?.section} />
+                <FieldError>{shown?.section}</FieldError>
                 <datalist id="subskills">{dSubs.map((s) => <option key={s.name} value={s.name} />)}</datalist>
               </div>
             )}
@@ -173,24 +218,31 @@ export default function QuestionsClient({ domains, questions, initialDomain, ini
             Module quiz only: keep out of the diagnostic, sprint, drill and full mock (no sub-skill needed)
           </label>
           <label style={label}>Question</label>
-          <textarea value={draft.question} onChange={(e) => setDraft({ ...draft, question: e.target.value })} rows={3} style={input} />
+          <textarea id="qf-question" value={draft.question} onChange={(e) => setDraft({ ...draft, question: e.target.value })} rows={3} style={shown?.question ? inputError : input} aria-invalid={!!shown?.question} />
+          <FieldError>{shown?.question}</FieldError>
           <label style={label}>Options (tick every correct one: more than one makes it a &quot;Select N&quot; item, scored all-or-nothing)</label>
           {LABELS.map((l, i) => (
-            <div key={l} style={{ display: "grid", gridTemplateColumns: "28px 1fr", gap: 8, margin: "0 0 6px", alignItems: "center" }}>
+            <div key={l} style={{ margin: "0 0 6px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "28px 1fr", gap: 8, alignItems: "center" }}>
               <input
                 type="checkbox"
                 aria-label={`Option ${l} is correct`}
                 checked={draft.answer.includes(l)}
                 onChange={(e) => setDraft({ ...draft, answer: e.target.checked ? [...draft.answer, l] : draft.answer.filter((x) => x !== l) })}
               />
-              <input value={draft.options[i]} onChange={(e) => { const o = [...draft.options] as Draft["options"]; o[i] = e.target.value; setDraft({ ...draft, options: o }); }} style={input} placeholder={`Option ${l}`} />
+              <input id={`qf-opt-${i}`} value={draft.options[i]} onChange={(e) => { const o = [...draft.options] as Draft["options"]; o[i] = e.target.value; setDraft({ ...draft, options: o }); }} style={shown?.options[i] ? inputError : input} aria-invalid={!!shown?.options[i]} placeholder={`Option ${l}`} />
+            </div>
+            <FieldError>{shown?.options[i]}</FieldError>
             </div>
           ))}
+          <FieldError>{shown?.answer}</FieldError>
           <label style={label}>Explanation (shown after every answer; do not mention option letters, options are shuffled)</label>
-          <textarea value={draft.explanation} onChange={(e) => setDraft({ ...draft, explanation: e.target.value })} rows={3} style={input} />
+          <textarea id="qf-explanation" value={draft.explanation} onChange={(e) => setDraft({ ...draft, explanation: e.target.value })} rows={3} style={shown?.explanation ? inputError : input} aria-invalid={!!shown?.explanation} />
+          <FieldError>{shown?.explanation}</FieldError>
           <div style={{ marginTop: 12, display: "flex", gap: 8, alignItems: "center" }}>
-            <button style={btnPrimary} disabled={pending} onClick={save}>Save question</button>
-            <button style={btn} onClick={() => setDraft(null)}>Cancel</button>
+            <BusyButton style={btnPrimary} busy={busy === "save"} block={pending} busyLabel="Saving…" onClick={save}>Save question</BusyButton>
+            <BusyButton style={btn} block={pending} onClick={() => setDraft(null)}>Cancel</BusyButton>
+            {shown && <span role="alert" style={{ fontSize: 13, color: "var(--incorrect-text)" }}>Fill in the highlighted fields, then save again.</span>}
             {msg && <span style={{ fontSize: 13, color: "var(--incorrect-text)" }}>{msg}</span>}
           </div>
         </div>
@@ -210,12 +262,12 @@ export default function QuestionsClient({ domains, questions, initialDomain, ini
               </div>
               <div style={{ fontWeight: 600 }}>{x.question}</div>
               <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
-                <button style={btn} onClick={() => edit(x)}>Edit</button>
-                <button style={btnDanger} onClick={() => remove(x.id)} disabled={pending}>Delete</button>
+                <BusyButton style={btn} block={pending} onClick={() => edit(x)}>Edit</BusyButton>
+                <BusyButton style={btnDanger} onClick={() => remove(x.id)} busy={busy === `delete:${x.id}`} block={pending} busyLabel="Deleting…">Delete</BusyButton>
                 {canReorder && (
                   <>
-                    <button style={btn} onClick={() => move(x.id, "up")} disabled={pending} aria-label={`Move question ${x.id} up`}>↑</button>
-                    <button style={btn} onClick={() => move(x.id, "down")} disabled={pending} aria-label={`Move question ${x.id} down`}>↓</button>
+                    <BusyButton style={btn} onClick={() => move(x.id, "up")} busy={busy === `move:${x.id}:up`} block={pending} aria-label={`Move question ${x.id} up`}>↑</BusyButton>
+                    <BusyButton style={btn} onClick={() => move(x.id, "down")} busy={busy === `move:${x.id}:down`} block={pending} aria-label={`Move question ${x.id} down`}>↓</BusyButton>
                   </>
                 )}
               </div>

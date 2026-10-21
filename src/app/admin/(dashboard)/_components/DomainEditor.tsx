@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deleteDomainAction, saveDomainAction } from "@/app/admin/actions";
 import type { AdminDomain } from "@/lib/server/admin-data";
-import { btn, btnDanger, btnPrimary, card, input, label } from "./ui";
+import { BusyButton, btn, btnDanger, btnPrimary, card, input, label } from "./ui";
 
 export default function DomainEditor({ domain }: { domain: AdminDomain }) {
   const [track, setTrack] = useState(domain.track ?? "associate");
@@ -17,6 +17,7 @@ export default function DomainEditor({ domain }: { domain: AdminDomain }) {
   const [msg, setMsg] = useState("");
   const router = useRouter();
   const [pending, start] = useTransition();
+  const [busy, setBusy] = useState("");
 
   const weightedSubs = subs.filter((s) => s.weight.trim() !== "");
   const allWeighted = subs.length > 0 && weightedSubs.length === subs.length;
@@ -28,8 +29,10 @@ export default function DomainEditor({ domain }: { domain: AdminDomain }) {
       const [t, ...u] = l.split("|");
       return { title: t.trim(), url: u.join("|").trim() };
     });
+    setBusy("save");
     start(async () => {
-      const r = await saveDomainAction({
+      try {
+        const r = await saveDomainAction({
         id: domain.id,
         track,
         title,
@@ -38,17 +41,29 @@ export default function DomainEditor({ domain }: { domain: AdminDomain }) {
         objective,
         docLinks,
         subSkills: subs.map((s) => ({ name: s.name, weight: s.weight.trim() === "" ? null : Number(s.weight) })),
-      });
-      setMsg(r.error ? `✗ ${r.error}` : "✓ Saved");
+        });
+        setMsg(r.error ? `✗ ${r.error}` : "✓ Saved");
+      } catch {
+        setMsg("✗ Could not reach the server. Reload the page and retry.");
+      } finally {
+        setBusy("");
+      }
     });
   }
 
   function remove() {
     if (!window.confirm(`Delete "${domain.title}" and its ${domain.questionCount} questions? This cannot be undone.`)) return;
+    setBusy("delete");
     start(async () => {
-      const r = await deleteDomainAction(domain.id);
-      if (r.error) setMsg(`✗ ${r.error}`);
-      else router.push("/admin");
+      try {
+        const r = await deleteDomainAction(domain.id);
+        if (r.error) setMsg(`✗ ${r.error}`);
+        else router.push("/admin");
+      } catch {
+        setMsg("✗ Could not reach the server. Reload the page and retry.");
+      } finally {
+        setBusy("");
+      }
     });
   }
 
@@ -103,8 +118,8 @@ export default function DomainEditor({ domain }: { domain: AdminDomain }) {
       </p>
 
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-        <button style={btnPrimary} disabled={pending} onClick={save}>Save domain</button>
-        <button style={btnDanger} disabled={pending} onClick={remove}>Delete domain</button>
+        <BusyButton style={btnPrimary} busy={busy === "save"} block={pending} busyLabel="Saving…" onClick={save}>Save domain</BusyButton>
+        <BusyButton style={btnDanger} busy={busy === "delete"} block={pending} busyLabel="Deleting…" onClick={remove}>Delete domain</BusyButton>
         {msg && <span style={{ fontSize: 13, color: msg.startsWith("✓") ? "var(--correct-text)" : "var(--incorrect-text)" }}>{msg}</span>}
       </div>
     </div>

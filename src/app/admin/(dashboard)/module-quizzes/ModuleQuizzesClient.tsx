@@ -1,17 +1,19 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { addLessonQuestionAction, createLessonQuestionAction, removeLessonQuestionAction } from "@/app/admin/actions";
+import { addLessonQuestionAction, createLessonQuestionAction, removeLessonQuestionAction, saveQuestionAction } from "@/app/admin/actions";
 import { MODULE_SIZE } from "@/lib/blueprint";
-import type { AdminCourse, AdminLesson, AdminModuleQuizzes } from "@/lib/server/admin-data";
-import { btn, btnDanger, btnPrimary, card, input, label } from "../_components/ui";
+import type { AdminBankQuestion, AdminCourse, AdminLesson, AdminModuleQuizzes } from "@/lib/server/admin-data";
+import { questionFieldErrors } from "@/lib/admin-validate";
+import { BusyButton, FieldError, btn, btnDanger, btnPrimary, card, input, inputError, label } from "../_components/ui";
 
 const LABELS = ["A", "B", "C", "D"] as const;
 const clip = (t: string, n = 140) => (t.length > n ? `${t.slice(0, n).trimEnd()}…` : t);
 
 interface NewDraft {
+  /** Set when an existing question is being edited in place */
+  id?: number;
   moduleId: number;
   section: string;
   difficulty: string;
@@ -20,10 +22,17 @@ interface NewDraft {
   answer: string[];
   explanation: string;
   moduleOnly: boolean;
+  /** The flag when the form opened: sent only when it changed */
+  moduleOnlyAtOpen?: boolean;
 }
 const blank = (course: AdminCourse): NewDraft => ({ moduleId: course.domains[0]?.id ?? 0, section: "", difficulty: "Medium", question: "", options: ["", "", "", ""], answer: [], explanation: "", moduleOnly: true });
 
-type RunFn = (fn: () => Promise<{ error?: string }>, done?: () => void) => void;
+type Outcome = { error?: string; id?: number; replaced?: boolean };
+/** Runs a server action. `key` names the button that shows the spinner; every button is blocked until the action ends. */
+type Panel = { topicId: number; kind: "add" | "new" | "edit" };
+type RunFn = (key: string, fn: () => Promise<Outcome>, opts?: { done?: () => void; ok?: (r: Outcome) => string }) => void;
+
+const toEditDraft = (b: AdminBankQuestion): NewDraft => ({ id: b.id, moduleId: b.domainId, section: b.section, difficulty: b.difficulty, question: b.question, options: b.options, answer: b.answer.split(",").filter(Boolean), explanation: b.explanation, moduleOnly: b.moduleOnly, moduleOnlyAtOpen: b.moduleOnly });
 
 /** A button that looks like a plain row. It keeps the browser's own keyboard focus ring. */
 const foldBtn: React.CSSProperties = { background: "none", border: "none", font: "inherit", color: "inherit", textAlign: "left", boxSizing: "border-box", width: "100%", cursor: "pointer" };
@@ -41,10 +50,12 @@ export default function ModuleQuizzesClient({ data }: { data: AdminModuleQuizzes
   const [openLessons, setOpenLessons] = useState<Set<number>>(new Set());
   const [onlyGaps, setOnlyGaps] = useState(false);
   const [find, setFind] = useState("");
-  const [panel, setPanel] = useState<{ topicId: number; kind: "add" | "new" } | null>(null);
+  const [panel, setPanel] = useState<Panel | null>(null);
   const [search, setSearch] = useState("");
   const [draft, setDraft] = useState<NewDraft | null>(null);
   const [msg, setMsg] = useState("");
+  const [notice, setNotice] = useState("");
+  const [busy, setBusy] = useState("");
   const router = useRouter();
   const [pending, start] = useTransition();
 
@@ -77,23 +88,33 @@ export default function ModuleQuizzesClient({ data }: { data: AdminModuleQuizzes
     setOpenLessons(open ? new Set(visible.flatMap((x) => x.lessons.map((l) => l.topicId))) : new Set());
   }
 
-  const runIt: RunFn = (fn, done) => {
+  const runIt: RunFn = (key, fn, opts) => {
     setMsg("");
+    setNotice("");
+    setBusy(key);
     start(async () => {
-      const r = await fn();
-      if (r.error) setMsg(`✗ ${r.error}`);
-      else {
-        done?.();
-        router.refresh();
+      try {
+        const r = await fn();
+        if (r.error) setMsg(`✗ ${r.error}`);
+        else {
+          opts?.done?.();
+          if (opts?.ok) setNotice(opts.ok(r));
+          router.refresh();
+        }
+      } catch {
+        setMsg("✗ Could not reach the server. Reload the page, sign in again if asked, and retry.");
+      } finally {
+        setBusy("");
       }
     });
   };
 
-  function open(topicId: number, kind: "add" | "new", course: AdminCourse) {
+  function open(topicId: number, kind: Panel["kind"], course: AdminCourse, question?: AdminBankQuestion) {
     setPanel({ topicId, kind });
     setSearch("");
     setMsg("");
-    setDraft(kind === "new" ? blank(course) : null);
+    setNotice("");
+    setDraft(kind === "new" ? blank(course) : kind === "edit" && question ? toEditDraft(question) : null);
     setOpenLessons((s) => new Set(s).add(topicId));
   }
 
@@ -119,6 +140,7 @@ export default function ModuleQuizzesClient({ data }: { data: AdminModuleQuizzes
         </label>
         <button style={btn} onClick={() => expandAll(!allCoursesOpen)} disabled={filtering}>{allCoursesOpen ? "Collapse all" : "Expand all"}</button>
       </div>
+      {notice && <p role="status" style={{ background: "var(--correct-bg)", color: "var(--correct-text)", padding: "8px 12px", borderRadius: 6, fontSize: 14, margin: "0 0 12px" }}>{notice}</p>}
       {msg && <p role="alert" style={{ color: "var(--incorrect-text)", fontSize: 14 }}>{msg}</p>}
 
       <div style={{ display: "grid", gap: 10 }}>
@@ -142,6 +164,7 @@ export default function ModuleQuizzesClient({ data }: { data: AdminModuleQuizzes
             close={() => setPanel(null)}
             run={runIt}
             pending={pending}
+            busy={busy}
           />
         ))}
         {!visible.length && (
@@ -154,7 +177,7 @@ export default function ModuleQuizzesClient({ data }: { data: AdminModuleQuizzes
   );
 }
 
-function CourseCard({ course, lessons, data, expanded, toggleCourse, openLessons, forceOpenLessons, toggleLesson, panel, search, setSearch, draft, setDraft, open, close, run, pending }: {
+function CourseCard({ course, lessons, data, expanded, toggleCourse, openLessons, forceOpenLessons, toggleLesson, panel, search, setSearch, draft, setDraft, open, close, run, pending, busy }: {
   course: AdminCourse;
   lessons: AdminLesson[];
   data: AdminModuleQuizzes;
@@ -163,15 +186,16 @@ function CourseCard({ course, lessons, data, expanded, toggleCourse, openLessons
   openLessons: Set<number>;
   forceOpenLessons: boolean;
   toggleLesson: (id: number) => void;
-  panel: { topicId: number; kind: "add" | "new" } | null;
+  panel: Panel | null;
   search: string;
   setSearch: (v: string) => void;
   draft: NewDraft | null;
   setDraft: (d: NewDraft | null) => void;
-  open: (topicId: number, kind: "add" | "new", course: AdminCourse) => void;
+  open: (topicId: number, kind: Panel["kind"], course: AdminCourse, question?: AdminBankQuestion) => void;
   close: () => void;
   run: RunFn;
   pending: boolean;
+  busy: string;
 }) {
   const inCourse = useMemo(() => new Set(course.lessons.flatMap((l) => l.questions.map((q) => q.id))), [course]);
   const total = inCourse.size + course.looseCount;
@@ -224,6 +248,7 @@ function CourseCard({ course, lessons, data, expanded, toggleCourse, openLessons
                 close={close}
                 run={run}
                 pending={pending}
+                busy={busy}
               />
             ))}
           </div>
@@ -233,12 +258,13 @@ function CourseCard({ course, lessons, data, expanded, toggleCourse, openLessons
   );
 }
 
-function LessonRow({ lesson, course, data, inCourse, expanded, toggle, panel, search, setSearch, draft, setDraft, open, close, run, pending }: {
+function LessonRow({ lesson, course, data, inCourse, expanded, toggle, panel, search, setSearch, draft, setDraft, open, close, run, pending, busy }: {
   lesson: AdminLesson; course: AdminCourse; data: AdminModuleQuizzes; inCourse: Set<number>; expanded: boolean; toggle: () => void;
-  panel: { topicId: number; kind: "add" | "new" } | null; search: string; setSearch: (v: string) => void; draft: NewDraft | null; setDraft: (d: NewDraft | null) => void;
-  open: (topicId: number, kind: "add" | "new", course: AdminCourse) => void; close: () => void; run: RunFn; pending: boolean;
+  panel: Panel | null; search: string; setSearch: (v: string) => void; draft: NewDraft | null; setDraft: (d: NewDraft | null) => void;
+  open: (topicId: number, kind: Panel["kind"], course: AdminCourse, question?: AdminBankQuestion) => void; close: () => void; run: RunFn; pending: boolean; busy: string;
 }) {
   const n = lesson.questions.length;
+  const bankById = new Map(data.bank.map((b) => [b.id, b]));
   const isPanel = panel?.topicId === lesson.topicId;
   const bodyId = `lesson-${lesson.topicId}`;
   return (
@@ -258,7 +284,8 @@ function LessonRow({ lesson, course, data, inCourse, expanded, toggle, panel, se
         <div id={bodyId} style={{ padding: "0 12px 12px", borderTop: "1px solid var(--border)" }}>
           <ul style={{ listStyle: "none", margin: "8px 0 0", padding: 0, display: "grid", gap: 6 }}>
             {lesson.questions.map((q) => (
-              <li key={q.id} style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between", padding: "6px 8px", background: "var(--canvas)", borderRadius: 6 }}>
+              <li key={q.id} style={{ padding: "6px 8px", background: "var(--canvas)", borderRadius: 6 }}>
+               <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ display: "grid", gap: 3, flex: 1, minWidth: 0 }}>
                   <span title={q.question} style={{ fontSize: 14, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{q.question}</span>
                   <span style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center", fontSize: 12, color: "var(--muted)" }}>
@@ -268,34 +295,45 @@ function LessonRow({ lesson, course, data, inCourse, expanded, toggle, panel, se
                   </span>
                 </span>
                 <span style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                  <Link href={`/admin/questions?domain=${q.domainId}&edit=${q.id}`} style={{ ...btn, textDecoration: "none", fontSize: 13, padding: "4px 10px" }}>Edit</Link>
-                  <button
+                  <BusyButton
+                    style={{ ...btn, fontSize: 13, padding: "4px 10px" }}
+                    block={pending || !bankById.has(q.id)}
+                    onClick={() => { const b = bankById.get(q.id); if (b) open(lesson.topicId, "edit", course, b); }}
+                  >
+                    Edit
+                  </BusyButton>
+                  <BusyButton
                     style={{ ...btnDanger, fontSize: 13, padding: "4px 10px" }}
-                    disabled={pending}
-                    onClick={() => window.confirm(`Take question #${q.id} out of "${lesson.name}"? It stays in the question bank.`) && run(() => removeLessonQuestionAction(lesson.topicId, q.id))}
+                    busy={busy === `remove:${lesson.topicId}:${q.id}`}
+                    block={pending}
+                    busyLabel="Removing…"
+                    onClick={() => window.confirm(`Take question #${q.id} out of "${lesson.name}"? It stays in the question bank.`) && run(`remove:${lesson.topicId}:${q.id}`, () => removeLessonQuestionAction(lesson.topicId, q.id), { ok: () => `✓ Question #${q.id} taken out of “${lesson.name}”. It stays in the question bank.` })}
                   >
                     Remove
-                  </button>
+                  </BusyButton>
                 </span>
+               </div>
+               {/* Edit opens right under the question it changes; adding opens at the bottom of the lesson */}
+               {isPanel && panel?.kind === "edit" && draft?.id === q.id && <NewQuestion key={q.id} lesson={lesson} course={course} draft={draft} setDraft={setDraft} run={run} close={close} pending={pending} busy={busy} />}
               </li>
             ))}
             {!n && <li style={{ fontSize: 13, color: "var(--incorrect-text)" }}>This lesson cannot appear in a module quiz until it has a question.</li>}
           </ul>
           <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-            <button style={btn} disabled={pending} onClick={() => (isPanel && panel?.kind === "add" ? close() : open(lesson.topicId, "add", course))}>+ Add from the bank</button>
-            <button style={btn} disabled={pending || !course.domains.length} onClick={() => (isPanel && panel?.kind === "new" ? close() : open(lesson.topicId, "new", course))}>+ Write a new question</button>
+            <BusyButton style={btn} block={pending} onClick={() => (isPanel && panel?.kind === "add" ? close() : open(lesson.topicId, "add", course))}>+ Add from the bank</BusyButton>
+            <BusyButton style={btn} block={pending || !course.domains.length} onClick={() => (isPanel && panel?.kind === "new" ? close() : open(lesson.topicId, "new", course))}>+ Write a new question</BusyButton>
           </div>
-          {isPanel && panel?.kind === "add" && <AddFromBank lesson={lesson} course={course} data={data} inCourse={inCourse} search={search} setSearch={setSearch} run={run} close={close} pending={pending} />}
-          {isPanel && panel?.kind === "new" && draft && <NewQuestion lesson={lesson} course={course} draft={draft} setDraft={setDraft} run={run} close={close} pending={pending} />}
+          {isPanel && panel?.kind === "add" && <AddFromBank lesson={lesson} course={course} data={data} inCourse={inCourse} search={search} setSearch={setSearch} run={run} close={close} pending={pending} busy={busy} />}
+          {isPanel && panel?.kind === "new" && draft && <NewQuestion key="new" lesson={lesson} course={course} draft={draft} setDraft={setDraft} run={run} close={close} pending={pending} busy={busy} />}
         </div>
       )}
     </div>
   );
 }
 
-function AddFromBank({ lesson, course, data, inCourse, search, setSearch, run, close, pending }: {
+function AddFromBank({ lesson, course, data, inCourse, search, setSearch, run, close, pending, busy }: {
   lesson: AdminLesson; course: AdminCourse; data: AdminModuleQuizzes; inCourse: Set<number>; search: string; setSearch: (v: string) => void;
-  run: (fn: () => Promise<{ error?: string }>, done?: () => void) => void; close: () => void; pending: boolean;
+  run: RunFn; close: () => void; pending: boolean; busy: string;
 }) {
   const needle = search.trim().toLowerCase();
   const results = data.bank
@@ -313,45 +351,67 @@ function AddFromBank({ lesson, course, data, inCourse, search, setSearch, run, c
               <span style={{ color: "var(--muted)", fontSize: 12 }}>#{b.id} · {b.domain} · {b.section} · </span>
               {clip(b.question, 120)}
             </span>
-            <button style={{ ...btnPrimary, fontSize: 13, padding: "4px 10px" }} disabled={pending} onClick={() => run(() => addLessonQuestionAction(lesson.topicId, b.id))}>Add</button>
+            <BusyButton style={{ ...btnPrimary, fontSize: 13, padding: "4px 10px" }} busy={busy === `add:${b.id}`} block={pending} busyLabel="Adding…" onClick={() => run(`add:${b.id}`, () => addLessonQuestionAction(lesson.topicId, b.id), { ok: () => `✓ Question #${b.id} added to “${lesson.name}”.` })}>Add</BusyButton>
           </li>
         ))}
         {!results.length && <li style={{ fontSize: 13, color: "var(--muted)" }}>No matching questions.</li>}
       </ul>
-      <button style={{ ...btn, marginTop: 8 }} onClick={close}>Close</button>
+      <BusyButton style={{ ...btn, marginTop: 8 }} block={pending} onClick={close}>Close</BusyButton>
     </div>
   );
 }
 
-function NewQuestion({ lesson, course, draft, setDraft, run, close, pending }: {
+function NewQuestion({ lesson, course, draft, setDraft, run, close, pending, busy }: {
   lesson: AdminLesson; course: AdminCourse; draft: NewDraft; setDraft: (d: NewDraft | null) => void;
-  run: (fn: () => Promise<{ error?: string }>, done?: () => void) => void; close: () => void; pending: boolean;
+  run: RunFn; close: () => void; pending: boolean; busy: string;
 }) {
   const sections = course.domains.find((d) => d.id === draft.moduleId)?.sections ?? [];
+  const boxRef = useRef<HTMLDivElement>(null);
+  useEffect(() => boxRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), []);
+  const editing = draft.id !== undefined;
+  const answer = [...draft.answer].sort().join(",");
+  /** Set after a save attempt with empty fields: the fields then show what is missing, and clear as they are filled */
+  const [showErrors, setShowErrors] = useState(false);
+  const errs = questionFieldErrors(draft, !draft.moduleOnly);
+  const shown = showErrors ? errs : null;
   function save() {
-    run(() => createLessonQuestionAction({ topicId: lesson.topicId, moduleId: draft.moduleId, section: draft.section, difficulty: draft.difficulty, question: draft.question, options: draft.options, answer: [...draft.answer].sort().join(","), explanation: draft.explanation, moduleOnly: draft.moduleOnly }), () => {
-      setDraft(null);
-      close();
+    if (errs) {
+      setShowErrors(true);
+      const first = errs.question ? "qf-question" : errs.section ? "qf-section" : errs.options.findIndex(Boolean) >= 0 ? `qf-opt-${errs.options.findIndex(Boolean)}` : errs.answer ? "qf-opt-0" : "qf-explanation";
+      document.getElementById(first)?.focus();
+      return;
+    }
+    const finish = { done: () => { setDraft(null); close(); } };
+    if (editing) {
+      // Changes the wording, options and answer in place. Its domain, lesson and demo slot are left exactly as they are.
+      run("save", () => saveQuestionAction({ id: draft.id, moduleId: draft.moduleId, section: draft.section, difficulty: draft.difficulty, question: draft.question, options: draft.options, answer, explanation: draft.explanation, moduleOnly: draft.moduleOnly === draft.moduleOnlyAtOpen ? undefined : draft.moduleOnly }), { ...finish, ok: (r) => `✓ Question #${r.id} saved.` });
+      return;
+    }
+    run("save", () => createLessonQuestionAction({ topicId: lesson.topicId, moduleId: draft.moduleId, section: draft.section, difficulty: draft.difficulty, question: draft.question, options: draft.options, answer, explanation: draft.explanation, moduleOnly: draft.moduleOnly }), {
+      ...finish,
+      ok: (r) => (r.replaced ? `✓ A question with exactly this text already existed, so question #${r.id} was overwritten with the new version and kept in “${lesson.name}”.` : `✓ Question #${r.id} added to “${lesson.name}”.`),
     });
   }
   return (
-    <div style={{ marginTop: 8, padding: 12, background: "var(--canvas)", border: "1px solid var(--border)", borderRadius: 6 }}>
-      <strong>New question for “{lesson.name}”</strong>
+    <div ref={boxRef} style={{ marginTop: 8, padding: 12, background: "#fff", border: "1px solid var(--navy)", borderRadius: 6 }}>
+      <strong>{editing ? `Edit question #${draft.id}` : `New question for “${lesson.name}”`}</strong>
       <label style={{ display: "flex", gap: 8, alignItems: "center", margin: "10px 0 0", fontSize: 14 }}>
         <input type="checkbox" checked={draft.moduleOnly} onChange={(e) => setDraft({ ...draft, moduleOnly: e.target.checked })} />
         Module quiz only: keep it out of the diagnostic, sprint, drill and full mock (no sub-skill needed)
       </label>
       <div style={{ display: "grid", gridTemplateColumns: draft.moduleOnly ? "1fr 140px" : "1fr 1fr 140px", gap: 12 }}>
         <div>
-          <label style={label}>Filed under domain</label>
-          <select value={draft.moduleId} onChange={(e) => setDraft({ ...draft, moduleId: Number(e.target.value), section: "" })} style={input}>
+          <label style={label}>{editing ? "Domain (fixed once saved)" : "Filed under domain"}</label>
+          <select value={draft.moduleId} disabled={editing} onChange={(e) => setDraft({ ...draft, moduleId: Number(e.target.value), section: "" })} style={input}>
             {course.domains.map((d) => <option key={d.id} value={d.id}>{d.title}</option>)}
+            {editing && !course.domains.some((d) => d.id === draft.moduleId) && <option value={draft.moduleId}>Domain #{draft.moduleId}</option>}
           </select>
         </div>
         {!draft.moduleOnly && (
           <div>
             <label style={label}>Sub-skill (also used for exam-weighted practice)</label>
-            <input list={`sections-${lesson.topicId}`} value={draft.section} onChange={(e) => setDraft({ ...draft, section: e.target.value })} style={input} />
+            <input id="qf-section" list={`sections-${lesson.topicId}`} value={draft.section} onChange={(e) => setDraft({ ...draft, section: e.target.value })} style={shown?.section ? inputError : input} aria-invalid={!!shown?.section} />
+            <FieldError>{shown?.section}</FieldError>
             <datalist id={`sections-${lesson.topicId}`}>{sections.map((s) => <option key={s} value={s} />)}</datalist>
           </div>
         )}
@@ -361,19 +421,26 @@ function NewQuestion({ lesson, course, draft, setDraft, run, close, pending }: {
         </div>
       </div>
       <label style={label}>Question</label>
-      <textarea value={draft.question} onChange={(e) => setDraft({ ...draft, question: e.target.value })} rows={3} style={input} />
+      <textarea id="qf-question" value={draft.question} onChange={(e) => setDraft({ ...draft, question: e.target.value })} rows={3} style={shown?.question ? inputError : input} aria-invalid={!!shown?.question} />
+      <FieldError>{shown?.question}</FieldError>
       <label style={label}>Options (tick every correct one)</label>
       {LABELS.map((l, i) => (
-        <div key={l} style={{ display: "grid", gridTemplateColumns: "28px 1fr", gap: 8, margin: "0 0 6px", alignItems: "center" }}>
+        <div key={l} style={{ margin: "0 0 6px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "28px 1fr", gap: 8, alignItems: "center" }}>
           <input type="checkbox" aria-label={`Option ${l} is correct`} checked={draft.answer.includes(l)} onChange={(e) => setDraft({ ...draft, answer: e.target.checked ? [...draft.answer, l] : draft.answer.filter((x) => x !== l) })} />
-          <input value={draft.options[i]} onChange={(e) => { const o = [...draft.options] as NewDraft["options"]; o[i] = e.target.value; setDraft({ ...draft, options: o }); }} style={input} placeholder={`Option ${l}`} />
+          <input id={`qf-opt-${i}`} value={draft.options[i]} onChange={(e) => { const o = [...draft.options] as NewDraft["options"]; o[i] = e.target.value; setDraft({ ...draft, options: o }); }} style={shown?.options[i] ? inputError : input} aria-invalid={!!shown?.options[i]} placeholder={`Option ${l}`} />
+        </div>
+        <FieldError>{shown?.options[i]}</FieldError>
         </div>
       ))}
+      <FieldError>{shown?.answer}</FieldError>
       <label style={label}>Explanation (shown after every answer; do not mention option letters, options are shuffled)</label>
-      <textarea value={draft.explanation} onChange={(e) => setDraft({ ...draft, explanation: e.target.value })} rows={3} style={input} />
+      <textarea id="qf-explanation" value={draft.explanation} onChange={(e) => setDraft({ ...draft, explanation: e.target.value })} rows={3} style={shown?.explanation ? inputError : input} aria-invalid={!!shown?.explanation} />
+      <FieldError>{shown?.explanation}</FieldError>
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-        <button style={btnPrimary} disabled={pending} onClick={save}>Save question</button>
-        <button style={btn} disabled={pending} onClick={() => { setDraft(null); close(); }}>Cancel</button>
+        <BusyButton style={btnPrimary} busy={busy === "save"} block={pending} busyLabel="Saving…" onClick={save}>{editing ? "Save changes" : "Save question"}</BusyButton>
+        <BusyButton style={btn} block={pending} onClick={() => { setDraft(null); close(); }}>Cancel</BusyButton>
+        {shown && <span role="alert" style={{ fontSize: 13, color: "var(--incorrect-text)", alignSelf: "center" }}>Fill in the highlighted fields, then save again.</span>}
       </div>
     </div>
   );

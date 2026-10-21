@@ -138,9 +138,15 @@ export function buildDemo(pool: BankQuestion[], domain: string): BankQuestion[] 
  * question before any lesson gives a second, so a session covers as many lessons as it has room for. When the module has
  * more lessons than questions in a session, which lessons appear changes from session to session. The course's questions
  * that belong to no lesson are used only after the lessons run out. The order of the questions is random.
+ *
+ * Nobody chooses the questions: every session is a fresh random draw from everything assigned to the lessons. When the
+ * learner's browser says which questions they answered before (`seen`, id to time), questions they have not seen come
+ * first and the longest-ago ones next, so a returning learner gets new questions until the module's pool runs out.
  */
-export function buildModulePractice(module: ModuleQuiz, rng: Rng, n = MODULE_SIZE): BankQuestion[] {
-  const queues = shuffle(module.lessons.filter((l) => l.questions.length), rng).map((l) => shuffle(l.questions, rng));
+export function buildModulePractice(module: ModuleQuiz, rng: Rng, n = MODULE_SIZE, seen: Record<number, number> = {}): BankQuestion[] {
+  // Shuffle first so ties (all unseen, or never-seen-together) stay random, then a stable sort puts the least recently seen first
+  const freshFirst = (qs: BankQuestion[]) => shuffle(qs, rng).sort((x, y) => (seen[x.id] ?? 0) - (seen[y.id] ?? 0));
+  const queues = shuffle(module.lessons.filter((l) => l.questions.length), rng).map((l) => freshFirst(l.questions));
   const picked: BankQuestion[] = [];
   const taken = new Set<number>();
   const take = (q: BankQuestion) => {
@@ -152,7 +158,7 @@ export function buildModulePractice(module: ModuleQuiz, rng: Rng, n = MODULE_SIZ
   for (let round = 0; picked.length < n && queues.some((qs) => qs.length > round); round++) {
     for (const qs of queues) if (qs.length > round) take(qs[round]);
   }
-  for (const q of shuffle(module.extras, rng)) take(q);
+  for (const q of freshFirst(module.extras)) take(q);
   return shuffle(picked, rng);
 }
 
