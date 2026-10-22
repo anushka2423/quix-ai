@@ -367,7 +367,10 @@ function NewQuestion({ lesson, course, draft, setDraft, run, close, pending, bus
 }) {
   const sections = course.domains.find((d) => d.id === draft.moduleId)?.sections ?? [];
   const boxRef = useRef<HTMLDivElement>(null);
-  useEffect(() => boxRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), []);
+  // Block body on purpose: an effect must return nothing or a clean-up function, never scrollIntoView's result
+  useEffect(() => {
+    boxRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, []);
   const editing = draft.id !== undefined;
   const answer = [...draft.answer].sort().join(",");
   /** Set after a save attempt with empty fields: the fields then show what is missing, and clear as they are filled */
