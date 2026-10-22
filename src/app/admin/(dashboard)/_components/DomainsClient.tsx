@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { saveDomainAction } from "@/app/admin/actions";
 import type { AdminDomain } from "@/lib/server/admin-data";
-import { btn, btnPrimary, card, input, label } from "./ui";
+import { BusyButton, btn, btnPrimary, card, input, label } from "./ui";
 
 const TRACK_LABEL: Record<string, string> = { associate: "Associate (CCAO-F)", developer: "Developer (CCDV-F)" };
 
@@ -25,9 +25,13 @@ export default function DomainsClient({ domains }: { domains: AdminDomain[] }) {
 
   function add() {
     start(async () => {
-      const r = await saveDomainAction({ track, title, weight: Number(weight), courseModule: null, objective: "", docLinks: [], subSkills: [] });
-      if (r.error) setMsg(r.error);
-      else router.push(`/admin/modules/${r.id}`);
+      try {
+        const r = await saveDomainAction({ track, title, weight: Number(weight), courseModule: null, objective: "", docLinks: [], subSkills: [] });
+        if (r.error) setMsg(r.error);
+        else router.push(`/admin/modules/${r.id}`);
+      } catch {
+        setMsg("Could not reach the server. Reload the page and retry.");
+      }
     });
   }
 
@@ -48,7 +52,7 @@ export default function DomainsClient({ domains }: { domains: AdminDomain[] }) {
             <label style={label}>Weight (% of the exam)</label>
             <input value={weight} onChange={(e) => setWeight(e.target.value)} inputMode="decimal" style={input} />
             <div style={{ marginTop: 14, display: "flex", gap: 8, alignItems: "center" }}>
-              <button style={btnPrimary} disabled={pending} onClick={add}>Create and edit</button>
+              <BusyButton style={btnPrimary} busy={pending} busyLabel="Creating…" onClick={add}>Create and edit</BusyButton>
               <button style={btn} onClick={() => setAdding(false)}>Cancel</button>
               {msg && <span style={{ color: "var(--incorrect-text)", fontSize: 13 }}>✗ {msg}</span>}
             </div>

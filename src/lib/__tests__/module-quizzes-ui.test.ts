@@ -5,7 +5,7 @@ import type { AdminModuleQuizzes } from "@/lib/server/admin-data";
 
 // The client component calls server actions and the router; neither is needed to render its first screen
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: () => {} }) }));
-vi.mock("@/app/admin/actions", () => ({ addLessonQuestionAction: vi.fn(), createLessonQuestionAction: vi.fn(), removeLessonQuestionAction: vi.fn() }));
+vi.mock("@/app/admin/actions", () => ({ addLessonQuestionAction: vi.fn(), createLessonQuestionAction: vi.fn(), removeLessonQuestionAction: vi.fn(), saveQuestionAction: vi.fn() }));
 
 const q = (id: number, moduleOnly = false) => ({ id, question: `Question ${id}`, domainId: 1, domain: "Domain", moduleOnly });
 const data: AdminModuleQuizzes = {

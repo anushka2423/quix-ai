@@ -69,3 +69,41 @@ export function validateQuestionFields(q: { section: string; difficulty: string;
 export function pickDefaultSection(subSkillNames: string[], domainTitle: string): string {
   return subSkillNames.map((n) => n.trim()).find(Boolean) ?? domainTitle.trim();
 }
+
+/** Question text compared the way an admin would: ignoring case and runs of spaces or line breaks at the edges and in between. */
+export const normalizeQuestionText = (t: string): string => t.replace(/\s+/g, " ").trim().toLowerCase();
+
+/**
+ * The stored question whose text is exactly `text`, other than `exceptId` (the question being edited). Returns its id, or null.
+ * Callers pass the questions of one domain: the same wording in another domain is a different question.
+ */
+export function findSameQuestion(existing: { id: number; question: string }[], text: string, exceptId?: number): number | null {
+  const wanted = normalizeQuestionText(text);
+  if (!wanted) return null;
+  return existing.find((x) => x.id !== exceptId && normalizeQuestionText(x.question) === wanted)?.id ?? null;
+}
+
+export interface QuestionFieldErrors {
+  section?: string;
+  question?: string;
+  /** One entry per option A..D; undefined when that option is fine */
+  options: (string | undefined)[];
+  answer?: string;
+  explanation?: string;
+}
+
+/**
+ * Field-by-field problems of a question form, so the form can mark each empty field and say what to fill in. Null when it can be
+ * saved. `needSection` is false for a module-quiz-only question, whose sub-skill is filled in from the domain.
+ */
+export function questionFieldErrors(q: { section: string; question: string; options: readonly string[]; answer: readonly string[]; explanation: string }, needSection: boolean): QuestionFieldErrors | null {
+  const out: QuestionFieldErrors = {
+    options: ["A", "B", "C", "D"].map((l, i) => (q.options[i]?.trim() ? undefined : `Option ${l} is empty. Enter the option text.`)),
+  };
+  if (needSection && !q.section.trim()) out.section = "Enter a sub-skill.";
+  if (!q.question.trim()) out.question = "The question is empty. Enter the question text.";
+  if (q.answer.length === 0) out.answer = "Tick at least one correct option.";
+  if (/\b(option|answer)\s+[ABCD]\b/i.test(q.explanation)) out.explanation = "The explanation refers to option letters, but options are shuffled for each learner. Describe the option instead.";
+  const bad = out.section || out.question || out.answer || out.explanation || out.options.some(Boolean);
+  return bad ? out : null;
+}

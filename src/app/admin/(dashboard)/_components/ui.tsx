@@ -7,6 +7,28 @@ export const btn: React.CSSProperties = { padding: "8px 14px", borderRadius: 6, 
 export const btnPrimary: React.CSSProperties = { ...btn, background: "var(--navy)", borderColor: "var(--navy)", color: "#fff" };
 export const btnDanger: React.CSSProperties = { ...btn, color: "var(--incorrect-text)", borderColor: "var(--incorrect-text)" };
 
+/** An input or textarea style that marks the field as needing attention. Uses the `border` shorthand, as `input` does. */
+export const inputError: React.CSSProperties = { ...input, border: "1.5px solid var(--incorrect-text)", background: "var(--incorrect-bg)" };
+
+/** The message under a field that needs filling in. Renders nothing when there is no problem. */
+export function FieldError({ id, children }: { id?: string; children?: string }) {
+  return children ? <p id={id} role="alert" style={{ color: "var(--incorrect-text)", fontSize: 13, margin: "4px 0 0" }}>{children}</p> : null;
+}
+
+/**
+ * A button for an action that talks to the server. While `busy` it is disabled, shows a spinner and swaps its label, so it
+ * cannot be pressed twice and the admin can see that work is in progress. `block` disables it without the spinner (another
+ * action on the same page is running).
+ */
+export function BusyButton({ busy = false, block = false, busyLabel, style, children, ...rest }: Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "style"> & { busy?: boolean; block?: boolean; busyLabel?: string; style?: React.CSSProperties }) {
+  return (
+    <button {...rest} style={{ ...style, ...(busy ? { opacity: 0.85, cursor: "progress" } : {}) }} disabled={rest.disabled || busy || block} aria-busy={busy || undefined}>
+      {busy && <span className="qa-spinner" aria-hidden />}
+      {busy && busyLabel ? busyLabel : children}
+    </button>
+  );
+}
+
 export function PageHead({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>

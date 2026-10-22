@@ -325,6 +325,28 @@ describe("practice by module", () => {
       expect(new Set(a.map((q) => q.id)).size).toBe(5);
       expect(buildModulePractice(quiz([lesson("A", qs(1, 2))]), mulberry32(9))).toHaveLength(2);
     });
+    it("gives a different random 5 each session, with no one choosing them", () => {
+      const mod = quiz([lesson("A", qs(1, 8)), lesson("B", qs(20, 8)), lesson("C", qs(40, 8))]);
+      const sets = new Set<string>();
+      for (let seed = 1; seed <= 30; seed++) sets.add(buildModulePractice(mod, mulberry32(seed)).map((q) => q.id).sort((x, y) => x - y).join(","));
+      expect(sets.size).toBeGreaterThan(20);
+    });
+    it("prefers questions the learner has not seen, so a returning learner gets new ones first", () => {
+      const mod = quiz([lesson("A", qs(1, 4)), lesson("B", qs(20, 4)), lesson("C", qs(40, 4))]);
+      const seen: Record<number, number> = {};
+      const all = new Set<number>();
+      for (let session = 1; session <= 2; session++) {
+        const got = buildModulePractice(mod, mulberry32(session), 5, seen);
+        got.forEach((q) => { expect(all.has(q.id), `session ${session}`).toBe(false); all.add(q.id); seen[q.id] = session; });
+      }
+      expect(all.size).toBe(10); // 12 questions in the pool, so two sessions never repeat one
+    });
+    it("repeats the longest-ago questions only once the pool is used up, and still covers every lesson", () => {
+      const mod = quiz([lesson("A", qs(1, 2)), lesson("B", qs(20, 2))]);
+      const seen = { 1: 100, 2: 200, 20: 300, 21: 50 }; // everything seen: oldest first
+      const got = buildModulePractice(mod, mulberry32(4), 2, seen).map((q) => q.id).sort((x, y) => x - y);
+      expect(got).toEqual([1, 21]); // the oldest question of each lesson
+    });
     it("counts a question that sits in two lessons only once", () => {
       const shared = mk(1);
       const mod = quiz([lesson("A", [shared, mk(2)]), lesson("B", [shared])]);

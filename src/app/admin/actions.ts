@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/server/db";
 import { invalidateBank } from "@/lib/bank";
 import { TRACK_IDS } from "@/lib/blueprint";
-import { moveId, pickDefaultSection, sameIdSet, validateDemoOrder, validatePosition, validateQuestionFields, validateSubmodule, type TopicInput } from "@/lib/admin-validate";
+import { findSameQuestion, moveId, pickDefaultSection, sameIdSet, validateDemoOrder, validatePosition, validateQuestionFields, validateSubmodule, type TopicInput } from "@/lib/admin-validate";
 
 const ADMIN_EMAIL = "admin123@gmail.com";
 const ADMIN_PASSWORD = "admin123@#";
@@ -40,7 +40,8 @@ export async function logoutAction() {
 
 // ── Domains (quiz_modules + quiz_sub_skills) and questions (quiz_questions) ────
 
-type Result = { error?: string; id?: number };
+/** `replaced` is true when saving a new question overwrote an existing one with exactly the same text */
+type Result = { error?: string; id?: number; replaced?: boolean };
 
 /** The sub-skill given to a module-quiz-only question when none is chosen (see pickDefaultSection). */
 async function defaultSection(c: NonNullable<ReturnType<typeof db>>, moduleId: number): Promise<string> {
@@ -163,11 +164,24 @@ export async function saveQuestionAction(q: QuestionInput): Promise<Result> {
     const { data: topic } = await c.from("quiz_skilljar_topics").select("submodule_id, lesson_title").eq("id", q.topicId).maybeSingle();
     if (!topic || topic.submodule_id !== q.submoduleId || !String(topic.lesson_title ?? "").trim()) return { error: "That lesson does not belong to the chosen submodule" };
   }
+  // Exactly the same wording in this domain: a new question overwrites that one, an edit that would create a twin is refused
+  const { data: sameDomain, error: sameErr } = await c.from("quiz_questions").select("id, question").eq("module_id", q.moduleId);
+  if (sameErr) return { error: sameErr.message };
+  const twin = findSameQuestion(sameDomain ?? [], q.question, q.id);
+  if (q.id && twin) return { error: `Question #${twin} already has exactly this text. Edit or delete that one instead.` };
+  const targetId = q.id ?? twin ?? undefined;
+  const overriding = !q.id && twin !== null;
+
   if (q.demoOrder != null) {
     const { data: taken } = await c.from("quiz_questions").select("id").eq("module_id", q.moduleId).eq("demo_order", q.demoOrder).maybeSingle();
-    if (taken && taken.id !== q.id) return { error: `Demo position ${q.demoOrder} is already used by question #${taken.id}. Move or clear that one first.` };
+    if (taken && taken.id !== targetId) return { error: `Demo position ${q.demoOrder} is already used by question #${taken.id}. Move or clear that one first.` };
   }
 
+  // A blank assignment on an overwrite means "leave it as it is", so replacing a question never silently drops its lesson or demo slot
+  const keep = <T,>(v: T | null | undefined): T | undefined => (overriding && v == null ? undefined : (v as T | undefined));
+  const submoduleId = keep(q.submoduleId);
+  const topicId = keep(q.topicId);
+  const demoOrder = keep(q.demoOrder);
   const row = {
     module_id: q.moduleId,
     section,
@@ -180,16 +194,16 @@ export async function saveQuestionAction(q: QuestionInput): Promise<Result> {
     answer: q.answer,
     explanation: q.explanation.trim() || null,
     // Only touched when the caller sends them, so older callers cannot wipe the assignment
-    ...(q.submoduleId !== undefined ? { submodule_id: q.submoduleId } : {}),
-    ...(q.topicId !== undefined ? { topic_id: q.topicId } : {}),
+    ...(submoduleId !== undefined ? { submodule_id: submoduleId } : {}),
+    ...(topicId !== undefined ? { topic_id: topicId } : {}),
     ...(q.moduleOnly !== undefined ? { module_only: q.moduleOnly } : {}),
-    ...(q.demoOrder !== undefined ? { demo_order: q.demoOrder } : {}),
+    ...(demoOrder !== undefined ? { demo_order: demoOrder } : {}),
   };
-  if (q.id) {
-    const { error } = await c.from("quiz_questions").update(row).eq("id", q.id);
+  if (targetId) {
+    const { error } = await c.from("quiz_questions").update(row).eq("id", targetId);
     if (error) return { error: error.message };
     afterWrite();
-    return { id: q.id };
+    return { id: targetId, ...(overriding ? { replaced: true } : {}) };
   }
   const { data: max } = await c.from("quiz_questions").select("order_index").eq("module_id", q.moduleId).order("order_index", { ascending: false }).limit(1).maybeSingle();
   const { data, error } = await c.from("quiz_questions").insert({ ...row, order_index: (max?.order_index ?? 0) + 1 }).select("id").single();
@@ -342,6 +356,17 @@ async function lessonOf(c: NonNullable<ReturnType<typeof db>>, topicId: number) 
   return { course: String(t.course_title), lesson: String(t.lesson_title), ids, canonical: Math.min(...ids), track: (mod?.track ?? null) as string | null };
 }
 
+/** Puts a question into a lesson. A question is in at most one lesson of a course. `already` is true when it was already in this lesson. */
+async function attachToLesson(c: NonNullable<ReturnType<typeof db>>, lesson: NonNullable<Awaited<ReturnType<typeof lessonOf>>>, questionId: number): Promise<{ error?: string; already?: boolean }> {
+  const { data: courseTopics } = await c.from("quiz_skilljar_topics").select("id, lesson_title").eq("course_title", lesson.course);
+  const lessonByTopic = new Map((courseTopics ?? []).filter((t) => String(t.lesson_title ?? "").trim()).map((t) => [t.id as number, String(t.lesson_title)]));
+  const { data: existing } = await c.from("quiz_lesson_questions").select("topic_id").eq("question_id", questionId);
+  const already = (existing ?? []).map((r) => lessonByTopic.get(r.topic_id as number)).find((name) => name !== undefined);
+  if (already !== undefined) return already === lesson.lesson ? { already: true } : { error: `That question is already in the lesson "${already}" of this course. Remove it there first.` };
+  const { error } = await c.from("quiz_lesson_questions").insert({ topic_id: lesson.canonical, question_id: questionId });
+  return error ? { error: error.message } : {};
+}
+
 /** Puts an existing bank question into a lesson. A question is in at most one lesson of a course. */
 export async function addLessonQuestionAction(topicId: number, questionId: number): Promise<Result> {
   await requireAdmin();
@@ -353,15 +378,9 @@ export async function addLessonQuestionAction(topicId: number, questionId: numbe
   if (!q) return { error: "Question not found" };
   const { data: qmod } = await c.from("quiz_modules").select("track").eq("id", q.module_id).maybeSingle();
   if (!qmod || qmod.track !== lesson.track) return { error: "That question belongs to the other exam track" };
-
-  const { data: courseTopics } = await c.from("quiz_skilljar_topics").select("id, lesson_title").eq("course_title", lesson.course);
-  const lessonByTopic = new Map((courseTopics ?? []).filter((t) => String(t.lesson_title ?? "").trim()).map((t) => [t.id as number, String(t.lesson_title)]));
-  const { data: existing } = await c.from("quiz_lesson_questions").select("topic_id").eq("question_id", questionId);
-  const already = (existing ?? []).map((r) => lessonByTopic.get(r.topic_id as number)).find((name) => name !== undefined);
-  if (already !== undefined) return { error: already === lesson.lesson ? "That question is already in this lesson" : `That question is already in the lesson "${already}" of this course. Remove it there first.` };
-
-  const { error } = await c.from("quiz_lesson_questions").insert({ topic_id: lesson.canonical, question_id: questionId });
-  if (error) return { error: error.message };
+  const r = await attachToLesson(c, lesson, questionId);
+  if (r.error) return { error: r.error };
+  if (r.already) return { error: "That question is already in this lesson" };
   afterWrite();
   return {};
 }
@@ -408,6 +427,32 @@ export async function createLessonQuestionAction(d: LessonQuestionInput): Promis
   const { data: sub } = await c.from("quiz_submodules").select("id").eq("module_id", d.moduleId).eq("title", lesson.course).maybeSingle();
   if (!sub) return { error: `${lesson.course} is not set up under that domain. Add a submodule with that name to the domain first.` };
   const { data: home } = await c.from("quiz_skilljar_topics").select("id").eq("submodule_id", sub.id).eq("lesson_title", lesson.lesson).maybeSingle();
+
+  // Exactly the same wording in this domain: overwrite that question and make sure it is in this lesson, instead of adding a twin
+  const { data: sameDomain, error: sameErr } = await c.from("quiz_questions").select("id, question, submodule_id").eq("module_id", d.moduleId);
+  if (sameErr) return { error: sameErr.message };
+  const twinId = findSameQuestion(sameDomain ?? [], d.question);
+  if (twinId !== null) {
+    const attached = await attachToLesson(c, lesson, twinId); // refuses before anything is overwritten when it sits in another lesson of the course
+    if (attached.error) return { error: attached.error };
+    const twin = (sameDomain ?? []).find((x) => x.id === twinId);
+    const res = await c.from("quiz_questions").update({
+      section,
+      difficulty: d.difficulty,
+      question: d.question.trim(),
+      option_a: d.options[0].trim(),
+      option_b: d.options[1].trim(),
+      option_c: d.options[2].trim(),
+      option_d: d.options[3].trim(),
+      answer: d.answer,
+      explanation: d.explanation.trim() || null,
+      // module_only is left as it was: overwriting wording must not move a practice question out of the practice modes
+      ...(twin?.submodule_id == null ? { submodule_id: sub.id, topic_id: home?.id ?? null } : {}),
+    }).eq("id", twinId);
+    if (res.error) return { error: res.error.message };
+    afterWrite();
+    return { id: twinId, replaced: true };
+  }
 
   const { data: max } = await c.from("quiz_questions").select("order_index").eq("module_id", d.moduleId).order("order_index", { ascending: false }).limit(1).maybeSingle();
   const { data, error } = await c.from("quiz_questions").insert({
