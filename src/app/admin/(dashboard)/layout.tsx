@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { logoutAction } from "@/app/admin/actions";
 
+/** Quiz Mode (LiveQ) is hidden from the sidebar for now. Its pages and logic are untouched and still work at /admin/liveq. Set to true to show the link again. */
+const SHOW_QUIZ_MODE = false;
+
 export default function AdminDashboardLayout({
   children,
 }: {
@@ -154,19 +157,21 @@ export default function AdminDashboardLayout({
             Module quizzes
           </Link>
           <div style={{ margin: "8px 18px 4px", borderTop: "1px solid rgba(255,255,255,.08)" }} />
-          <Link
-            href="/admin/liveq"
-            style={{
-              display: "block",
-              padding: "9px 18px",
-              color: "var(--accent)",
-              fontSize: "13px",
-              fontWeight: 700,
-              textDecoration: "none",
-            }}
-          >
-            ⚡ Quiz Mode
-          </Link>
+          {SHOW_QUIZ_MODE && (
+            <Link
+              href="/admin/liveq"
+              style={{
+                display: "block",
+                padding: "9px 18px",
+                color: "var(--accent)",
+                fontSize: "13px",
+                fontWeight: 700,
+                textDecoration: "none",
+              }}
+            >
+              ⚡ Quiz Mode
+            </Link>
+          )}
           <a
             href="/"
             target="_blank"
