@@ -2,6 +2,7 @@
 
 import type { CheckResult, ModeId, OptionLabel, PublicQuestion, TrackId } from "@/types/quiz";
 import type { SkillHistory } from "@/lib/sampling";
+import type { QuestionTiming } from "@/lib/question-timer";
 
 /** Everything the browser remembers. Each read is guarded: storage can be blocked or empty. */
 
@@ -46,6 +47,8 @@ export interface StoredAttempt {
   answers: Record<number, StoredAnswer>;
   checks: Record<number, CheckResult>;
   idx: number;
+  /** Module quizzes: the clock of each question, by question id */
+  qTiming?: Record<number, QuestionTiming>;
   finishedAt?: number;
   /** Set once an exam-conditions attempt's outcomes have been saved to the review list */
   recordedAt?: number;

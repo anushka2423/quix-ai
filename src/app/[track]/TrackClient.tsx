@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { ModeId, TrackId } from "@/types/quiz";
-import { MODES, MODE_IDS, MODULE_SIZE, TRACKS } from "@/lib/blueprint";
+import { MODES, MODE_IDS, MODULE_QUESTION_SECONDS, MODULE_SIZE, TRACKS } from "@/lib/blueprint";
 import type { TrackMeta } from "@/lib/bank";
 import { PASS_SCORE, flags } from "@/lib/config";
 import { startAttempt } from "@/lib/client/start";
@@ -131,7 +131,7 @@ export default function TrackClient({ track, meta }: { track: TrackId; meta: Tra
                     <h3 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "19px", lineHeight: 1.35, fontWeight: 800, color: "var(--ink)", margin: "0 0 12px", letterSpacing: "-0.025em" }}>{m.name}</h3>
                     <p style={{ fontSize: "15px", color: "var(--muted)", lineHeight: 1.7, margin: 0, flex: 1 }}>{m.description}</p>
                     <span style={{ fontSize: "14px", color: "#654a39", borderTop: "1px solid #dce3ed", paddingTop: "14px", marginTop: "20px" }}>
-                      {Math.min(m.count, MODULE_SIZE)} question{Math.min(m.count, MODULE_SIZE) === 1 ? "" : "s"} · untimed
+                      {Math.min(m.count, MODULE_SIZE)} question{Math.min(m.count, MODULE_SIZE) === 1 ? "" : "s"} · {MODULE_QUESTION_SECONDS} sec each
                     </span>
                     <button
                       onClick={() => goModule(m.name)}

@@ -396,7 +396,7 @@ export const MODES: Record<ModeId, ModeDef> = {
   module: {
     id: "module",
     title: "Module practice",
-    purpose: "Practice the questions behind one Skill Jar course. Counts as normal practice, with no readiness estimate.",
+    purpose: "Practice the questions behind one Skill Jar course, 40 seconds per question. Counts as normal practice, with no readiness estimate.",
     questions: () => MODULE_SIZE,
     minutes: null,
     adaptive: false,
@@ -418,7 +418,10 @@ export const MODE_IDS: ModeId[] = ["diagnostic", "sprint", "drill", "full", "rev
 export const DEMO_SIZE = 5;
 
 /** Questions in one practice-by-module session (fewer only when the module holds fewer) */
-export const MODULE_SIZE = 5;
+export const MODULE_SIZE = 15;
+
+/** Seconds a learner has for each question of a module quiz */
+export const MODULE_QUESTION_SECONDS = 40;
 
 /** Share of the exam (0..1) a domain's sub-skills sum to; used to weight readiness. */
 export function weightFraction(track: TrackId, domain: string): number {
