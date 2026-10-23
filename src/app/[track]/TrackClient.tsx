@@ -65,11 +65,6 @@ export default function TrackClient({ track, meta }: { track: TrackId; meta: Tra
     }
   }
 
-  const switchBtn = (active: boolean): React.CSSProperties => ({
-    padding: "10px 20px", borderRadius: "999px", border: "1px solid #dce3ed", fontFamily: "inherit", fontSize: "14px", fontWeight: 700, cursor: "pointer", minHeight: "44px",
-    background: active ? "#071b39" : "#fff", color: active ? "#fff" : "var(--ink)",
-  });
-
   return (
     <>
       <Header />
@@ -117,14 +112,11 @@ export default function TrackClient({ track, meta }: { track: TrackId; meta: Tra
             </h2>
             {error && <p role="alert" style={{ color: "var(--incorrect-text)" }}>✗ {error}</p>}
 
-            {meta.modules.length > 0 && (
-              <div role="group" aria-label="How to practice" style={{ display: "flex", flexWrap: "wrap", gap: "10px", margin: "0 0 24px" }}>
-                <button aria-pressed={view === "overall"} onClick={() => setView("overall")} style={switchBtn(view === "overall")}>Overall: all modules at once</button>
-                <button aria-pressed={view === "module"} onClick={() => setView("module")} style={switchBtn(view === "module")}>By module: one Skill Jar course</button>
-              </div>
-            )}
-
             {view === "module" ? (
+              <>
+              <button onClick={() => setView("overall")} style={{ background: "none", border: "none", padding: 0, margin: "0 0 20px", color: BLUE, fontWeight: 700, fontSize: "14px", cursor: "pointer", fontFamily: "inherit", minHeight: "44px" }}>
+                ← Back to all practice modes
+              </button>
               <div className="module-grid">
                 {meta.modules.map((m) => (
                   <article key={m.name} style={{ border: "1px solid #dce3ed", borderRadius: "10px", padding: "23px 19px", background: "white", display: "flex", flexDirection: "column" }}>
@@ -143,6 +135,7 @@ export default function TrackClient({ track, meta }: { track: TrackId; meta: Tra
                   </article>
                 ))}
               </div>
+              </>
             ) : (
             <div className="module-grid">
               {MODE_IDS.map((mode) => {
@@ -197,6 +190,28 @@ export default function TrackClient({ track, meta }: { track: TrackId; meta: Tra
                   </article>
                 );
               })}
+              {meta.modules.length > 0 && (
+                <article style={{ border: "1px solid #dce3ed", borderRadius: "10px", padding: "23px 19px", background: "white", display: "flex", flexDirection: "column" }}>
+                  <span style={{ color: BLUE, fontSize: "14px", fontWeight: 800, letterSpacing: "1px", marginBottom: "22px", fontFamily: "var(--font-manrope), sans-serif" }}>
+                    Open access
+                  </span>
+                  <h3 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "19px", lineHeight: 1.35, fontWeight: 800, color: "var(--ink)", margin: "0 0 12px", letterSpacing: "-0.025em" }}>
+                    By module
+                  </h3>
+                  <p style={{ fontSize: "15px", color: "var(--muted)", lineHeight: 1.7, margin: 0, flex: 1 }}>
+                    Practice one Skill Jar course at a time. Pick a module and work through its questions.
+                  </p>
+                  <span style={{ fontSize: "14px", color: "#654a39", borderTop: "1px solid #dce3ed", paddingTop: "14px", marginTop: "20px" }}>
+                    {meta.modules.length} module{meta.modules.length === 1 ? "" : "s"} · {MODULE_SIZE} questions each
+                  </span>
+                  <button
+                    onClick={() => setView("module")}
+                    style={{ width: "100%", marginTop: "14px", padding: "12px 18px", borderRadius: "9px", border: "1px solid #dce3ed", background: "white", color: "var(--ink)", fontWeight: 700, fontSize: "14px", cursor: "pointer", fontFamily: "inherit", minHeight: "44px" }}
+                  >
+                    Browse modules →
+                  </button>
+                </article>
+              )}
             </div>
             )}
           </div>
