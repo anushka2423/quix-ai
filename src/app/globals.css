@@ -646,3 +646,20 @@ h1, h2, h3, h4, h5, h6 {
   .faq-details summary { font-size: 15px; }
   .faq-details p { font-size: 14px; }
 }
+
+/* Admin: a small spinner shown inside a button while its action is saving */
+@keyframes qa-spin { to { transform: rotate(360deg); } }
+.qa-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  margin-right: 8px;
+  vertical-align: -2px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: qa-spin 0.7s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .qa-spinner { animation-duration: 2s; }
+}

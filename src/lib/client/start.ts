@@ -28,7 +28,7 @@ export async function startAttempt(o: StartOptions): Promise<{ id: string } | { 
         wrongIds: o.mode === "review" ? getWrongIds(o.track) : undefined, // used only if the database list is unavailable
         learner: getLearner(),
         history: MODES[o.mode].adaptive ? getSkillHistory(o.track) : undefined,
-        seen: MODES[o.mode].adaptive ? getSeen() : undefined,
+        seen: MODES[o.mode].adaptive || o.mode === "module" ? getSeen() : undefined, // module quizzes prefer questions not seen yet
       }),
     });
     const data = (await res.json()) as { seed?: string; questions?: PublicQuestion[]; total?: number; adaptive?: boolean; error?: string };

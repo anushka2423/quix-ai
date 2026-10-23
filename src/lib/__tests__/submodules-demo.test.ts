@@ -286,7 +286,7 @@ describe("practice by module", () => {
     it("takes one question from every lesson before a second from any, so 3 lessons in a 5-session give 2+2+1", () => {
       const mod = quiz([lesson("A", qs(1, 10)), lesson("B", qs(20, 2)), lesson("C", qs(30, 1))]);
       for (let seed = 1; seed <= 20; seed++) {
-        const counts = lessons(buildModulePractice(mod, mulberry32(seed)), mod).reduce<Record<string, number>>((m, l) => ({ ...m, [l]: (m[l] ?? 0) + 1 }), {});
+        const counts = lessons(buildModulePractice(mod, mulberry32(seed), 5), mod).reduce<Record<string, number>>((m, l) => ({ ...m, [l]: (m[l] ?? 0) + 1 }), {});
         expect(counts, `seed ${seed}`).toEqual({ A: 2, B: 2, C: 1 });
       }
     });
@@ -294,20 +294,20 @@ describe("practice by module", () => {
       const mod = quiz(["L1", "L2", "L3", "L4", "L5", "L6", "L7", "L8"].map((l, i) => lesson(l, qs(i * 10 + 1, 3))));
       const seen = new Set<string>();
       for (let seed = 1; seed <= 40; seed++) {
-        const got = lessons(buildModulePractice(mod, mulberry32(seed)), mod);
-        expect(new Set(got).size, `seed ${seed}`).toBe(MODULE_SIZE);
+        const got = lessons(buildModulePractice(mod, mulberry32(seed), 5), mod);
+        expect(new Set(got).size, `seed ${seed}`).toBe(5);
         got.forEach((l) => seen.add(l));
       }
       expect(seen.size).toBe(8);
     });
     it("uses a course's lesson-less questions only after the lessons run out", () => {
       const poor = quiz([lesson("A", qs(1, 1)), lesson("B", qs(5, 1))], qs(50, 4));
-      const got = lessons(buildModulePractice(poor, mulberry32(3)), poor);
+      const got = lessons(buildModulePractice(poor, mulberry32(3), 5), poor);
       expect(got.filter((l) => l === "A")).toHaveLength(1);
       expect(got.filter((l) => l === "B")).toHaveLength(1);
       expect(got.filter((l) => l === "extra")).toHaveLength(3);
       const rich = quiz([lesson("A", qs(1, 4)), lesson("B", qs(5, 4))], qs(50, 1));
-      expect(lessons(buildModulePractice(rich, mulberry32(3)), rich)).not.toContain("extra");
+      expect(lessons(buildModulePractice(rich, mulberry32(3), 5), rich)).not.toContain("extra");
     });
     it("draws only from the lessons that have questions, and works for a course with no lessons at all", () => {
       const withEmpty = quiz([lesson("Empty", []), lesson("A", qs(1, 3))]);
@@ -319,11 +319,47 @@ describe("practice by module", () => {
     });
     it("is repeatable for a seed, returns fewer when the module is small, and never repeats a question", () => {
       const mod = quiz([lesson("A", qs(1, 3)), lesson("B", qs(10, 3))]);
-      const a = buildModulePractice(mod, mulberry32(9));
-      expect(buildModulePractice(mod, mulberry32(9)).map((q) => q.id)).toEqual(a.map((q) => q.id));
+      const a = buildModulePractice(mod, mulberry32(9), 5);
+      expect(buildModulePractice(mod, mulberry32(9), 5).map((q) => q.id)).toEqual(a.map((q) => q.id));
       expect(a).toHaveLength(5);
       expect(new Set(a.map((q) => q.id)).size).toBe(5);
-      expect(buildModulePractice(quiz([lesson("A", qs(1, 2))]), mulberry32(9))).toHaveLength(2);
+      expect(buildModulePractice(quiz([lesson("A", qs(1, 2))]), mulberry32(9), 5)).toHaveLength(2);
+    });
+    it("a module quiz is 15 questions, spread over every lesson, with no repeats", () => {
+      expect(MODULE_SIZE).toBe(15);
+      const mod = quiz([lesson("A", qs(1, 8)), lesson("B", qs(20, 8)), lesson("C", qs(40, 8))]);
+      for (let seed = 1; seed <= 20; seed++) {
+        const got = buildModulePractice(mod, mulberry32(seed));
+        expect(got, `seed ${seed}`).toHaveLength(15);
+        expect(new Set(got.map((q) => q.id)).size).toBe(15);
+        expect(new Set(lessons(got, mod)).size).toBe(3);
+      }
+    });
+    it("gives a smaller module only what it holds, never padding the quiz", () => {
+      const small = quiz([lesson("A", qs(1, 4)), lesson("B", qs(20, 3))]);
+      expect(buildModulePractice(small, mulberry32(2))).toHaveLength(7);
+    });
+    it("gives a different random set of 15 each session, with no one choosing them", () => {
+      const mod = quiz([lesson("A", qs(1, 8)), lesson("B", qs(20, 8)), lesson("C", qs(40, 8))]);
+      const sets = new Set<string>();
+      for (let seed = 1; seed <= 30; seed++) sets.add(buildModulePractice(mod, mulberry32(seed)).map((q) => q.id).sort((x, y) => x - y).join(","));
+      expect(sets.size).toBeGreaterThan(20);
+    });
+    it("prefers questions the learner has not seen, so a returning learner gets new ones first", () => {
+      const mod = quiz([lesson("A", qs(1, 4)), lesson("B", qs(20, 4)), lesson("C", qs(40, 4))]);
+      const seen: Record<number, number> = {};
+      const all = new Set<number>();
+      for (let session = 1; session <= 2; session++) {
+        const got = buildModulePractice(mod, mulberry32(session), 5, seen);
+        got.forEach((q) => { expect(all.has(q.id), `session ${session}`).toBe(false); all.add(q.id); seen[q.id] = session; });
+      }
+      expect(all.size).toBe(10); // 12 questions in the pool, so two sessions never repeat one
+    });
+    it("repeats the longest-ago questions only once the pool is used up, and still covers every lesson", () => {
+      const mod = quiz([lesson("A", qs(1, 2)), lesson("B", qs(20, 2))]);
+      const seen = { 1: 100, 2: 200, 20: 300, 21: 50 }; // everything seen: oldest first
+      const got = buildModulePractice(mod, mulberry32(4), 2, seen).map((q) => q.id).sort((x, y) => x - y);
+      expect(got).toEqual([1, 21]); // the oldest question of each lesson
     });
     it("counts a question that sits in two lessons only once", () => {
       const shared = mk(1);

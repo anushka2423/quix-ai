@@ -4,7 +4,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { CheckResult, OptionLabel, PublicQuestion } from "@/types/quiz";
-import { MODES, TRACKS } from "@/lib/blueprint";
+import { MODES, MODULE_QUESTION_SECONDS, TRACKS } from "@/lib/blueprint";
+import { remainingMs, type QuestionTiming } from "@/lib/question-timer";
 import { track as trackEvent } from "@/lib/analytics";
 import {
   getAttempt,
@@ -75,6 +76,18 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
   const [finishing, setFinishing] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const shownAt = useRef(0);
+  // Module quizzes give each question its own clock
+  const perQ = attempt.mode === "module" ? MODULE_QUESTION_SECONDS * 1000 : null;
+  const [timing, setTiming] = useState<Record<number, QuestionTiming>>(attempt.qTiming ?? {});
+  const [showTimeUp, setShowTimeUp] = useState(false);
+  // The header is sticky, so the clock sticks just below it, whatever height the header has on this screen
+  const [headerH, setHeaderH] = useState(88);
+  useEffect(() => {
+    const measure = () => setHeaderH(document.querySelector("header")?.getBoundingClientRect().height ?? 88);
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
 
   // Mobile carousel — tracks which option card is currently visible (0–4)
   const [visibleOptIdx, setVisibleOptIdx] = useState(0);
@@ -88,6 +101,13 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
   const isComplete = (qq: PublicQuestion) => (answers[qq.id]?.picks.length ?? 0) === qq.picks;
   const currentComplete = selected.length === picks;
   const check = checks[q.id];
+  const qTime = timing[q.id];
+  const timedOut = !!qTime?.timedOut;
+  /** Answered, or out of time: either way the question is settled and the learner can go on */
+  const resolved = currentComplete || timedOut;
+  /** The clock runs from the moment the question is shown until an answer is complete or the time is gone */
+  const clockRunning = perQ !== null && !currentComplete && !timedOut && !check;
+  const qRemaining = perQ === null ? null : remainingMs(qTime, now, perQ);
   // Feedback mode: the answer locks and is revealed once the server has checked it
   const revealed = feedback && !!check;
   const locked = revealed || checking || (feedback && currentComplete);
@@ -95,14 +115,14 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
   const currentCorrect = !!check?.correct;
   const isLast = currentIdx === total - 1;
   const isFirst = currentIdx === 0;
-  const primaryDisabled = !currentComplete || (feedback && !revealed) || checking || finishing || gate.modalOpen;
+  const primaryDisabled = !resolved || (feedback && !revealed) || checking || finishing || gate.modalOpen;
   const primaryLabel = isLast ? "See my results →" : "Next question →";
   const deadline = attempt.limitSeconds ? attempt.startedAt + attempt.limitSeconds * 1000 : null;
 
   // Persist progress so a refresh resumes the attempt
   useEffect(() => {
-    saveAttempt({ ...attempt, questions, answers, checks, idx: currentIdx });
-  }, [attempt, questions, answers, checks, currentIdx]);
+    saveAttempt({ ...attempt, questions, answers, checks, idx: currentIdx, qTiming: timing });
+  }, [attempt, questions, answers, checks, currentIdx, timing]);
 
   useEffect(() => {
     shownAt.current = Date.now();
@@ -116,9 +136,9 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
   const finish = useCallback(async () => {
     if (finishing) return;
     setFinishing(true);
-    saveAttempt({ ...attempt, questions, answers, checks, idx: currentIdx, finishedAt: Date.now() });
+    saveAttempt({ ...attempt, questions, answers, checks, idx: currentIdx, qTiming: timing, finishedAt: Date.now() });
     router.push(`/results/${attempt.id}`);
-  }, [finishing, attempt, questions, answers, checks, currentIdx, router]);
+  }, [finishing, attempt, questions, answers, checks, currentIdx, timing, router]);
 
   // Countdown: finishes the attempt when time runs out
   useEffect(() => {
@@ -133,6 +153,50 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
       return () => clearTimeout(t);
     }
   }, [timeUp, finishing, finish]);
+
+  // Start a question's clock the first time it is shown (stored, so refreshing the page does not restart it)
+  useEffect(() => {
+    if (perQ === null || check || timing[q.id]) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- start the clock when a question is first shown
+    setTiming((prev) => ({ ...prev, [q.id]: { startedAt: Date.now() } }));
+  }, [perQ, q.id, check, timing]);
+
+  // Tick while a clock is running
+  useEffect(() => {
+    if (!clockRunning) return;
+    const t = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(t);
+  }, [clockRunning]);
+
+  // Out of time: stop the clock, fetch the correct answer and tell the learner
+  const outOfTime = clockRunning && !!qTime && qRemaining !== null && qRemaining <= 0;
+  useEffect(() => {
+    if (outOfTime) void runTimeout(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outOfTime, q.id]);
+
+  async function runTimeout(qq: PublicQuestion) {
+    setTiming((prev) => ({ ...prev, [qq.id]: { startedAt: prev[qq.id]?.startedAt ?? Date.now(), timedOut: true } }));
+    setChecking(true);
+    setCheckError(false);
+    try {
+      const res = await fetch("/api/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seed: attempt.seed, id: qq.id, picks: [], timedOut: true, learner: getLearner(), mode: attempt.mode, module: attempt.module }),
+      });
+      if (!res.ok) throw new Error("check failed");
+      const result = (await res.json()) as CheckResult;
+      setChecks((prev) => ({ ...prev, [qq.id]: result }));
+      recordAnswer(qq, false);
+      trackEvent("question_answered", { correct: false, timedOut: true, domain: qq.domain, subSkill: qq.subSkill, seconds: MODULE_QUESTION_SECONDS, mode: attempt.mode });
+      setShowTimeUp(true);
+    } catch {
+      setCheckError(true);
+    } finally {
+      setChecking(false);
+    }
+  }
 
   async function runCheck(qq: PublicQuestion, chosen: OptionLabel[]) {
     setChecking(true);
@@ -167,7 +231,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
   // Single-answer questions lock on the first click; multi-answer questions toggle
   // until the required number is picked, then lock.
   function selectAnswer(label: OptionLabel) {
-    if (locked || gate.modalOpen) return;
+    if (locked || gate.modalOpen || outOfTime || showTimeUp) return;
     const current = answers[q.id]?.picks ?? [];
     let next: OptionLabel[];
     if (!isMulti) next = [label];
@@ -178,6 +242,11 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
     const ms = (answers[q.id]?.ms ?? 0) + (next.length === picks ? Date.now() - shownAt.current : 0);
     if (next.length === picks) shownAt.current = Date.now();
     setAnswers((prev) => ({ ...prev, [q.id]: { picks: next, ms } }));
+    // Answering stops this question's clock
+    if (next.length === picks && perQ !== null) {
+      const stopped = Date.now();
+      setTiming((prev) => (prev[q.id]?.stoppedAt ? prev : { ...prev, [q.id]: { startedAt: prev[q.id]?.startedAt ?? stopped, stoppedAt: stopped } }));
+    }
     if (next.length === picks && feedback) void runCheck(q, next);
   }
 
@@ -245,6 +314,14 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (gate.modalOpen) return;
+      if (showTimeUp) {
+        // The "time's up" popup is open: Enter closes it, nothing else reacts
+        if (e.key === "Enter") {
+          e.preventDefault();
+          setShowTimeUp(false);
+        }
+        return;
+      }
       const target = e.target as HTMLElement | null;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
       const optionLabels: OptionLabel[] = ["A", "B", "C", "D"];
@@ -264,7 +341,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [q, isFirst, currentComplete, answers, checks, checking, finishing, questions.length, gate.modalOpen]
+    [q, isFirst, currentComplete, resolved, showTimeUp, answers, checks, checking, finishing, questions.length, gate.modalOpen]
   );
 
   useEffect(() => {
@@ -276,6 +353,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset transient UI when the question changes
     setVisibleOptIdx(0);
+    setShowTimeUp(false);
     setCheckError(false);
     if (carouselRef.current) carouselRef.current.scrollLeft = 0;
   }, [currentIdx]);
@@ -284,7 +362,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
   function segmentState(i: number) {
     const qq = questions[i];
     if (i === currentIdx) return "current";
-    if (qq && isComplete(qq)) return "answered";
+    if (qq && (isComplete(qq) || timing[qq.id]?.timedOut)) return "answered";
     return "default";
   }
 
@@ -383,6 +461,44 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
           background: "var(--canvas)",
         }}
       >
+        {/* ── Per-question clock: stays under the header while the page scrolls, so it is always in view ── */}
+        {qRemaining !== null && perQ !== null && (
+          <div style={{ position: "sticky", top: headerH, zIndex: 40, background: "var(--navy)", borderBottom: "1px solid rgba(255,255,255,.12)", boxShadow: "0 4px 12px rgba(15,27,51,.25)" }}>
+            <div className="quiz-band-inner" style={{ maxWidth: "860px", margin: "0 auto", padding: "10px 48px 12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <span
+                  role="timer"
+                  aria-label={`Time left for this question ${fmt(qRemaining)}${clockRunning ? "" : ", stopped"}`}
+                  style={{
+                    fontSize: "20px",
+                    fontWeight: 800,
+                    color: clockRunning && qRemaining <= 10_000 ? "#fca5a5" : "#ffffff",
+                    fontVariantNumeric: "tabular-nums",
+                    opacity: clockRunning ? 1 : 0.75,
+                    minWidth: "76px",
+                  }}
+                >
+                  ⏱ {fmt(qRemaining)}
+                </span>
+                <span style={{ fontSize: "13px", color: "var(--on-navy-2)", flex: 1 }}>
+                  {timedOut ? "Time's up for this question" : clockRunning ? `${MODULE_QUESTION_SECONDS} seconds per question. Answer before it runs out.` : "Clock stopped. Continue when you are ready."}
+                </span>
+              </div>
+              {/* Drains over 40 seconds, freezes when the question is answered */}
+              <div aria-hidden="true" style={{ height: "6px", borderRadius: "var(--r-pill)", background: "rgba(255,255,255,.18)", marginTop: "8px", overflow: "hidden" }}>
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${Math.round((qRemaining / perQ) * 100)}%`,
+                    background: qRemaining <= 10_000 ? "#f87171" : "var(--accent)",
+                    transition: clockRunning ? "width .25s linear, background .3s" : "none",
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Navy band ── */}
         <div
           style={{
@@ -758,6 +874,8 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
                     >
                       {currentCorrect
                         ? "✓ Correct!"
+                        : timedOut
+                          ? `⏱ Time's up. The correct answer${correctLabels.length > 1 ? "s are" : " is"} ${correctLabels.join(" and ")}.`
                         : `✗ Incorrect. The correct answer${correctLabels.length > 1 ? "s are" : " is"} ${correctLabels.join(" and ")}.`}
                     </div>
                     <div
@@ -788,7 +906,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
                   <p role="alert" style={{ marginTop: "16px", fontSize: "14px", color: "var(--incorrect-text)" }}>
                     ✗ Couldn&apos;t reach the server.{" "}
                     <button
-                      onClick={() => (currentComplete && feedback && !check ? void runCheck(q, selected) : void handleNext())}
+                      onClick={() => (timedOut && !check ? void runTimeout(q) : currentComplete && feedback && !check ? void runCheck(q, selected) : void handleNext())}
                       style={{ background: "none", border: "none", color: "var(--navy)", textDecoration: "underline", cursor: "pointer", fontFamily: "inherit", fontSize: "14px" }}
                     >
                       Retry
@@ -886,6 +1004,29 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
           </div>
         </div>
       </div>
+
+      {showTimeUp && timedOut && check && (
+        <div role="alertdialog" aria-modal="true" aria-labelledby="qtimeup-title" style={{ position: "fixed", inset: 0, zIndex: 9000, background: "rgba(15,27,51,.8)", display: "grid", placeItems: "center", padding: "24px" }}>
+          <div style={{ background: "#fff", borderRadius: "var(--r-feature)", padding: "32px", maxWidth: "480px", width: "100%", textAlign: "center" }}>
+            <h2 id="qtimeup-title" style={{ margin: "0 0 8px", fontSize: "24px" }}>⏱ Time&apos;s up</h2>
+            <p style={{ margin: "0 0 12px", color: "var(--muted)" }}>You ran out of the {MODULE_QUESTION_SECONDS} seconds for this question, so it counts as missed. The correct answer{correctLabels.length > 1 ? "s are" : " is"}:</p>
+            <ul style={{ listStyle: "none", margin: "0 0 20px", padding: 0, display: "grid", gap: "8px", textAlign: "left" }}>
+              {q.options.filter((o) => correctLabels.includes(o.label)).map((o) => (
+                <li key={o.label} style={{ padding: "10px 14px", borderRadius: "var(--r-option)", border: "2px solid var(--correct-text)", background: "var(--correct-bg)", color: "var(--ink)", fontSize: "15px", lineHeight: 1.5 }}>
+                  <strong>{o.label}.</strong> {o.text}
+                </li>
+              ))}
+            </ul>
+            <button
+              autoFocus
+              onClick={() => setShowTimeUp(false)}
+              style={{ padding: "12px 28px", borderRadius: "9px", border: "none", background: "var(--accent)", color: "var(--navy)", fontSize: "16px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      )}
 
       {timeUp && (
         <div role="alertdialog" aria-modal="true" aria-label="Time is up" style={{ position: "fixed", inset: 0, zIndex: 9000, background: "rgba(15,27,51,.8)", display: "grid", placeItems: "center", padding: "24px" }}>

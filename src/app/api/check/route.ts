@@ -8,15 +8,17 @@ import type { CheckResult } from "@/types/quiz";
 
 /** Instant feedback: the key and explanation only leave the server after the learner has answered. */
 export async function POST(req: Request) {
-  const b = await readJson<{ seed: string; id: number; picks: unknown; learner?: unknown; mode?: string; module?: string }>(req);
+  const b = await readJson<{ seed: string; id: number; picks: unknown; learner?: unknown; mode?: string; module?: string; timedOut?: boolean }>(req);
   if (!b || typeof b.seed !== "string") return bad("Invalid request");
   const q = await getQuestion(Number(b.id));
   if (!q) return bad("Unknown question", 404);
   const picks = cleanPicks(b.picks);
   const keys = displayKeys(q, b.seed);
-  if (picks.length !== keys.length) return bad(`Select ${keys.length}`);
+  // A module quiz question whose 40 seconds ran out is revealed without an answer and counts as missed
+  const timedOut = b.timedOut === true && b.mode === "module";
+  if (!timedOut && picks.length !== keys.length) return bad(`Select ${keys.length}`);
   const out: CheckResult = {
-    correct: isCorrectAnswer(picks, keys.join(",")),
+    correct: !timedOut && isCorrectAnswer(picks, keys.join(",")),
     keys,
     explanation: explanationFor(q),
     // In a module quiz the link names the lesson of that module the question belongs to
