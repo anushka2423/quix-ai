@@ -3,6 +3,7 @@ import { DEMO_SIZE, TRACKS, TRACK_IDS, type DocLink, type DomainDef, type SubSki
 import { parseAnswer, requiredPicks } from "@/lib/answers";
 import { db } from "@/lib/server/db";
 import { CODE_BANK } from "./code-bank";
+import { MODULE_BANK, MODULE_QUIZZES } from "./module-bank";
 
 /**
  * Question bank and exam blueprint. SERVER ONLY: it carries answer keys, so only API routes and
@@ -266,7 +267,9 @@ async function load(): Promise<Loaded> {
       console.warn("[bank] database read failed, using built-in questions:", err instanceof Error ? err.message : err);
     }
   }
-  cache = result ?? { at: Date.now(), domains: defaults(), bank: CODE_BANK, modules: { associate: [], developer: [] }, source: "code" };
+  const base = result ?? { at: Date.now(), domains: defaults(), bank: CODE_BANK, modules: { associate: [], developer: [] }, source: "code" as const };
+  // The Developer By Module exams are Modules 1-5 from the module question files, whatever the database holds
+  cache = { ...base, bank: [...base.bank, ...MODULE_BANK], modules: { ...base.modules, developer: MODULE_QUIZZES } };
   return cache;
 }
 
@@ -380,7 +383,7 @@ export function mulberry32(seed: number): () => number {
   };
 }
 
-const LABELS: OptionLabel[] = ["A", "B", "C", "D"];
+const LABELS: OptionLabel[] = ["A", "B", "C", "D", "E"];
 
 /** order[displayIndex] = index into the original option array */
 function optionOrder(q: BankQuestion, seed: string): number[] {

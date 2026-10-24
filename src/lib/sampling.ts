@@ -99,9 +99,9 @@ function drawBySubSkill(domainDefs: DomainDef[], pool: BankQuestion[], n: number
   return [...alloc.entries()].flatMap(([k, count]) => shuffle(members.get(k) ?? [], rng).slice(0, count));
 }
 
-/** A full mock: official item count, drawn at the official weights. Never adaptive. */
-export function buildFullMock(track: TrackId, domainDefs: DomainDef[], pool: BankQuestion[], rng: Rng): BankQuestion[] {
-  return shuffle(drawBySubSkill(domainDefs, pool, TRACKS[track].items, rng), rng);
+/** A full mock: the official item count unless the learner chose another, drawn at the official weights (so every module is covered). Never adaptive. */
+export function buildFullMock(track: TrackId, domainDefs: DomainDef[], pool: BankQuestion[], rng: Rng, n: number = TRACKS[track].items): BankQuestion[] {
+  return shuffle(drawBySubSkill(domainDefs, pool, n, rng), rng);
 }
 
 /** Diagnostic: 20 items across every domain at the domain weights, at least one per domain. */

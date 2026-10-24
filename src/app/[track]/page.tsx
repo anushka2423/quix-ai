@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { TRACKS, TRACK_IDS, isTrack } from "@/lib/blueprint";
 import { bankMeta } from "@/lib/bank";
 import TrackClient from "./TrackClient";
+import DeveloperTrackClient from "./DeveloperTrackClient";
 
 // Questions come from the database; refresh the counts every minute
 export const revalidate = 60;
@@ -24,5 +25,7 @@ export async function generateMetadata({ params }: { params: Promise<{ track: st
 export default async function TrackPage({ params }: { params: Promise<{ track: string }> }) {
   const { track } = await params;
   if (!isTrack(track)) notFound();
-  return <TrackClient track={track} meta={(await bankMeta())[track]} />;
+  const meta = (await bankMeta())[track];
+  if (track === "developer") return <DeveloperTrackClient meta={meta} />;
+  return <TrackClient track={track} meta={meta} />;
 }

@@ -4,8 +4,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { CheckResult, OptionLabel, PublicQuestion } from "@/types/quiz";
-import { MODES, MODULE_QUESTION_SECONDS, TRACKS } from "@/lib/blueprint";
-import { remainingMs, type QuestionTiming } from "@/lib/question-timer";
+import { MODES, MODULE_PAUSE_SECONDS, MODULE_QUESTION_SECONDS, TRACKS } from "@/lib/blueprint";
+import { pauseTiming, remainingMs, resumeTiming, type QuestionTiming } from "@/lib/question-timer";
 import { track as trackEvent } from "@/lib/analytics";
 import {
   getAttempt,
@@ -21,6 +21,7 @@ import {
 import { useEmailGate } from "@/components/EmailGate";
 import SkillJarLinks from "@/components/SkillJarLinks";
 import Header from "@/components/Header";
+import RichText from "@/components/RichText";
 
 export default function QuizPage() {
   const params = useParams<{ id: string }>();
@@ -103,19 +104,24 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
   const check = checks[q.id];
   const qTime = timing[q.id];
   const timedOut = !!qTime?.timedOut;
-  /** Answered, or out of time: either way the question is settled and the learner can go on */
-  const resolved = currentComplete || timedOut;
+  /** The learner paused this question: it scores as incorrect and has the longer limit */
+  const paused = !!qTime?.paused;
+  /** The clock is frozen right now (a paused question the learner has not resumed) */
+  const frozen = paused && qTime?.pausedAt !== undefined;
+  /** Answered, out of time, or paused: the question is settled and the learner can go on */
+  const resolved = currentComplete || timedOut || paused;
   /** The clock runs from the moment the question is shown until an answer is complete or the time is gone */
-  const clockRunning = perQ !== null && !currentComplete && !timedOut && !check;
-  const qRemaining = perQ === null ? null : remainingMs(qTime, now, perQ);
+  const clockRunning = perQ !== null && !currentComplete && !timedOut && !check && !frozen;
+  const qRemaining = perQ === null ? null : remainingMs(qTime, now, perQ, MODULE_PAUSE_SECONDS * 1000);
+  const limitMs = perQ === null ? 0 : paused ? MODULE_PAUSE_SECONDS * 1000 : perQ;
   // Feedback mode: the answer locks and is revealed once the server has checked it
   const revealed = feedback && !!check;
-  const locked = revealed || checking || (feedback && currentComplete);
+  const locked = revealed || checking || (feedback && currentComplete) || frozen;
   const correctLabels = check?.keys ?? [];
   const currentCorrect = !!check?.correct;
   const isLast = currentIdx === total - 1;
   const isFirst = currentIdx === 0;
-  const primaryDisabled = !resolved || (feedback && !revealed) || checking || finishing || gate.modalOpen;
+  const primaryDisabled = !resolved || (feedback && !revealed && !paused) || checking || finishing || gate.modalOpen;
   const primaryLabel = isLast ? "See my results →" : "Next question →";
   const deadline = attempt.limitSeconds ? attempt.startedAt + attempt.limitSeconds * 1000 : null;
 
@@ -175,8 +181,24 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outOfTime, q.id]);
 
+  /** Freezes this question's clock: it now scores as incorrect, has 60 seconds, and the learner can move on */
+  function pauseClock() {
+    if (!clockRunning) return;
+    const at = Date.now();
+    setTiming((prev) => ({ ...prev, [q.id]: pauseTiming(prev[q.id], at) }));
+    setNow(at);
+    trackEvent("question_timer_paused", { track: attempt.track, mode: attempt.mode, domain: q.domain });
+  }
+
+  function resumeClock() {
+    if (!frozen || !qTime) return;
+    const at = Date.now();
+    setTiming((prev) => (prev[q.id] ? { ...prev, [q.id]: resumeTiming(prev[q.id], at) } : prev));
+    setNow(at);
+  }
+
   async function runTimeout(qq: PublicQuestion) {
-    setTiming((prev) => ({ ...prev, [qq.id]: { startedAt: prev[qq.id]?.startedAt ?? Date.now(), timedOut: true } }));
+    setTiming((prev) => ({ ...prev, [qq.id]: { ...prev[qq.id], startedAt: prev[qq.id]?.startedAt ?? Date.now(), pausedAt: undefined, timedOut: true } }));
     setChecking(true);
     setCheckError(false);
     try {
@@ -205,7 +227,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
       const res = await fetch("/api/check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ seed: attempt.seed, id: qq.id, picks: chosen, learner: getLearner(), mode: attempt.mode, module: attempt.module }),
+        body: JSON.stringify({ seed: attempt.seed, id: qq.id, picks: chosen, paused: !!timing[qq.id]?.paused, learner: getLearner(), mode: attempt.mode, module: attempt.module }),
       });
       if (!res.ok) throw new Error("check failed");
       const result = (await res.json()) as CheckResult;
@@ -290,7 +312,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
   }
 
   function handleFinishEarly() {
-    const answered = questions.filter(isComplete).length;
+    const answered = questions.filter((qq) => isComplete(qq) && !timing[qq.id]?.paused).length;
     const missing = total - answered;
     if (missing > 0 && !window.confirm(`${missing} question${missing === 1 ? " is" : "s are"} unanswered and will count as incorrect. Finish now?`)) return;
     void finish();
@@ -324,8 +346,8 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
       }
       const target = e.target as HTMLElement | null;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
-      const optionLabels: OptionLabel[] = ["A", "B", "C", "D"];
-      if (["1", "2", "3", "4"].includes(e.key)) {
+      const optionLabels: OptionLabel[] = ["A", "B", "C", "D", "E"];
+      if (["1", "2", "3", "4", "5"].includes(e.key)) {
         e.preventDefault();
         const label = optionLabels[Number(e.key) - 1];
         if (label) selectAnswer(label);
@@ -362,7 +384,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
   function segmentState(i: number) {
     const qq = questions[i];
     if (i === currentIdx) return "current";
-    if (qq && (isComplete(qq) || timing[qq.id]?.timedOut)) return "answered";
+    if (qq && (isComplete(qq) || timing[qq.id]?.timedOut || timing[qq.id]?.paused)) return "answered";
     return "default";
   }
 
@@ -446,7 +468,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
     };
   }
 
-  const modeTitle = `${trackDef.short} · ${MODES[attempt.mode].title}${attempt.domain ? `: ${attempt.domain}` : ""}${attempt.module ? `: ${attempt.module}` : ""}`;
+  const modeTitle = `${trackDef.short} · ${MODES[attempt.mode].title}${attempt.domain ? `: ${attempt.domain}` : ""}${attempt.module ? `: ${attempt.module}` : ""}${attempt.level ? ` · Level ${attempt.level}` : ""}`;
   const remaining = deadline ? deadline - now : null;
 
   return (
@@ -481,15 +503,30 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
                   ⏱ {fmt(qRemaining)}
                 </span>
                 <span style={{ fontSize: "13px", color: "var(--on-navy-2)", flex: 1 }}>
-                  {timedOut ? "Time's up for this question" : clockRunning ? `${MODULE_QUESTION_SECONDS} seconds per question. Answer before it runs out.` : "Clock stopped. Continue when you are ready."}
+                  {timedOut
+                    ? "Time's up for this question"
+                    : paused && !currentComplete
+                      ? `${frozen ? "Timer paused" : "Timer resumed"}: this question now has ${MODULE_PAUSE_SECONDS} seconds and counts as incorrect.`
+                      : clockRunning
+                        ? `${MODULE_QUESTION_SECONDS} seconds per question. Answer before it runs out.`
+                        : "Clock stopped. Continue when you are ready."}
                 </span>
+                {attempt.mode === "module" && (clockRunning || frozen) && !check && (
+                  <button
+                    type="button"
+                    onClick={frozen ? resumeClock : pauseClock}
+                    style={{ padding: "7px 14px", borderRadius: "8px", border: "1px solid rgba(255,255,255,.35)", background: "transparent", color: "#ffffff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}
+                  >
+                    {frozen ? "▶ Resume timer" : "⏸ Pause timer"}
+                  </button>
+                )}
               </div>
               {/* Drains over 40 seconds, freezes when the question is answered */}
               <div aria-hidden="true" style={{ height: "6px", borderRadius: "var(--r-pill)", background: "rgba(255,255,255,.18)", marginTop: "8px", overflow: "hidden" }}>
                 <div
                   style={{
                     height: "100%",
-                    width: `${Math.round((qRemaining / perQ) * 100)}%`,
+                    width: `${Math.round((qRemaining / limitMs) * 100)}%`,
                     background: qRemaining <= 10_000 ? "#f87171" : "var(--accent)",
                     transition: clockRunning ? "width .25s linear, background .3s" : "none",
                   }}
@@ -649,7 +686,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
               </div>
 
               {/* Question */}
-              <p
+              <div
                 className="quiz-question"
                 style={{
                   fontSize: "22px",
@@ -660,8 +697,8 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
                   margin: isMulti ? "0 0 14px" : "0 0 28px",
                 }}
               >
-                {q.question}
-              </p>
+                <RichText text={q.question} />
+              </div>
 
               {isMulti && (
                 <p
@@ -746,7 +783,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
                       <span
                         style={{ flex: 1, fontSize: "15px", lineHeight: "24px", ...styles.text }}
                       >
-                        {opt.text}
+                        <RichText text={opt.text} />
                       </span>
                       {optionTag(opt.label) && (
                         <span
@@ -799,7 +836,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
                             className="mobile-option-text"
                             style={{ color: (styles.text as React.CSSProperties).color }}
                           >
-                            {opt.text}
+                            <RichText text={opt.text} />
                           </p>
                           {optionTag(opt.label) && (
                             <span

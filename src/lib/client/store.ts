@@ -37,6 +37,9 @@ export interface StoredAttempt {
   domain?: string;
   /** Set for practice by module */
   module?: string;
+  /** Developer exams: the level taken, and a full mock's chosen question count (its minutes are `limitSeconds`) */
+  level?: number;
+  questionCount?: number;
   examConditions: boolean;
   startedAt: number;
   /** null = untimed */

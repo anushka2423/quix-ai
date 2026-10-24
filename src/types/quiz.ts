@@ -1,5 +1,5 @@
 export type Difficulty = "Easy" | "Medium" | "Hard";
-export type OptionLabel = "A" | "B" | "C" | "D";
+export type OptionLabel = "A" | "B" | "C" | "D" | "E";
 export type AnswerLabel = OptionLabel | "?";
 
 export type TrackId = "associate" | "developer";

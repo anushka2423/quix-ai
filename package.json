@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "bank:modules": "tsx scripts/build-module-bank.ts",
     "bank:coverage": "tsx scripts/bank-coverage.ts",
     "bank:import": "tsx scripts/import-questions.ts",
     "bank:sql": "tsx scripts/generate-seed-sql.ts",

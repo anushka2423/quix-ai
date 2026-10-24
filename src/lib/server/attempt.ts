@@ -12,7 +12,7 @@ export function explanationFor(q: BankQuestion): string {
   return `The correct ${keys.length > 1 ? "answers are" : "answer is"}: ${texts.join("; ")}.`;
 }
 
-const LABELS = new Set(["A", "B", "C", "D"]);
+const LABELS = new Set(["A", "B", "C", "D", "E"]);
 
 export function cleanPicks(raw: unknown): OptionLabel[] {
   if (!Array.isArray(raw)) return [];
@@ -27,6 +27,8 @@ export interface ResultRequest {
   /** Practice by module: the module (course) name, so missed questions link to the lesson of that module */
   module?: string;
   questionIds: number[];
+  /** Module quiz questions whose clock the learner paused: they score as incorrect whatever was picked */
+  pausedIds?: number[];
   answers: { id: number; picks: unknown; ms: number }[];
   totalSeconds: number;
 }
@@ -38,8 +40,9 @@ export async function resultFromRequest(body: ResultRequest): Promise<ResultSumm
   const byId = new Map(bank.map((q) => [q.id, q]));
   const asked = (body.questionIds ?? []).map((id) => byId.get(Number(id))).filter((q): q is BankQuestion => !!q && q.track === body.track);
   if (!asked.length) return null;
+  const paused = new Set(body.mode === "module" ? (body.pausedIds ?? []).map(Number) : []);
   const answers: AttemptAnswer[] = (body.answers ?? [])
-    .filter((a) => asked.some((q) => q.id === a.id))
+    .filter((a) => asked.some((q) => q.id === a.id) && !paused.has(a.id))
     .map((a) => ({ id: a.id, picks: cleanPicks(a.picks), ms: Math.max(0, Math.min(Number(a.ms) || 0, 3_600_000)) }))
     .filter((a) => a.picks.length > 0);
   // In a module quiz, a missed question links to the lesson of that module it belongs to

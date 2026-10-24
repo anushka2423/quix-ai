@@ -6,11 +6,34 @@ export interface QuestionTiming {
   stoppedAt?: number;
   /** The time ran out before an answer was given */
   timedOut?: boolean;
+  /** The learner paused this question's clock: it scores as incorrect and gets the longer time limit */
+  paused?: boolean;
+  /** Set while the clock is frozen by the pause */
+  pausedAt?: number;
+  /** Total time spent frozen, which does not count against the limit */
+  pausedMs?: number;
 }
 
-/** Milliseconds left on a question's clock. A question not shown yet has all of its time. */
-export function remainingMs(t: QuestionTiming | undefined, now: number, limitMs: number): number {
+/**
+ * Milliseconds left on a question's clock. A question not shown yet has all of its time. A paused question's limit
+ * is `pausedLimitMs` instead, and its clock stands still while frozen.
+ */
+export function remainingMs(t: QuestionTiming | undefined, now: number, limitMs: number, pausedLimitMs = limitMs): number {
   if (!t) return limitMs;
   if (t.timedOut) return 0;
-  return Math.max(0, limitMs - ((t.stoppedAt ?? now) - t.startedAt));
+  const limit = t.paused ? pausedLimitMs : limitMs;
+  return Math.max(0, limit - ((t.pausedAt ?? t.stoppedAt ?? now) - t.startedAt - (t.pausedMs ?? 0)));
+}
+
+/** Freezes a question's clock: it now scores as incorrect and has the longer limit. */
+export function pauseTiming(t: QuestionTiming | undefined, now: number): QuestionTiming {
+  const base = t ?? { startedAt: now };
+  return { ...base, paused: true, pausedAt: base.pausedAt ?? now };
+}
+
+/** Restarts a frozen clock; the frozen time is not counted. */
+export function resumeTiming(t: QuestionTiming, now: number): QuestionTiming {
+  if (t.pausedAt === undefined) return t;
+  const { pausedAt, ...rest } = t;
+  return { ...rest, pausedMs: (t.pausedMs ?? 0) + (now - pausedAt) };
 }

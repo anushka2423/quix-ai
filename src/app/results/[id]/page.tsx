@@ -23,6 +23,7 @@ import { startAttempt } from "@/lib/client/start";
 import { track as trackEvent } from "@/lib/analytics";
 import { useEmailGate } from "@/components/EmailGate";
 import BookingCTA from "@/components/BookingCTA";
+import RichText from "@/components/RichText";
 import SkillJarLinks from "@/components/SkillJarLinks";
 import Header from "@/components/Header";
 
@@ -103,6 +104,7 @@ function Results({ attempt }: { attempt: StoredAttempt }) {
     domain: attempt.domain,
     module: attempt.module,
     questionIds: attempt.questions.map((q) => q.id),
+    pausedIds: Object.entries(attempt.qTiming ?? {}).filter(([, t]) => t.paused).map(([id]) => Number(id)),
     answers: Object.entries(attempt.answers).map(([qid, a]) => ({ id: Number(qid), picks: a.picks, ms: a.ms })),
     totalSeconds: Math.round(((attempt.finishedAt ?? openedAt) - attempt.startedAt) / 1000),
   };
@@ -181,7 +183,17 @@ function Results({ attempt }: { attempt: StoredAttempt }) {
 
   async function again(mode: typeof attempt.mode, domain?: string, module?: string) {
     setStarting(mode);
-    const r = await startAttempt({ track: attempt.track, mode, domain, module });
+    // Repeating keeps the chosen level and, for a configured full mock, its question count and time
+    const same = mode === attempt.mode;
+    const r = await startAttempt({
+      track: attempt.track,
+      mode,
+      domain,
+      module,
+      level: same ? attempt.level : undefined,
+      questionCount: same ? attempt.questionCount : undefined,
+      minutes: same && attempt.questionCount && attempt.limitSeconds ? Math.round(attempt.limitSeconds / 60) : undefined,
+    });
     if ("id" in r) router.push(`/quiz/${r.id}`);
     else {
       setStarting(null);
@@ -432,7 +444,7 @@ function Results({ attempt }: { attempt: StoredAttempt }) {
               {result.missed.map((m, i) => (
                 <details key={m.id} className="faq-details" style={{ border: "1px solid #dce3ed", borderRadius: "10px", padding: "12px 16px" }}>
                   <summary style={{ cursor: "pointer", fontWeight: 600 }}>
-                    {i + 1}. {m.question}
+                    {i + 1}. <RichText text={m.question} />
                   </summary>
                   <p style={{ margin: "10px 0 4px", fontSize: "13px", color: "var(--muted)" }}>
                     {m.domain} · {m.subSkill}

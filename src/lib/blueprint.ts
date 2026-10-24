@@ -423,6 +423,20 @@ export const MODULE_SIZE = 15;
 /** Seconds a learner has for each question of a module quiz */
 export const MODULE_QUESTION_SECONDS = 40;
 
+/** Seconds a question has once the learner pauses its clock (that question then scores as incorrect) */
+export const MODULE_PAUSE_SECONDS = 60;
+
+/** Levels learners can attempt. Levels 2 and 3 stay locked until they are enabled in a future update. */
+export const LEVELS = [1, 2, 3] as const;
+export const OPEN_LEVELS: readonly number[] = [1];
+export const isLevelOpen = (level: number) => OPEN_LEVELS.includes(level);
+
+/** Developer full mock limits: questions and total minutes the learner can choose */
+export const FULL_MOCK_MIN_QUESTIONS = 10;
+export const FULL_MOCK_MAX_QUESTIONS = 150;
+export const FULL_MOCK_MIN_MINUTES = 5;
+export const FULL_MOCK_MAX_MINUTES = 240;
+
 /** Share of the exam (0..1) a domain's sub-skills sum to; used to weight readiness. */
 export function weightFraction(track: TrackId, domain: string): number {
   const total = TRACKS[track].domains.reduce((n, d) => n + d.weight, 0);
