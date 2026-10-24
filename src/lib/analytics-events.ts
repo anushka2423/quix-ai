@@ -4,6 +4,7 @@ export const EVENTS = [
   "track_selected",
   "module_started",
   "question_answered",
+  "question_timer_paused",
   "email_modal_shown",
   "email_submitted",
   "email_skipped",
