@@ -43,8 +43,15 @@ const pill = (tone: "ok" | "bad" | "muted"): React.CSSProperties => ({
   color: tone === "ok" ? "var(--correct-text)" : tone === "bad" ? "var(--incorrect-text)" : "var(--muted)",
 });
 
+interface DevCourseModule {
+  name: string;
+  description: string;
+  position: number | null;
+  questions: { id: number; question: string; answer: string; difficulty: string }[];
+}
+
 /** Add, write, edit and remove the questions of each lesson of each module (Skill Jar course). Modules and lessons fold away. */
-export default function ModuleQuizzesClient({ data }: { data: AdminModuleQuizzes }) {
+export default function ModuleQuizzesClient({ data, devCourseModules = [] }: { data: AdminModuleQuizzes; devCourseModules?: DevCourseModule[] }) {
   const [track, setTrack] = useState<"associate" | "developer">("associate");
   const [openCourses, setOpenCourses] = useState<Set<string>>(new Set());
   const [openLessons, setOpenLessons] = useState<Set<number>>(new Set());
@@ -173,6 +180,26 @@ export default function ModuleQuizzesClient({ data }: { data: AdminModuleQuizzes
           </p>
         )}
       </div>
+
+      {/* ── Developer track: hardcoded course modules (read-only) ── */}
+      {track === "developer" && devCourseModules.length > 0 && (
+        <div style={{ marginTop: 32 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, flexWrap: "wrap" }}>
+            <h2 style={{ fontSize: 18, margin: 0 }}>Developer Course Modules (read-only)</h2>
+            <span style={{ fontSize: 13, color: "var(--muted)", background: "#eef1f6", padding: "3px 10px", borderRadius: 999 }}>
+              Sourced from module-bank.json · {devCourseModules.reduce((n, m) => n + m.questions.length, 0)} questions across {devCourseModules.length} modules
+            </span>
+          </div>
+          <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 12px" }}>
+            These questions power the Developer track&apos;s Full Mock Exam and By Module modes. They come from the five course markdown files (1.md–5.md) and are compiled into <code>module-bank.json</code>. To update them, edit the markdown files and run <code>npm run bank:modules</code>.
+          </p>
+          <div style={{ display: "grid", gap: 10 }}>
+            {devCourseModules.map((m) => (
+              <DevCourseCard key={m.name} module={m} needle={needle} />
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -358,6 +385,37 @@ function AddFromBank({ lesson, course, data, inCourse, search, setSearch, run, c
       </ul>
       <BusyButton style={{ ...btn, marginTop: 8 }} block={pending} onClick={close}>Close</BusyButton>
     </div>
+  );
+}
+
+function DevCourseCard({ module: m, needle }: { module: { name: string; description: string; questions: { id: number; question: string; answer: string; difficulty: string }[] }; needle: string }) {
+  const [open, setOpen] = useState(false);
+  const filtered = m.questions.filter((q) => !needle || `${m.name} ${m.description} ${q.question}`.toLowerCase().includes(needle));
+  if (needle && !filtered.length) return null;
+  return (
+    <section style={{ ...card, padding: 0 }}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{ ...foldBtn, padding: "14px 16px", display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}
+      >
+        <span aria-hidden style={{ width: 16, color: "var(--muted)" }}>{open ? "▾" : "▸"}</span>
+        <h3 style={{ fontSize: 17, margin: 0, flex: "1 1 260px" }}>{m.name}</h3>
+        <span style={pill("muted")}>{m.questions.length} question{m.questions.length === 1 ? "" : "s"} · read-only</span>
+        <span style={{ fontSize: 13, color: "var(--muted)" }}>{m.description}</span>
+      </button>
+      {open && (
+        <div style={{ borderTop: "1px solid var(--border)", padding: "10px 16px 14px" }}>
+          <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 6 }}>
+            {(needle ? filtered : m.questions).map((q) => (
+              <li key={q.id} style={{ padding: "8px 10px", background: "var(--canvas)", borderRadius: 6, display: "flex", gap: 12, alignItems: "baseline", flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, color: "var(--muted)", whiteSpace: "nowrap" }}>#{q.id} · {q.difficulty} · Ans: {q.answer}</span>
+                <span style={{ fontSize: 14, flex: 1 }}>{q.question.length > 160 ? `${q.question.slice(0, 157)}…` : q.question}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
   );
 }
 
