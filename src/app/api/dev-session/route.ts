@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { FULL_MOCK_MAX_MINUTES, FULL_MOCK_MAX_QUESTIONS, FULL_MOCK_MIN_MINUTES, FULL_MOCK_MIN_QUESTIONS, isLevelOpen } from "@/lib/blueprint";
-import { MODULE_BANK, MODULE_QUIZZES, moduleName } from "@/lib/bank/module-bank";
-import { mulberry32, toPublic } from "@/lib/bank";
+import { MODULE_QUIZZES, moduleName } from "@/lib/bank/module-bank";
+import { getLevel, mulberry32, toPublic } from "@/lib/bank";
 import { bad, readJson } from "@/lib/server/http";
 import type { BankQuestion } from "@/types/quiz";
 
@@ -62,7 +62,8 @@ export async function POST(req: Request) {
 
   const count = Number(body.questionCount);
   const minutes = Number(body.timerMinutes);
-  const maxQ = MODULE_BANK.length;
+  const { bank } = await getLevel(level);
+  const maxQ = bank.length;
   if (!Number.isInteger(count) || count < Math.min(FULL_MOCK_MIN_QUESTIONS, maxQ) || count > Math.min(FULL_MOCK_MAX_QUESTIONS, maxQ)) {
     return bad(`Choose between ${Math.min(FULL_MOCK_MIN_QUESTIONS, maxQ)} and ${Math.min(FULL_MOCK_MAX_QUESTIONS, maxQ)} questions`);
   }
@@ -73,9 +74,9 @@ export async function POST(req: Request) {
   const seed = randomUUID();
   const rng = mulberry32(parseInt(seed.slice(0, 8), 16));
 
-  // Group MODULE_BANK by module number
+  // Group the level's bank by module number
   const byModule = new Map<number, BankQuestion[]>();
-  for (const q of MODULE_BANK) {
+  for (const q of bank) {
     // Module questions have submoduleName = "Module N"
     const match = q.submoduleName?.match(/^Module (\d+)$/);
     const n = match ? Number(match[1]) : undefined;
@@ -86,7 +87,7 @@ export async function POST(req: Request) {
 
   // Determine per-module allocation
   const sizes = new Map([...byModule.entries()].map(([mod, qs]) => [mod, qs.length]));
-  const alloc = distribute(MODULE_BANK.length, sizes, Math.min(count, maxQ));
+  const alloc = distribute(bank.length, sizes, Math.min(count, maxQ));
 
   // Pick from each module
   const picked: BankQuestion[] = [];

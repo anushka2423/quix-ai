@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { FULL_MOCK_MAX_MINUTES, FULL_MOCK_MAX_QUESTIONS, FULL_MOCK_MIN_MINUTES, FULL_MOCK_MIN_QUESTIONS, MODULE_QUESTION_SECONDS, MODULE_SIZE, TRACKS } from "@/lib/blueprint";
+import { FULL_MOCK_MAX_MINUTES, FULL_MOCK_MAX_QUESTIONS, FULL_MOCK_MIN_MINUTES, FULL_MOCK_MIN_QUESTIONS, MODULE_QUESTION_SECONDS, MODULE_SIZE, OPEN_LEVELS, TRACKS } from "@/lib/blueprint";
 import type { TrackMeta } from "@/lib/bank";
 import { startAttempt, startDevFullMock } from "@/lib/client/start";
 import { track as trackEvent } from "@/lib/analytics";
@@ -13,17 +13,24 @@ const NAVY = "#071b39";
 const BLUE = "#214f91";
 const ACCENT = "#ff9b50";
 
-const MODULE_TOTAL = 84; // 23 + 25 + 12 + 12 + 12 across 5 modules
 
 type Screen = "home" | "full-mock-config";
 
-export default function DeveloperTrackClient({ meta }: { meta: TrackMeta }) {
+/** What each level holds: its total question count, and the count of each module (Level 1 counts come from `meta`) */
+export interface LevelCounts {
+  total: Record<number, number>;
+  modules: Record<number, Record<string, number>>;
+}
+
+export default function DeveloperTrackClient({ meta, levels }: { meta: TrackMeta; levels: LevelCounts }) {
   const router = useRouter();
   const def = TRACKS.developer;
 
   const [screen, setScreen] = useState<Screen>("home");
+  const [level, setLevel] = useState(1);
   const [questionCount, setQuestionCount] = useState(53);
   const [timerMinutes, setTimerMinutes] = useState(120);
+  const moduleTotal = levels.total[level] ?? 0;
   const [fullBusy, setFullBusy] = useState(false);
   const [moduleBusy, setModuleBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -36,7 +43,7 @@ export default function DeveloperTrackClient({ meta }: { meta: TrackMeta }) {
   async function startFullMock() {
     setFullBusy(true);
     setError("");
-    const r = await startDevFullMock({ questionCount, timerMinutes });
+    const r = await startDevFullMock({ questionCount: Math.min(questionCount, moduleTotal), timerMinutes, level });
     if ("id" in r) router.push(`/quiz/${r.id}`);
     else {
       setError(r.error);
@@ -47,13 +54,15 @@ export default function DeveloperTrackClient({ meta }: { meta: TrackMeta }) {
   async function startModule(name: string) {
     setModuleBusy(name);
     setError("");
-    const r = await startAttempt({ track: "developer", mode: "module", module: name, level: 1 });
+    const r = await startAttempt({ track: "developer", mode: "module", module: name, level });
     if ("id" in r) router.push(`/quiz/${r.id}`);
     else {
       setError(r.error);
       setModuleBusy(null);
     }
   }
+
+  const countAt = (m: { name: string; count: number }) => (level === 1 ? m.count : levels.modules[level]?.[m.name] ?? 0);
 
   const modules = meta.modules.length > 0 ? meta.modules : [
     { name: "Module 1", description: "MSO Foundations", count: 23 },
@@ -110,7 +119,7 @@ export default function DeveloperTrackClient({ meta }: { meta: TrackMeta }) {
                     Questions drawn from all 5 course modules. Set your level, timer, and question count before you start.
                   </p>
                   <span style={{ fontSize: "14px", color: "#654a39", borderTop: "1px solid #dce3ed", paddingTop: "14px", marginTop: "20px" }}>
-                    Up to {MODULE_TOTAL} questions · configurable timer
+                    Up to {levels.total[1]} questions · configurable timer
                   </span>
                   <button
                     onClick={() => { setScreen("full-mock-config"); setError(""); }}
@@ -161,31 +170,34 @@ export default function DeveloperTrackClient({ meta }: { meta: TrackMeta }) {
                     <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".5px", margin: "0 0 10px" }}>Level</p>
                     <div style={{ display: "flex", gap: "8px" }}>
                       {[1, 2, 3].map((lvl) => {
-                        const locked = lvl !== 1;
+                        const locked = !OPEN_LEVELS.includes(lvl);
+                        const selected = lvl === level;
                         return (
                           <button
                             key={lvl}
                             disabled={locked}
+                            onClick={() => setLevel(lvl)}
+                            aria-pressed={selected}
                             style={{
                               padding: "10px 20px",
                               borderRadius: "8px",
                               border: "2px solid",
-                              borderColor: !locked ? ACCENT : "#dce3ed",
-                              background: !locked ? "#fff3e8" : "#f5f7fa",
+                              borderColor: selected ? ACCENT : "#dce3ed",
+                              background: selected ? "#fff3e8" : "#f5f7fa",
                               color: !locked ? NAVY : "var(--muted)",
                               fontWeight: 700,
                               fontSize: "14px",
-                              cursor: locked ? "not-allowed" : "default",
+                              cursor: locked ? "not-allowed" : "pointer",
                               fontFamily: "inherit",
                               opacity: locked ? 0.7 : 1,
                             }}
                           >
-                            Level {lvl} {locked ? "🔒" : "✓"}
+                            Level {lvl} {locked ? "🔒" : selected ? "✓" : ""}
                           </button>
                         );
                       })}
                     </div>
-                    <p style={{ fontSize: "13px", color: "var(--muted)", margin: "8px 0 0" }}>Levels 2 and 3 will be available in a future update.</p>
+                    <p style={{ fontSize: "13px", color: "var(--muted)", margin: "8px 0 0" }}>Level 3 will be available in a future update.</p>
                   </div>
 
                   {/* Question count */}
@@ -198,7 +210,7 @@ export default function DeveloperTrackClient({ meta }: { meta: TrackMeta }) {
                         ref={countRef}
                         type="range"
                         min={FULL_MOCK_MIN_QUESTIONS}
-                        max={Math.min(FULL_MOCK_MAX_QUESTIONS, MODULE_TOTAL)}
+                        max={Math.min(FULL_MOCK_MAX_QUESTIONS, moduleTotal)}
                         value={questionCount}
                         onChange={(e) => setQuestionCount(Number(e.target.value))}
                         style={{ flex: 1, accentColor: ACCENT }}
@@ -206,17 +218,17 @@ export default function DeveloperTrackClient({ meta }: { meta: TrackMeta }) {
                       <input
                         type="number"
                         min={FULL_MOCK_MIN_QUESTIONS}
-                        max={Math.min(FULL_MOCK_MAX_QUESTIONS, MODULE_TOTAL)}
+                        max={Math.min(FULL_MOCK_MAX_QUESTIONS, moduleTotal)}
                         value={questionCount}
                         onChange={(e) => {
-                          const v = Math.max(FULL_MOCK_MIN_QUESTIONS, Math.min(Math.min(FULL_MOCK_MAX_QUESTIONS, MODULE_TOTAL), Number(e.target.value)));
+                          const v = Math.max(FULL_MOCK_MIN_QUESTIONS, Math.min(Math.min(FULL_MOCK_MAX_QUESTIONS, moduleTotal), Number(e.target.value)));
                           setQuestionCount(v);
                         }}
                         style={{ width: "68px", padding: "8px 10px", borderRadius: "8px", border: "1.5px solid var(--border)", fontFamily: "inherit", fontSize: "15px", textAlign: "center" }}
                       />
                     </div>
                     <p style={{ fontSize: "13px", color: "var(--muted)", margin: "6px 0 0" }}>
-                      Max {MODULE_TOTAL} questions ({modules.length} modules)
+                      Max {moduleTotal} questions ({modules.length} modules)
                     </p>
                   </div>
 
@@ -292,29 +304,36 @@ export default function DeveloperTrackClient({ meta }: { meta: TrackMeta }) {
                   {/* Level buttons */}
                   <div style={{ display: "flex", gap: "6px", marginBottom: "16px" }}>
                     {[1, 2, 3].map((lvl) => {
-                      const locked = lvl !== 1;
+                      const locked = !OPEN_LEVELS.includes(lvl);
+                      const selected = lvl === level;
                       return (
-                        <span
+                        <button
                           key={lvl}
+                          type="button"
+                          disabled={locked}
+                          onClick={() => setLevel(lvl)}
+                          aria-pressed={selected}
                           style={{
+                            cursor: locked ? "not-allowed" : "pointer",
+                            fontFamily: "inherit",
                             padding: "4px 12px",
                             borderRadius: "999px",
                             fontSize: "12px",
                             fontWeight: 700,
-                            background: !locked ? "#e8f5e9" : "#f5f7fa",
-                            color: !locked ? "#2e7d32" : "var(--muted)",
-                            border: `1px solid ${!locked ? "#a5d6a7" : "#dce3ed"}`,
+                            background: selected ? "#e8f5e9" : "#f5f7fa",
+                            color: selected ? "#2e7d32" : "var(--muted)",
+                            border: `1px solid ${selected ? "#a5d6a7" : "#dce3ed"}`,
                             letterSpacing: ".3px",
                           }}
                         >
                           {locked ? "🔒 " : ""}Level {lvl}
-                        </span>
+                        </button>
                       );
                     })}
                   </div>
 
                   <span style={{ fontSize: "14px", color: "#654a39", borderTop: "1px solid #dce3ed", paddingTop: "14px", marginBottom: "14px" }}>
-                    {Math.min(m.count, MODULE_SIZE)} question{Math.min(m.count, MODULE_SIZE) === 1 ? "" : "s"} · {MODULE_QUESTION_SECONDS} sec each · Pause available
+                    {Math.min(countAt(m), MODULE_SIZE)} question{Math.min(countAt(m), MODULE_SIZE) === 1 ? "" : "s"} · {MODULE_QUESTION_SECONDS} sec each · Pause available
                   </span>
                   <button
                     onClick={() => void startModule(m.name)}
@@ -333,7 +352,7 @@ export default function DeveloperTrackClient({ meta }: { meta: TrackMeta }) {
                       minHeight: "44px",
                     }}
                   >
-                    {moduleBusy === m.name ? "Starting…" : "Start Level 1 →"}
+                    {moduleBusy === m.name ? "Starting…" : `Start Level ${level} →`}
                   </button>
                 </article>
               ))}

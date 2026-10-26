@@ -3,7 +3,7 @@ import { DEMO_SIZE, TRACKS, TRACK_IDS, type DocLink, type DomainDef, type SubSki
 import { parseAnswer, requiredPicks } from "@/lib/answers";
 import { db } from "@/lib/server/db";
 import { CODE_BANK } from "./code-bank";
-import { MODULE_BANK, MODULE_QUIZZES } from "./module-bank";
+import { levelTwoFromDatabase, MODULE_BANK, MODULE_QUIZZES } from "./module-bank";
 
 /**
  * Question bank and exam blueprint. SERVER ONLY: it carries answer keys, so only API routes and
@@ -40,7 +40,7 @@ interface QuestionRow {
   id: number; module_id: number; section: string; difficulty: string; question: string;
   option_a: string; option_b: string; option_c: string; option_d: string; answer: string;
   explanation?: string | null; order_index?: number;
-  submodule_id?: number | null; demo_order?: number | null; topic_id?: number | null; module_only?: boolean | null;
+  submodule_id?: number | null; demo_order?: number | null; topic_id?: number | null; module_only?: boolean | null; level?: number | null;
 }
 interface MemberRow { id?: number; topic_id: number; question_id: number }
 interface SubmoduleRow { id: number; module_id: number; title: string; description?: string | null; order_index?: number | null; course_position?: number | null }
@@ -163,6 +163,7 @@ export function buildFromRows(
       lessonName: lessonOf(r)?.lesson ?? null,
       submoduleName: r.submodule_id != null ? (submoduleNames.get(r.submodule_id) ?? null) : null,
       moduleOnly: r.module_only === true,
+      level: r.level === 2 || r.level === 3 ? r.level : 1,
       demoOrder: r.demo_order != null && r.demo_order >= 1 && r.demo_order <= DEMO_SIZE ? r.demo_order : null,
       resources: resourcesOf(r),
     });
@@ -234,14 +235,14 @@ export const moduleQuestions = (m: ModuleQuiz): BankQuestion[] => [...m.lessons.
 /** Kept for tests and callers that only need the question mapping. */
 export const rowsToBank = (modules: ModuleRow[], rows: QuestionRow[]) => buildFromRows(modules, [], rows).bank;
 
-interface Loaded { at: number; domains: Blueprint; bank: BankQuestion[]; modules: Record<TrackId, ModuleQuiz[]>; source: "database" | "code" }
+interface Loaded { at: number; domains: Blueprint; bank: BankQuestion[]; modules: Record<TrackId, ModuleQuiz[]>; levels: Record<number, { bank: BankQuestion[]; quizzes: ModuleQuiz[] }>; source: "database" | "code" }
 let cache: Loaded | null = null;
 
 const defaults = (): Blueprint => ({ associate: [...TRACKS.associate.domains], developer: [...TRACKS.developer.domains] });
 
 async function load(): Promise<Loaded> {
   if (cache && Date.now() - cache.at < TTL_MS) return cache;
-  let result: Loaded | null = null;
+  let result: Omit<Loaded, "levels"> | null = null;
   const c = db();
   if (c) {
     try {
@@ -269,7 +270,10 @@ async function load(): Promise<Loaded> {
   }
   const base = result ?? { at: Date.now(), domains: defaults(), bank: CODE_BANK, modules: { associate: [], developer: [] }, source: "code" as const };
   // The Developer By Module exams are Modules 1-5 from the module question files, whatever the database holds
-  cache = { ...base, bank: [...base.bank, ...MODULE_BANK], modules: { ...base.modules, developer: MODULE_QUIZZES } };
+  // Level 2 comes from the database: the questions stored with level 2 (empty while there are none)
+  const level2 = levelTwoFromDatabase(base.bank);
+  const levels = { 1: { bank: MODULE_BANK, quizzes: MODULE_QUIZZES }, 2: level2 ?? { bank: [], quizzes: [] } };
+  cache = { ...base, bank: [...base.bank, ...MODULE_BANK], modules: { ...base.modules, developer: MODULE_QUIZZES }, levels };
   return cache;
 }
 
@@ -302,6 +306,12 @@ export async function trackBank(track: TrackId): Promise<BankQuestion[]> {
 /** Every question of a track, module-quiz-only ones included (for review of missed questions). */
 export async function allTrackBank(track: TrackId): Promise<BankQuestion[]> {
   return (await getBank()).filter((q) => q.track === track);
+}
+
+/** The Developer By Module questions and quizzes of a level (1 or 2) */
+export async function getLevel(level: number): Promise<{ bank: BankQuestion[]; quizzes: ModuleQuiz[] }> {
+  const { levels } = await load();
+  return level === 2 ? levels[2] : levels[1];
 }
 
 export async function getModuleQuizzes(): Promise<Record<TrackId, ModuleQuiz[]>> {
