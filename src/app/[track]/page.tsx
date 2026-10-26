@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { TRACKS, TRACK_IDS, isTrack } from "@/lib/blueprint";
-import { bankMeta } from "@/lib/bank";
+import { bankMeta, getLevel } from "@/lib/bank";
+import type { BankQuestion } from "@/types/quiz";
 import TrackClient from "./TrackClient";
-import DeveloperTrackClient from "./DeveloperTrackClient";
+import DeveloperTrackClient, { type LevelCounts } from "./DeveloperTrackClient";
 
 // Questions come from the database; refresh the counts every minute
 export const revalidate = 60;
@@ -26,6 +27,17 @@ export default async function TrackPage({ params }: { params: Promise<{ track: s
   const { track } = await params;
   if (!isTrack(track)) notFound();
   const meta = (await bankMeta())[track];
-  if (track === "developer") return <DeveloperTrackClient meta={meta} />;
+  if (track === "developer") return <DeveloperTrackClient meta={meta} levels={await levelCounts()} />;
   return <TrackClient track={track} meta={meta} />;
+}
+
+/** Question counts of the Developer levels, sent to the page without the questions or their keys */
+async function levelCounts(): Promise<LevelCounts> {
+  const byModule = (bank: BankQuestion[]) => {
+    const out: Record<string, number> = {};
+    for (const q of bank) if (q.submoduleName) out[q.submoduleName] = (out[q.submoduleName] ?? 0) + 1;
+    return out;
+  };
+  const [one, two] = [await getLevel(1), await getLevel(2)];
+  return { total: { 1: one.bank.length, 2: two.bank.length }, modules: { 1: byModule(one.bank), 2: byModule(two.bank) } };
 }

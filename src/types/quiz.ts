@@ -40,6 +40,8 @@ export interface BankQuestion {
   topicId?: number | null;
   /** That lesson's name. The same lesson under several domains has the same name, so practice by module groups by it. */
   lessonName?: string | null;
+  /** Developer level: 1 unless the question is stored as a higher level. Level 2 questions are module-quiz-only. */
+  level?: number;
   /** True for questions written for module quizzes: they appear there but not in the exam-weighted practice modes */
   moduleOnly?: boolean;
   /** 1..5 when the question is part of its domain's demo, else null */

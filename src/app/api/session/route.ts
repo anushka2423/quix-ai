@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { FULL_MOCK_MAX_MINUTES, FULL_MOCK_MAX_QUESTIONS, FULL_MOCK_MIN_MINUTES, FULL_MOCK_MIN_QUESTIONS, MODES, TRACKS, isLevelOpen, isTrack } from "@/lib/blueprint";
-import { allTrackBank, getBlueprint, getModuleQuizzes, mulberry32, toPublic, trackBank } from "@/lib/bank";
+import { allTrackBank, getBlueprint, getLevel, getModuleQuizzes, mulberry32, toPublic, trackBank } from "@/lib/bank";
 import { buildDemo, buildDiagnostic, buildFullMock, buildModulePractice, buildReview, chooseNext } from "@/lib/sampling";
 import { bad, readJson } from "@/lib/server/http";
 import { parseLearner, unresolvedIds } from "@/lib/server/missed";
@@ -13,7 +13,7 @@ interface Body {
   domain?: string;
   /** Practice by module: the module (Skill Jar course) name */
   module?: string;
-  /** Developer exams: Level 1 only until the others are enabled */
+  /** Developer exams: the level (see OPEN_LEVELS in blueprint) */
   level?: number;
   /** Full mock: how many questions, and the total time in minutes */
   questionCount?: number;
@@ -47,7 +47,8 @@ export async function POST(req: Request) {
   }
 
   if ((body.mode === "drill" || body.mode === "demo") && !domains.some((d) => d.name === body.domain)) return bad("Choose a domain");
-  const moduleQuiz = body.mode === "module" ? (await getModuleQuizzes())[track].find((m) => m.name === body.module) : undefined;
+  const moduleQuizzesOfLevel = track === "developer" && level === 2 ? (await getLevel(level)).quizzes : (await getModuleQuizzes())[track];
+  const moduleQuiz = body.mode === "module" ? moduleQuizzesOfLevel.find((m) => m.name === body.module) : undefined;
   if (body.mode === "module" && !moduleQuiz) return bad("Choose a module");
 
   if (mode.adaptive) {

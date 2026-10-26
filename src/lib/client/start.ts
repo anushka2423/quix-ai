@@ -12,7 +12,7 @@ export interface StartOptions {
   /** Practice by module: the module name */
   module?: string;
   examConditions?: boolean;
-  /** Developer exams: the level (only Level 1 is open) */
+  /** Developer exams: the level (Levels 1 and 2 are open) */
   level?: number;
   /** Developer full mock: chosen question count and total minutes */
   questionCount?: number;
@@ -20,12 +20,12 @@ export interface StartOptions {
 }
 
 /** Creates a Developer Full Mock attempt from the course-module bank. */
-export async function startDevFullMock(o: { questionCount: number; timerMinutes: number }): Promise<{ id: string } | { error: string }> {
+export async function startDevFullMock(o: { questionCount: number; timerMinutes: number; level?: number }): Promise<{ id: string } | { error: string }> {
   try {
     const res = await fetch("/api/dev-session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mode: "full", level: 1, questionCount: o.questionCount, timerMinutes: o.timerMinutes }),
+      body: JSON.stringify({ mode: "full", level: o.level ?? 1, questionCount: o.questionCount, timerMinutes: o.timerMinutes }),
     });
     const data = (await res.json()) as { seed?: string; questions?: PublicQuestion[]; total?: number; minutes?: number; error?: string };
     if (!res.ok || !data.seed || !data.questions) return { error: data.error ?? "Couldn't start. Try again." };
@@ -36,7 +36,7 @@ export async function startDevFullMock(o: { questionCount: number; timerMinutes:
       seed: data.seed,
       track: "developer",
       mode: "full",
-      level: 1,
+      level: o.level ?? 1,
       questionCount: o.questionCount,
       examConditions: false,
       startedAt: Date.now(),
