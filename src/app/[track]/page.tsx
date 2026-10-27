@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { TRACKS, TRACK_IDS, isTrack } from "@/lib/blueprint";
 import { bankMeta, getLevel } from "@/lib/bank";
 import type { BankQuestion } from "@/types/quiz";
+import SeoFaq from "@/components/SeoFaq";
 import TrackClient from "./TrackClient";
 import DeveloperTrackClient, { type LevelCounts } from "./DeveloperTrackClient";
 
@@ -18,8 +19,10 @@ export async function generateMetadata({ params }: { params: Promise<{ track: st
   if (!isTrack(track)) return {};
   const t = TRACKS[track];
   return {
-    title: `${t.name} (${t.code}) practice quiz | Agentic AI Institute`,
-    description: `Free ${t.short} practice: readiness diagnostic, quick sprints, domain drills and full ${t.items}-question mocks. Every module open.`,
+    title: track === "developer" ? `Claude Developer Certification Mock Test (${t.code}) | Free Practice Exam` : `Claude ${t.short} Certification Mock Test (${t.code}) | Free Practice Exam`,
+    description: `Free Claude ${t.short.toLowerCase()} certification mock test: ${t.items}-question full mocks, readiness diagnostic, quick sprints and domain drills for the ${t.name} (${t.code}) exam. Independent Anthropic certification prep.`,
+    alternates: { canonical: `/${track}` },
+    openGraph: { url: `/${track}`, title: `Claude ${t.short} Certification Mock Test (${t.code})`, images: ["/agentic-ai-logo.png"] },
   };
 }
 
@@ -27,8 +30,12 @@ export default async function TrackPage({ params }: { params: Promise<{ track: s
   const { track } = await params;
   if (!isTrack(track)) notFound();
   const meta = (await bankMeta())[track];
-  if (track === "developer") return <DeveloperTrackClient meta={meta} levels={await levelCounts()} />;
-  return <TrackClient track={track} meta={meta} />;
+  return (
+    <>
+      {track === "developer" ? <DeveloperTrackClient meta={meta} levels={await levelCounts()} /> : <TrackClient track={track} meta={meta} />}
+      <SeoFaq track={track} />
+    </>
+  );
 }
 
 /** Question counts of the Developer levels, sent to the page without the questions or their keys */
