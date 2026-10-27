@@ -4,7 +4,7 @@ import SiteFooter from "@/components/SiteFooter";
 import Icon from "@/components/Icon";
 import { DISCLAIMER } from "@/lib/config";
 
-export const metadata = { title: "Privacy | Claude Certification Practice Quiz" };
+export const metadata = { title: "Privacy | Claude Certification Practice Quiz", alternates: { canonical: "/privacy" } };
 
 /** DRAFT: needs legal review before public launch (GDPR / CAN-SPAM wording, controller details). */
 export default function Privacy() {

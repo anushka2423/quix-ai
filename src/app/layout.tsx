@@ -3,6 +3,8 @@ import { Golos_Text } from "next/font/google";
 import "./globals.css";
 import { EmailGateProvider } from "@/components/EmailGate";
 import DisclaimerBanner from "@/components/DisclaimerBanner";
+import { SITE_NAME, SITE_URL } from "@/lib/site";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 
 const golosText = Golos_Text({
   variable: "--font-golos",
@@ -12,12 +14,21 @@ const golosText = Golos_Text({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3001"),
-  title: "Claude Certification Practice Quiz | Associate & Developer | Agentic AI Institute",
-  description: "Free practice quizzes for the Claude Certified Associate (CCAO-F) and Developer (CCDV-F) exams. Instant feedback, a readiness estimate out of 1,000 and a personal study plan. Independent, not affiliated with Anthropic.",
+  metadataBase: new URL(SITE_URL),
+  title: "Claude Certification Practice Quiz (CCAO-F & CCDV-F) | Free",
+  description: "Claude certification practice tests for CCAO-F and CCDV-F. Free mock exams, instant feedback, a 1,000-point readiness score and study plan.",
+  keywords: ["claude certification", "anthropic certification", "claude developer certification mock test", "claude mock test", "claude certified associate", "claude certified developer"],
   openGraph: {
-    title: "Claude Certification Practice Quiz",
-    description: "Find out if you are ready for the Claude Associate or Developer exam.",
+    type: "website",
+    siteName: SITE_NAME,
+    title: "Claude Certification Practice Test & Mock Exam",
+    description: "Free Claude mock tests for the Associate and Developer certification exams.",
+    images: ["/agentic-ai-logo.png"],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Claude Certification Practice Test & Mock Exam",
+    description: "Free Claude mock tests for the Associate and Developer certification exams.",
     images: ["/agentic-ai-logo.png"],
   },
   icons: {
@@ -37,6 +48,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <DisclaimerBanner />
           {children}
         </EmailGateProvider>
+        <GoogleAnalytics />
       </body>
     </html>
   );
