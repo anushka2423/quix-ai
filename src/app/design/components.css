@@ -36,9 +36,13 @@
 @media (max-width: 860px) {
   .site-nav, .site-header__actions .btn { display: none; }
   .nav-toggle { display: grid; }
-  .mobile-menu { display: block; position: fixed; inset: 62px 0 auto 0; background: var(--navy); border-top: 1px solid var(--navy-line);
-    padding: var(--s-4) var(--gutter) var(--s-6); transform: translateY(-8px); opacity: 0; visibility: hidden;
-    transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease), visibility var(--dur); z-index: 39; }
+  /* Opens directly under the sticky header (wherever the notice bar leaves it), never over the toggle */
+  .mobile-menu { display: block; position: absolute; top: 100%; left: 0; right: 0; max-height: calc(100dvh - 62px); overflow-y: auto; overscroll-behavior: contain;
+    background: var(--navy); border-top: 1px solid var(--navy-line); box-shadow: 0 24px 48px -16px rgba(3, 28, 69, 0.6);
+    padding: var(--s-2) var(--gutter) var(--s-6); transform: translateY(-8px); opacity: 0; visibility: hidden;
+    transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease), visibility var(--dur); }
+  body.menu-open { overflow: hidden; }
+  body.menu-open::after { content: ""; position: fixed; inset: 0; z-index: 30; background: rgba(3, 28, 69, 0.6); } /* scrim; header (z 40) sits above it */
   .mobile-menu.is-open { opacity: 1; transform: none; visibility: visible; }
   .mobile-menu a:not(.btn) { display: block; padding: 14px 0; border-bottom: 1px solid var(--navy-line); color: var(--on-navy); font-size: var(--fs-body); }
   .mobile-menu .btn { margin-top: var(--s-5); width: 100%; justify-content: center; }
@@ -78,6 +82,9 @@
 .btn--link:hover { text-decoration: underline; text-underline-offset: 3px; }
 .btn--link-light { --btn-bg: transparent; --btn-fg: var(--on-navy); min-height: 0; padding: 0; gap: 6px; }
 .btn--link-light:hover { text-decoration: underline; text-underline-offset: 3px; }
+/* Text-style buttons keep their look but get a 44px tap area */
+.btn--link, .btn--link-light { position: relative; }
+.btn--link::before, .btn--link-light::before { content: ""; position: absolute; inset: -11px -6px; }
 
 .btn--sm { min-height: 38px; padding: 6px 14px; font-size: var(--fs-sm); }
 .btn--lg { min-height: 54px; padding: 10px 24px; font-size: 18px; }
@@ -491,3 +498,14 @@ kbd { display: inline-grid; place-items: center; min-width: 22px; height: 22px; 
 .range:focus-visible { box-shadow: none; }
 .range:focus-visible::-webkit-slider-thumb { box-shadow: var(--focus-ring); }
 .range-field__ends { display: flex; justify-content: space-between; font-size: var(--fs-xs); color: var(--muted); font-variant-numeric: tabular-nums; margin-top: -6px; }
+
+/* ---------- Scroll reveal ----------
+   [data-reveal] reveals the element; [data-reveal="children"] reveals each child.
+   Items entering the viewport together stagger in document order (ui.js → initReveal).
+   Hidden only once JS has added .js-reveal, so content never depends on the script. */
+.js-reveal .reveal { opacity: 0; transform: translateY(18px); transition: opacity var(--dur-reveal) var(--ease-out), transform var(--dur-reveal) var(--ease-out); transition-delay: var(--reveal-delay, 0ms); }
+.js-reveal .reveal.is-visible { opacity: 1; transform: none; }
+/* Bars and scales fill once their block is on screen */
+.js-reveal .reveal .progress__fill, .js-reveal .reveal .scale__fill, .js-reveal .reveal .mini-scale__fill { transition: width 1100ms var(--ease-out) calc(var(--reveal-delay, 0ms) + 250ms); }
+.js-reveal .reveal:not(.is-visible) .progress__fill, .js-reveal .reveal:not(.is-visible) .scale__fill, .js-reveal .reveal:not(.is-visible) .mini-scale__fill { width: 0; }
+@media (prefers-reduced-motion: reduce) { .js-reveal .reveal { opacity: 1; transform: none; } }

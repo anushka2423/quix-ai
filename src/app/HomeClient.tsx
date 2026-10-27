@@ -11,6 +11,8 @@ import { track as trackEvent } from "@/lib/analytics";
 import Header from "@/components/Header";
 import SiteFooter from "@/components/SiteFooter";
 import Icon from "@/components/Icon";
+import type { IconName } from "@/components/Icon";
+import { useReveal } from "@/components/useReveal";
 
 const CALENDLY_URL = BOOKING_URL;
 const INSTRUCTOR_PHOTO = "https://framerusercontent.com/images/UGcM0D2QVpSlgE1so8RC8VHnndA.jpeg?width=512&height=512";
@@ -20,19 +22,19 @@ type Meta = Record<TrackId, TrackMeta>;
 const bar = (v: string) => ({ "--value": v }) as React.CSSProperties;
 const pass = (v: string) => ({ "--pass": v }) as React.CSSProperties;
 
-const OUTCOMES = [
+const OUTCOMES: { icon: IconName; h: string; p: string }[] = [
   {
-    n: "01",
+    icon: "check",
     h: "Instant Feedback on Every Answer",
     p: "Wrong picks turn red, the right answer turns green, and a written explanation opens straight away.",
   },
   {
-    n: "02",
+    icon: "target",
     h: "A Readiness Estimate Out of 1,000",
     p: "See your estimate on the official scale with the 720 pass line marked, plus percent correct for every domain. It is an estimate, not an official score.",
   },
   {
-    n: "03",
+    icon: "calendar",
     h: "A Plan If You Fall Short",
     p: "Score under 720 on a full mock or the diagnostic and you get a detailed report, a day-by-day study plan, a PDF and an offer of a free review call.",
   },
@@ -55,6 +57,30 @@ const STEPS = [
     p: "Get your readiness estimate, your weakest domain and what to practise next. Retake until it stays at 800 or higher.",
   },
 ];
+
+/** Decorative mini product UIs shown above each step (aria-hidden). */
+const STEP_VISUALS: Record<string, React.ReactNode> = {
+  "1": (
+    <>
+      <div className="mini-seg"><span className="is-on">Associate</span><span>Developer</span></div>
+      <div className="mini-chips"><span className="is-on">Diagnostic</span><span>Sprint</span><span>Drill</span><span>Full Mock</span></div>
+    </>
+  ),
+  "2": (
+    <>
+      <div className="mini-option is-incorrect"><span className="mini-option__key">A</span><span className="mini-bar" /><Icon name="x" /></div>
+      <div className="mini-option is-correct"><span className="mini-option__key">B</span><span className="mini-bar" /><Icon name="check" /></div>
+      <div className="mini-explain"><span className="mini-bar" /><span className="mini-bar mini-bar--short" /></div>
+    </>
+  ),
+  "3": (
+    <>
+      <div className="mini-score"><strong>812</strong><span>/ 1000</span><span className="tag tag--success"><Icon name="check" size="sm" />Ready</span></div>
+      <div className="mini-scale"><span className="mini-scale__fill" style={bar("79.1%")} /><span className="mini-scale__mark" style={{ "--at": "77.8%" } as React.CSSProperties}><b>800</b></span></div>
+      <div className="mini-ends"><span>100</span><span>1000</span></div>
+    </>
+  ),
+};
 
 const FAQS = [
   {
@@ -82,6 +108,7 @@ const FAQS = [
 export default function HomeClient({ meta }: { meta: Meta }) {
   const totalQ = TRACK_IDS.reduce((n, t) => n + meta[t].total, 0);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  useReveal();
 
   useEffect(() => {
     trackEvent("landing_view");
@@ -95,7 +122,7 @@ export default function HomeClient({ meta }: { meta: Meta }) {
         {/* Hero */}
         <section className="hero" aria-labelledby="hero-title">
           <div className="container hero__inner">
-            <div className="hero__copy">
+            <div className="hero__copy" data-reveal="children">
               <span className="eyebrow">Claude Certification Preparation</span>
               <h1 className="t-display" id="hero-title">
                 Claude Certification <span className="t-accent">Practice Quiz</span>
@@ -129,38 +156,47 @@ export default function HomeClient({ meta }: { meta: Meta }) {
             </div>
 
             {/* Prep card */}
-            <aside className="prep-card" aria-label="Your Claude Certification Prep">
+            <aside className="prep-card" aria-label="Your Claude Certification Prep" data-reveal>
               <div className="prep-card__head">
                 <span className="prep-card__title">Your Claude Certification Prep</span>
                 <span className="tag tag--neutral">{TRACK_IDS.map((id) => TRACKS[id].code).join(" · ")}</span>
               </div>
-              <div className="prep-card__stats">
-                <div className="stat stat--light"><span className="stat__value">{totalQ}</span><span className="stat__label">Practice questions</span></div>
-                <div className="stat stat--light"><span className="stat__value">{TRACK_IDS.length}</span><span className="stat__label">Exam tracks</span></div>
+              <div className="prep-card__panel">
+                <dl className="prep-card__stats">
+                  <div><dt>Practice questions</dt><dd>{totalQ}</dd></div>
+                  <div><dt>Exam tracks</dt><dd>{TRACK_IDS.length}</dd></div>
+                </dl>
+                <p className="prep-card__open">
+                  <span className="prep-card__icon"><Icon name="unlock" /></span>
+                  <span><strong>Every module open · Free to start</strong>Diagnostic, sprints, drills, full mocks</span>
+                </p>
               </div>
-              <p className="callout-orange"><strong>Every module open · Free to start</strong>Diagnostic, sprints, drills, full mocks</p>
               <nav className="prep-list" aria-label="Exam tracks">
                 {TRACK_IDS.map((id) => (
                   <Link key={id} href={`/${id}`}>
                     <span className="prep-list__code">{TRACKS[id].code}</span>
                     <span className="prep-list__name">{TRACKS[id].name}</span>
                     <span className="prep-list__count">{meta[id].total}Q</span>
+                    <Icon name="arrow-right" size="sm" />
                   </Link>
                 ))}
               </nav>
-              <div className="callout-orange">
-                <span className="callout-orange__label">Personalised to Your Answers</span>
-                <strong>Get a readiness estimate and study plan.</strong>
-                Finish a module to see where to focus next.
+              <div className="prep-card__plan">
+                <span className="prep-card__icon"><Icon name="target" /></span>
+                <p>
+                  <span className="prep-card__plan-label">Personalised to Your Answers</span>
+                  <strong>Get a readiness estimate and study plan.</strong>
+                  Finish a module to see where to focus next.
+                </p>
               </div>
-              <p className="t-xs t-muted">Every module is free. An email unlocks your full report.</p>
+              <p className="prep-card__foot">Every module is free. An email unlocks your full report.</p>
             </aside>
           </div>
         </section>
 
         {/* Proof strip */}
         <section className="proof-strip" aria-label="Highlights">
-          <div className="container proof-strip__inner">
+          <div className="container proof-strip__inner" data-reveal="children">
             <p className="proof-strip__item proof-strip__intro">Claude Associate and Developer practice from <strong>Agentic AI Institute</strong></p>
             <div className="proof-strip__item"><strong>Detailed Practice</strong>{totalQ} original questions</div>
             <div className="proof-strip__item"><strong>Both Exams, One Site</strong>Associate and Developer, all modules open</div>
@@ -171,7 +207,7 @@ export default function HomeClient({ meta }: { meta: Meta }) {
         {/* Exam tracks */}
         <section className="section" id="tracks" aria-labelledby="tracks-title">
           <div className="container">
-            <div className="section-head">
+            <div className="section-head" data-reveal="children">
               <span className="eyebrow">Choose Your Exam</span>
               <h2 className="t-h1" id="tracks-title">Two Exams.<br />Every Module Open.</h2>
               <p className="t-muted measure">
@@ -180,7 +216,7 @@ export default function HomeClient({ meta }: { meta: Meta }) {
               </p>
             </div>
 
-            <div className="grid grid--2">
+            <div className="grid grid--2" data-reveal="children">
               {TRACK_IDS.map((id) => {
                 const t = TRACKS[id];
                 return (
@@ -215,7 +251,7 @@ export default function HomeClient({ meta }: { meta: Meta }) {
                 );
               })}
             </div>
-            <p className="t-xs t-muted measure">
+            <p className="t-xs t-muted measure" data-reveal>
               Topic modules follow the official exam-guide domains and weights (v1.0, July 2026). Practice questions are
               original and independent; the readiness score is an estimate.
             </p>
@@ -223,16 +259,18 @@ export default function HomeClient({ meta }: { meta: Meta }) {
         </section>
 
         {/* Revision plan */}
-        <section className="section" id="report" aria-labelledby="report-title">
-          <div className="container report">
-            <div className="stack">
+        <section className="section section--flush" id="report" aria-labelledby="report-title">
+          <div className="container">
+            <div className="section-head" data-reveal="children">
               <span className="eyebrow">Turn Your Score Into a Revision Plan</span>
               <h2 className="t-h1" id="report-title">Know What to<br />Revise Next.</h2>
               <p className="t-muted measure">Use your answers to focus your certification preparation on the areas that need more practice.</p>
-              <div>
-                {OUTCOMES.map(({ n, h, p }) => (
-                  <div key={n} className="feature">
-                    <span className="feature__num">{n}</span>
+            </div>
+            <div className="report">
+              <div className="feature-list" data-reveal="children">
+                {OUTCOMES.map(({ icon, h, p }) => (
+                  <div key={h} className="feature">
+                    <span className="feature__icon"><Icon name={icon} /></span>
                     <div>
                       <h3 className="feature__title">{h}</h3>
                       <p className="feature__text">{p}</p>
@@ -240,43 +278,48 @@ export default function HomeClient({ meta }: { meta: Meta }) {
                   </div>
                 ))}
               </div>
-            </div>
 
-            <figure className="report-card report-card--simple" aria-label="Sample readiness estimate">
-              <figcaption className="report-card__head">Sample Report · Full Mock Exam</figcaption>
-              <div className="report-card__score">
-                <p className="score__value"><strong>684</strong><span>/ 1000</span></p>
-                <p className="t-sm t-muted">36 points below the 720 pass line</p>
+              <div className="stage report-stage" data-reveal>
+                <figure className="report-card" aria-label="Sample readiness estimate">
+                  <figcaption className="report-card__head"><Icon name="file" size="sm" />Sample Report · Full Mock Exam</figcaption>
+                  <div className="report-card__score">
+                    <p className="score__value"><strong>684</strong><span>/ 1000</span></p>
+                    <p className="report-card__gap"><strong>36 points</strong> below the 720 pass line</p>
+                  </div>
+                  <div className="scale scale--light scale--thin" role="img" aria-label="684 out of 1000, pass line 720">
+                    <div className="scale__track">
+                      <div className="scale__fill" style={bar("64.9%")} />
+                      <div className="scale__pass" style={pass("68.9%")} />
+                    </div>
+                    <span className="scale__pass-label" style={pass("68.9%")}>720</span>
+                  </div>
+                  <ul className="report-card__domains">
+                    <li><span>Product and Model Selection</span><span className="t-num">83%</span><div className="progress"><div className="progress__fill" style={bar("83%")} /></div></li>
+                    <li><span>Output Evaluation and Validation</span><span className="t-num">62%</span><div className="progress"><div className="progress__fill" style={bar("62%")} /></div></li>
+                    <li className="is-weakest"><span>Troubleshooting and Optimization<span className="sr-only"> (weakest domain)</span></span><span className="t-num">40%</span><div className="progress"><div className="progress__fill" style={bar("40%")} /></div></li>
+                  </ul>
+                </figure>
               </div>
-              <div className="scale scale--light scale--thin" role="img" aria-label="684 out of 1000, pass line 720">
-                <div className="scale__track">
-                  <div className="scale__fill" style={bar("64.9%")} />
-                  <div className="scale__pass" style={pass("68.9%")} />
-                </div>
-                <span className="scale__pass-label" style={pass("68.9%")}>720</span>
-              </div>
-              <ul className="report-card__domains">
-                <li><span>Product and Model Selection</span><span className="t-num">83%</span><div className="progress"><div className="progress__fill" style={bar("83%")} /></div></li>
-                <li><span>Output Evaluation and Validation</span><span className="t-num">62%</span><div className="progress"><div className="progress__fill" style={bar("62%")} /></div></li>
-                <li className="is-weakest"><span>Troubleshooting and Optimization<span className="sr-only"> (weakest domain)</span></span><span className="t-num">40%</span><div className="progress"><div className="progress__fill" style={bar("40%")} /></div></li>
-              </ul>
-            </figure>
+            </div>
           </div>
         </section>
 
         {/* How it works */}
         <section className="section section--muted" id="how" aria-labelledby="how-title">
           <div className="container">
-            <div className="section-head">
+            <div className="section-head" data-reveal="children">
               <span className="eyebrow">How It Works</span>
               <h2 className="t-h1" id="how-title">Take the Test.<br />Learn From Every Answer.</h2>
             </div>
-            <ol className="steps">
+            <ol className="steps steps--visual" data-reveal="children">
               {STEPS.map(({ n, h, p }) => (
                 <li key={n} className="step">
-                  <span className="step__num">Step {n}</span>
-                  <h3 className="step__title">{h}</h3>
-                  <p className="step__text">{p}</p>
+                  <div className="step__visual" aria-hidden="true">{STEP_VISUALS[n]}</div>
+                  <div className="step__body">
+                    <span className="step__num">Step {n}</span>
+                    <h3 className="step__title">{h}</h3>
+                    <p className="step__text">{p}</p>
+                  </div>
                 </li>
               ))}
             </ol>
@@ -285,7 +328,7 @@ export default function HomeClient({ meta }: { meta: Meta }) {
 
         {/* Instructor */}
         <section className="section" id="instructor" aria-labelledby="instructor-title">
-          <div className="container instructor">
+          <div className="container instructor" data-reveal="children">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img className="instructor__photo" src={INSTRUCTOR_PHOTO} alt="Mahesh Yadav" width={340} height={340} loading="lazy" />
             <div className="stack">
@@ -311,7 +354,7 @@ export default function HomeClient({ meta }: { meta: Meta }) {
         {/* Guided prep CTA */}
         <section className="section section--flush-top" id="guided" aria-labelledby="guided-title">
           <div className="container">
-            <div className="cta-band on-navy">
+            <div className="cta-band on-navy" data-reveal>
               <div className="stack">
                 <span className="eyebrow">Want Guided Certification Preparation?</span>
                 <h2 className="t-h2" id="guided-title">
@@ -339,11 +382,11 @@ export default function HomeClient({ meta }: { meta: Meta }) {
         {/* FAQ */}
         <section className="section section--muted" id="faq" aria-labelledby="faq-title">
           <div className="container faq">
-            <div className="stack">
+            <div className="stack" data-reveal>
               <span className="eyebrow">Before You Start</span>
               <h2 className="t-h1" id="faq-title">A Few Answers.</h2>
             </div>
-            <div className="accordion">
+            <div className="accordion" data-reveal="children">
               {FAQS.map(({ q, a }, i) => {
                 const open = openFaq === i;
                 return (
@@ -371,7 +414,7 @@ export default function HomeClient({ meta }: { meta: Meta }) {
 
         {/* Closing CTA */}
         <section className="section section--navy" aria-labelledby="close-title">
-          <div className="container closing">
+          <div className="container closing" data-reveal="children">
             <span className="eyebrow">Prepare With a Clear Revision Plan</span>
             <h2 className="t-h1" id="close-title">Find Out If You Are <span className="t-accent">Ready to Certify.</span></h2>
             <a className="btn btn--accent btn--lg" href="#tracks">Choose Your Exam</a>
