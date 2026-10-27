@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Header from "@/components/Header";
+import Icon from "@/components/Icon";
 import SiteFooter from "@/components/SiteFooter";
 import { DISCLAIMER } from "@/lib/config";
 import { TRACKS, TRACK_IDS } from "@/lib/blueprint";
@@ -23,7 +24,7 @@ function DomainList({ id }: { id: TrackId }) {
       <p className="t-body t-muted measure">
         {t.items} questions in {t.minutes} minutes. Weights are the share of the exam each domain carries.
       </p>
-      <ul className="measure">
+      <ul className="study-list measure">
         {t.domains.map((d) => (
           <li key={d.name}>
             <strong>{d.name}</strong> ({d.weight}%): {d.objective}
@@ -69,7 +70,9 @@ export default function StudyPage({ page }: { page: SeoPage }) {
       <main id="main">
         <section className="page-head" aria-labelledby="page-title">
           <div className="container container--narrow">
-            <Link className="page-head__crumb" href="/">Back to the Quiz</Link>
+            <Link className="page-head__crumb" href="/">
+              <Icon name="arrow-left" size="sm" /> Back to the Quiz
+            </Link>
             <div className="stack">
               <span className="eyebrow">Claude Certification Exam Prep</span>
               <h1 className="t-display" id="page-title">{page.h1}</h1>
@@ -88,19 +91,19 @@ export default function StudyPage({ page }: { page: SeoPage }) {
 
         <section className="section">
           <div className="container container--narrow stack">
-            <h2 className="t-h2">Exam domains and what to study</h2>
+            <h2 className="t-h2">Exam Domains and What to Study</h2>
             {(page.track ? [page.track] : TRACK_IDS).map((id) => (
               <DomainList key={id} id={id} />
             ))}
 
-            <h2 className="t-h2">Study tips for exam prep</h2>
-            <ul className="measure">
+            <h2 className="t-h2">Study Tips for Exam Prep</h2>
+            <ul className="study-list measure">
               {TIPS.map((tip) => (
                 <li key={tip}>{tip}</li>
               ))}
             </ul>
 
-            <h2 className="t-h2">Frequently asked questions</h2>
+            <h2 className="t-h2">Frequently Asked Questions</h2>
             {page.faqs.map((f) => (
               <div key={f.q}>
                 <h3 className="t-h3">{f.q}</h3>
@@ -108,14 +111,14 @@ export default function StudyPage({ page }: { page: SeoPage }) {
               </div>
             ))}
 
-            <h2 className="t-h2">More Claude certification resources</h2>
-            <ul>
-              <li><Link href="/">Claude certification practice quiz (home)</Link></li>
+            <h2 className="t-h2">More Claude Certification Resources</h2>
+            <ul className="study-links">
+              <li><Link className="btn btn--link" href="/">Claude certification practice quiz (home)</Link></li>
               {TRACK_IDS.map((id) => (
-                <li key={id}><Link href={`/${id}`}>{TRACKS[id].name} ({TRACKS[id].code}) free mock test</Link></li>
+                <li key={id}><Link className="btn btn--link" href={`/${id}`}>{TRACKS[id].name} ({TRACKS[id].code}) free mock test</Link></li>
               ))}
               {others.map((p) => (
-                <li key={p.slug}><Link href={`/${p.slug}`}>{p.h1}</Link></li>
+                <li key={p.slug}><Link className="btn btn--link" href={`/${p.slug}`}>{p.h1}</Link></li>
               ))}
             </ul>
             <p className="t-body t-muted">Last updated: {CONTENT_UPDATED}. {DISCLAIMER}</p>

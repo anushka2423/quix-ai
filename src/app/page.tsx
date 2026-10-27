@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { bankMeta } from "@/lib/bank";
-import SeoFaq from "@/components/SeoFaq";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
 import HomeClient from "./HomeClient";
 
@@ -20,7 +19,6 @@ export default async function Home() {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <HomeClient meta={await bankMeta()} />
-      <SeoFaq />
     </>
   );
 }

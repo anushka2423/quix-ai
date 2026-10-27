@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { TRACKS, TRACK_IDS, isTrack } from "@/lib/blueprint";
 import { bankMeta, getLevel } from "@/lib/bank";
 import type { BankQuestion } from "@/types/quiz";
-import SeoFaq from "@/components/SeoFaq";
 import TrackClient from "./TrackClient";
 import DeveloperTrackClient, { type LevelCounts } from "./DeveloperTrackClient";
 
@@ -31,10 +30,9 @@ export default async function TrackPage({ params }: { params: Promise<{ track: s
   if (!isTrack(track)) notFound();
   const meta = (await bankMeta())[track];
   return (
-    <>
-      {track === "developer" ? <DeveloperTrackClient meta={meta} levels={await levelCounts()} /> : <TrackClient track={track} meta={meta} />}
-      <SeoFaq track={track} />
-    </>
+    track === "developer"
+      ? <DeveloperTrackClient meta={meta} levels={await levelCounts()} />
+      : <TrackClient track={track} meta={meta} />
   );
 }
 

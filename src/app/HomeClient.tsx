@@ -106,7 +106,7 @@ const FAQS = [
 ];
 
 export default function HomeClient({ meta }: { meta: Meta }) {
-  const totalQ = TRACK_IDS.reduce((n, t) => n + meta[t].total, 0);
+  const totalQ = TRACK_IDS.reduce((n, t) => n + meta[t].all, 0);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   useReveal();
 
@@ -176,7 +176,7 @@ export default function HomeClient({ meta }: { meta: Meta }) {
                   <Link key={id} href={`/${id}`}>
                     <span className="prep-list__code">{TRACKS[id].code}</span>
                     <span className="prep-list__name">{TRACKS[id].name}</span>
-                    <span className="prep-list__count">{meta[id].total}Q</span>
+                    <span className="prep-list__count">{meta[id].all}Q</span>
                     <Icon name="arrow-right" size="sm" />
                   </Link>
                 ))}
@@ -230,13 +230,13 @@ export default function HomeClient({ meta }: { meta: Meta }) {
                       <p className="t-muted t-sm">{t.audience}</p>
                     </div>
                     <dl className="track-card__facts">
-                      <div><dt>Real Exam</dt><dd>{t.items} Q</dd></div>
+                      <div><dt>Questions</dt><dd>{meta[id].all}</dd></div>
                       <div><dt>Time</dt><dd>{t.minutes} Min</dd></div>
                       <div><dt>Domains</dt><dd>{meta[id].domains.length}</dd></div>
                     </dl>
                     <ul className="rules">
-                      <li><Icon name="check" /><span>{meta[id].total} practice questions</span></li>
-                      <li><Icon name="check" /><span>Diagnostic, sprint, drill, full mock</span></li>
+                      <li><Icon name="check" /><span>{meta[id].total} questions for diagnostic, sprint, drill and full mock</span></li>
+                      {meta[id].moduleOnly > 0 && <li><Icon name="check" /><span>{meta[id].moduleOnly} module questions{id === "developer" ? " across Levels 1 and 2" : ""}</span></li>}
                     </ul>
                     <div className="card__foot">
                       <Link
