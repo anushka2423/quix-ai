@@ -339,7 +339,12 @@ export interface TrackModule {
 
 export interface TrackMeta {
   track: TrackId;
+  /** Questions the exam-weighted modes (diagnostic, sprint, drill, full mock) draw from */
   total: number;
+  /** Module-quiz-only questions (By Module, every level) */
+  moduleOnly: number;
+  /** Every question of the track: the full-mock pool plus all module questions */
+  all: number;
   domains: { name: string; weight: number; count: number }[];
   /** Practice-by-module list: the Skill Jar courses that have questions, in path order */
   modules: TrackModule[];
@@ -355,13 +360,17 @@ export function trackModules(modules: ModuleQuiz[]): TrackModule[] {
 }
 
 export async function bankMeta(): Promise<Record<TrackId, TrackMeta>> {
-  const { bank, domains, modules } = await load();
+  const { bank, domains, modules, levels } = await load();
   const out = {} as Record<TrackId, TrackMeta>;
   for (const id of TRACK_IDS) {
     const items = bank.filter((q) => q.track === id && !q.moduleOnly);
+    // Developer By Module questions are the ones of Levels 1 and 2; other tracks use their module-quiz-only questions
+    const moduleOnly = id === "developer" ? levels[1].bank.length + levels[2].bank.length : bank.filter((q) => q.track === id && q.moduleOnly).length;
     out[id] = {
       track: id,
       total: items.length,
+      moduleOnly,
+      all: items.length + moduleOnly,
       domains: domains[id].map((d) => ({ name: d.name, weight: d.weight, count: items.filter((q) => q.domain === d.name).length })),
       modules: trackModules(modules[id]),
     };
