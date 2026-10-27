@@ -4,6 +4,7 @@ import "./globals.css";
 import { EmailGateProvider } from "@/components/EmailGate";
 import DisclaimerBanner from "@/components/DisclaimerBanner";
 import { SITE_NAME, SITE_URL } from "@/lib/site";
+import GoogleAnalytics from "@/components/GoogleAnalytics";
 
 const golosText = Golos_Text({
   variable: "--font-golos",
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           <DisclaimerBanner />
           {children}
         </EmailGateProvider>
+        <GoogleAnalytics />
       </body>
     </html>
   );
