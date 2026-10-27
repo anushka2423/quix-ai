@@ -7,7 +7,7 @@ import DisclaimerBanner from "@/components/DisclaimerBanner";
 const golosText = Golos_Text({
   variable: "--font-golos",
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700"],
   display: "swap",
 });
 

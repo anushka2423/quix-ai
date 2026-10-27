@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
+import "./design/home.css";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { BOOKING_URL } from "@/lib/config";
 import { TRACKS, TRACK_IDS } from "@/lib/blueprint";
@@ -8,152 +9,31 @@ import type { TrackMeta } from "@/lib/bank";
 import type { TrackId } from "@/types/quiz";
 import { track as trackEvent } from "@/lib/analytics";
 import Header from "@/components/Header";
+import SiteFooter from "@/components/SiteFooter";
+import Icon from "@/components/Icon";
 
 const CALENDLY_URL = BOOKING_URL;
-const BLUE = "#214f91";
+const INSTRUCTOR_PHOTO = "https://framerusercontent.com/images/UGcM0D2QVpSlgE1so8RC8VHnndA.jpeg?width=512&height=512";
 
 type Meta = Record<TrackId, TrackMeta>;
 
-function PrepReportCard({ meta }: { meta: Meta }) {
-  const totalQ = TRACK_IDS.reduce((n, t) => n + meta[t].total, 0);
-  return (
-    <div style={{
-      background: "#fff",
-      borderRadius: "16px",
-      padding: "25px",
-      color: "#10213b",
-      boxShadow: "0 25px 70px rgba(0,0,0,.15)",
-      border: "1px solid #d7e4f8",
-      width: "100%",
-    }}>
-      {/* Top row */}
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: "10px",
-        borderBottom: "1px solid #dce3ed",
-        paddingBottom: "17px",
-        flexWrap: "wrap",
-        rowGap: "10px",
-      }}>
-        <span style={{
-          fontSize: "13px",
-          fontWeight: 800,
-          letterSpacing: ".5px",
-          color: "#273b56",
-          fontFamily: "var(--font-manrope), sans-serif",
-          textTransform: "uppercase",
-          margin: 0,
-        }}>
-          Your Claude Certification Prep
-        </span>
-        <span style={{
-          fontSize: "13px",
-          color: "#44536a",
-          background: "#f1f5fa",
-          borderRadius: "4px",
-          padding: "3px 7px",
-          fontWeight: 500,
-        }}>
-          CCAO-F · CCDV-F
-        </span>
-      </div>
-
-      {/* Stats grid */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gap: "12px",
-        margin: "22px 0 16px",
-      }}>
-        <div style={{ background: "#f1f5fa", border: "1px solid #dce3ed", borderRadius: "10px", padding: "16px" }}>
-          <strong style={{ display: "block", color: "#071b39", fontFamily: "var(--font-manrope), sans-serif", fontSize: "48px", lineHeight: "1.1" }}>
-            {totalQ}
-          </strong>
-          <span style={{ display: "block", color: "#10213b", fontSize: "14px", marginTop: "7px" }}>
-            Practice questions
-          </span>
-        </div>
-        <div style={{ background: "#f1f5fa", border: "1px solid #dce3ed", borderRadius: "10px", padding: "16px" }}>
-          <strong style={{ display: "block", color: "#071b39", fontFamily: "var(--font-manrope), sans-serif", fontSize: "48px", lineHeight: "1.1" }}>
-            {TRACK_IDS.length}
-          </strong>
-          <span style={{ display: "block", color: "#10213b", fontSize: "14px", marginTop: "7px" }}>
-            Exam tracks
-          </span>
-        </div>
-      </div>
-
-      {/* Open modules note */}
-      <div style={{ borderLeft: "3px solid #ff9b50", padding: "10px 14px", marginBottom: "18px", background: "#fff3e8" }}>
-        <strong style={{ display: "block", fontSize: "14px", color: "#10213b" }}>
-          Every module open · Free to start
-        </strong>
-        <span style={{ display: "block", fontSize: "14px", color: "#10213b" }}>
-          Diagnostic, sprints, drills, full mocks
-        </span>
-      </div>
-
-      {/* Track list */}
-      <div>
-        {TRACK_IDS.map((id) => (
-          <div key={id} style={{
-            display: "grid",
-            gridTemplateColumns: "76px minmax(0,1fr) 52px",
-            gap: "9px",
-            alignItems: "start",
-            borderBottom: "1px solid #dce3ed",
-            padding: "10px 0",
-            fontSize: "14px",
-            lineHeight: "1.4",
-            color: "#10213b",
-          }}>
-            <span style={{ color: BLUE }}>{TRACKS[id].code}</span>
-            <strong style={{ fontWeight: 500, fontSize: "14px" }}>{TRACKS[id].name}</strong>
-            <b style={{ textAlign: "right", color: BLUE, fontSize: "14px" }}>{meta[id].total}Q</b>
-          </div>
-        ))}
-      </div>
-
-      {/* Action box */}
-      <div style={{ marginTop: "20px", padding: "15px", borderRadius: "8px", background: "#fff3e8", borderLeft: "3px solid #ff9b50" }}>
-        <span style={{
-          display: "block", fontSize: "13px", letterSpacing: ".4px", color: "#a33f08",
-          fontWeight: 800, marginBottom: "6px",
-          fontFamily: "var(--font-manrope), sans-serif", textTransform: "uppercase",
-        }}>
-          Personalised to your answers
-        </span>
-        <strong style={{ fontSize: "14px", lineHeight: "1.5", display: "block" }}>
-          Get a readiness estimate and study plan.
-        </strong>
-        <p style={{ fontSize: "14px", lineHeight: "1.5", margin: "6px 0 0", color: "#44536a" }}>
-          Finish a module to see where to focus next.
-        </p>
-      </div>
-
-      <p style={{ fontSize: "13px", color: "#64748b", margin: "15px 0 0", lineHeight: "1.55" }}>
-        Every module is free. An email unlocks your full report.
-      </p>
-    </div>
-  );
-}
+const bar = (v: string) => ({ "--value": v }) as React.CSSProperties;
+const pass = (v: string) => ({ "--pass": v }) as React.CSSProperties;
 
 const OUTCOMES = [
   {
     n: "01",
-    h: "Instant feedback on every answer",
+    h: "Instant Feedback on Every Answer",
     p: "Wrong picks turn red, the right answer turns green, and a written explanation opens straight away.",
   },
   {
     n: "02",
-    h: "A readiness estimate out of 1,000",
+    h: "A Readiness Estimate Out of 1,000",
     p: "See your estimate on the official scale with the 720 pass line marked, plus percent correct for every domain. It is an estimate, not an official score.",
   },
   {
     n: "03",
-    h: "A plan if you fall short",
+    h: "A Plan If You Fall Short",
     p: "Score under 720 on a full mock or the diagnostic and you get a detailed report, a day-by-day study plan, a PDF and an offer of a free review call.",
   },
 ];
@@ -161,17 +41,17 @@ const OUTCOMES = [
 const STEPS = [
   {
     n: "1",
-    h: "Pick your track and any module",
+    h: "Pick Your Track and Any Module",
     p: "Start with the diagnostic, or jump to a quick sprint, a domain drill or a full mock. Nothing is locked.",
   },
   {
     n: "2",
-    h: "Answer and learn on the spot",
+    h: "Answer and Learn on the Spot",
     p: "Get red and green feedback with an explanation after every question, and ask the Claude-powered tutor to explain it differently.",
   },
   {
     n: "3",
-    h: "See how ready you are",
+    h: "See How Ready You Are",
     p: "Get your readiness estimate, your weakest domain and what to practise next. Retake until it stays at 800 or higher.",
   },
 ];
@@ -201,6 +81,7 @@ const FAQS = [
 
 export default function HomeClient({ meta }: { meta: Meta }) {
   const totalQ = TRACK_IDS.reduce((n, t) => n + meta[t].total, 0);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   useEffect(() => {
     trackEvent("landing_view");
@@ -210,666 +91,296 @@ export default function HomeClient({ meta }: { meta: Meta }) {
     <>
       <Header />
 
-      <main style={{ minHeight: "100vh", backgroundColor: "#ffffff" }}>
-
-        {/* ── Hero ── */}
-        <section style={{ background: "#071b39", color: "white", overflow: "hidden" }}>
-          <div className="page-wrap">
-            <div className="hero-grid">
-              {/* Left: copy */}
-              <div>
-                <p style={{
-                  fontSize: "14px",
-                  letterSpacing: "1.4px",
-                  fontWeight: 800,
-                  color: "#ff9b50",
-                  textTransform: "uppercase",
-                  margin: "0 0 20px",
-                  fontFamily: "var(--font-manrope), sans-serif",
-                  lineHeight: "1.5",
-                }}>
-                  Claude Certification Preparation
-                </p>
-
-                <h1 style={{
-                  fontFamily: "var(--font-manrope), sans-serif",
-                  fontSize: "clamp(32px, 4.2vw, 56px)",
-                  fontWeight: 800,
-                  lineHeight: 1.15,
-                  letterSpacing: "-0.035em",
-                  color: "#ffffff",
-                  margin: 0,
-                }}>
-                  Claude Certification<br />
-                  <em style={{ fontStyle: "normal", color: "#ff9b50" }}>Practice Quiz</em>
-                </h1>
-
-                <p style={{
-                  fontSize: "18px",
-                  lineHeight: 1.65,
-                  color: "#c7d4e7",
-                  maxWidth: "470px",
-                  margin: "24px 0 27px",
-                }}>
-                  Find out whether you are ready for the Claude Certified Associate or
-                  Developer exam. Get instant red and green feedback on every answer and
-                  a readiness estimate on the official 1,000-point scale.
-                </p>
-
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "12px" }}>
-                {TRACK_IDS.map((id) => (
-                <Link
-                  key={id}
-                  href={`/${id}`}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    padding: "17px 24px",
-                    borderRadius: "9px",
-                    background: id === "associate" ? "#ff9b50" : "transparent",
-                    border: id === "associate" ? "none" : "1.5px solid #ff9b50",
-                    color: id === "associate" ? "#071b39" : "#ff9b50",
-                    fontWeight: 700,
-                    fontSize: "16px",
-                    textDecoration: "none",
-                    minHeight: "54px",
-                    transition: "background .15s, transform .15s",
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-1px)";
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLAnchorElement).style.transform = "none";
-                  }}
-                >
-                  {TRACKS[id].short} ({TRACKS[id].code}) →
-                </Link>
+      <main id="main">
+        {/* Hero */}
+        <section className="hero" aria-labelledby="hero-title">
+          <div className="container hero__inner">
+            <div className="hero__copy">
+              <span className="eyebrow">Claude Certification Preparation</span>
+              <h1 className="t-display" id="hero-title">
+                Claude Certification <span className="t-accent">Practice Quiz</span>
+              </h1>
+              <p className="t-lead hero__lead">
+                Find out whether you are ready for the Claude Certified Associate or Developer exam. Get instant red and
+                green feedback on every answer and a readiness estimate on the official 1,000-point scale.
+              </p>
+              <div className="hero__actions">
+                {TRACK_IDS.map((id, i) => (
+                  <Link key={id} className={`btn ${i === 0 ? "btn--accent" : "btn--white"} btn--lg`} href={`/${id}`}>
+                    {TRACKS[id].short} ({TRACKS[id].code})
+                  </Link>
                 ))}
-                </div>
-
-                <p style={{ fontSize: "14px", color: "#dce7f7", margin: "13px 0 5px" }}>
-                  2 exam tracks · {totalQ} questions · Free · Every module open
-                </p>
-                <p style={{ fontSize: "14px", lineHeight: 1.55, color: "#b5c5dc", maxWidth: "370px", margin: 0 }}>
-                  Pick a track, then any module: a full mock, a domain drill, a quick sprint or the
-                  diagnostic. Nothing is locked.
-                </p>
-
-                {/* Byline */}
-                <div className="hero-byline" style={{
-                  display: "flex",
-                  gap: "12px",
-                  alignItems: "center",
-                  borderTop: "1px solid rgba(255,255,255,.13)",
-                  paddingTop: "24px",
-                  marginTop: "28px",
-                  fontSize: "14px",
-                  color: "#f1f4fa",
-                }}>
-                  <span style={{
-                    background: "#243955",
-                    border: "1px solid #4a5b75",
-                    borderRadius: "50%",
-                    flexShrink: 0,
-                    width: "42px",
-                    height: "42px",
-                    display: "grid",
-                    placeItems: "center",
-                    fontWeight: 700,
-                    fontFamily: "var(--font-manrope), sans-serif",
-                    color: "white",
-                    fontSize: "14px",
-                  }}>
-                    MY
-                  </span>
-                  <div style={{ minWidth: 0 }}>
-                    <span style={{ display: "block" }}>Created by Agentic AI Institute</span>
-                    <span style={{ display: "block", color: "#b5c5dc", fontSize: "14px", marginTop: "3px" }}>
-                      From Mahesh Yadav&apos;s Claude certification preparation program
-                    </span>
-                  </div>
-                </div>
               </div>
-
-              {/* Right: prep report card */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <PrepReportCard meta={meta} />
+              <ul className="hero__meta">
+                <li><Icon name="check" size="sm" />{TRACK_IDS.length} exam tracks</li>
+                <li><Icon name="check" size="sm" />{totalQ} questions</li>
+                <li><Icon name="check" size="sm" />Free</li>
+                <li><Icon name="check" size="sm" />Every module open</li>
+              </ul>
+              <div className="hero__trust">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={INSTRUCTOR_PHOTO} alt="Mahesh Yadav" width={48} height={48} />
+                <p>
+                  <strong>Created by Agentic AI Institute</strong>
+                  <br />
+                  From Mahesh Yadav&apos;s Claude certification preparation program
+                </p>
               </div>
             </div>
+
+            {/* Prep card */}
+            <aside className="prep-card" aria-label="Your Claude Certification Prep">
+              <div className="prep-card__head">
+                <span className="prep-card__title">Your Claude Certification Prep</span>
+                <span className="tag tag--neutral">{TRACK_IDS.map((id) => TRACKS[id].code).join(" · ")}</span>
+              </div>
+              <div className="prep-card__stats">
+                <div className="stat stat--light"><span className="stat__value">{totalQ}</span><span className="stat__label">Practice questions</span></div>
+                <div className="stat stat--light"><span className="stat__value">{TRACK_IDS.length}</span><span className="stat__label">Exam tracks</span></div>
+              </div>
+              <p className="callout-orange"><strong>Every module open · Free to start</strong>Diagnostic, sprints, drills, full mocks</p>
+              <nav className="prep-list" aria-label="Exam tracks">
+                {TRACK_IDS.map((id) => (
+                  <Link key={id} href={`/${id}`}>
+                    <span className="prep-list__code">{TRACKS[id].code}</span>
+                    <span className="prep-list__name">{TRACKS[id].name}</span>
+                    <span className="prep-list__count">{meta[id].total}Q</span>
+                  </Link>
+                ))}
+              </nav>
+              <div className="callout-orange">
+                <span className="callout-orange__label">Personalised to Your Answers</span>
+                <strong>Get a readiness estimate and study plan.</strong>
+                Finish a module to see where to focus next.
+              </div>
+              <p className="t-xs t-muted">Every module is free. An email unlocks your full report.</p>
+            </aside>
           </div>
         </section>
 
-        {/* ── Stats strip ── */}
-        <section style={{ borderBottom: "1px solid var(--border)", background: "#ffffff" }}>
-          <div className="page-wrap">
-            <div className="stats-strip">
-              <p style={{ fontSize: "14px", lineHeight: 1.65, margin: 0, color: "var(--muted)" }}>
-                Claude Associate and Developer practice from{" "}
-                <strong style={{ color: "var(--ink)", fontWeight: 500 }}>Agentic AI Institute</strong>
-              </p>
-              <div style={{ borderLeft: "1px solid var(--border)", paddingLeft: "22px" }}>
-                <b style={{ display: "block", fontSize: "17px", fontWeight: 700, lineHeight: 1.5, color: "var(--ink)" }}>
-                  Detailed practice
-                </b>
-                <span style={{ fontSize: "14px", color: "var(--muted)", display: "block", marginTop: "3px" }}>
-                  {totalQ} original questions
-                </span>
-              </div>
-              <div style={{ borderLeft: "1px solid var(--border)", paddingLeft: "22px" }}>
-                <b style={{ display: "block", fontSize: "17px", fontWeight: 700, lineHeight: 1.5, color: "var(--ink)" }}>
-                  Both exams, one site
-                </b>
-                <span style={{ fontSize: "14px", color: "var(--muted)", display: "block", marginTop: "3px" }}>
-                  Associate and Developer, all modules open
-                </span>
-              </div>
-              <div style={{ borderLeft: "1px solid var(--border)", paddingLeft: "22px" }}>
-                <b style={{ display: "block", fontSize: "17px", fontWeight: 700, lineHeight: 1.5, color: "var(--ink)" }}>
-                  Instant feedback
-                </b>
-                <span style={{ fontSize: "14px", color: "var(--muted)", display: "block", marginTop: "3px" }}>
-                  Readiness estimate out of 1,000
-                </span>
-              </div>
-            </div>
+        {/* Proof strip */}
+        <section className="proof-strip" aria-label="Highlights">
+          <div className="container proof-strip__inner">
+            <p className="proof-strip__item proof-strip__intro">Claude Associate and Developer practice from <strong>Agentic AI Institute</strong></p>
+            <div className="proof-strip__item"><strong>Detailed Practice</strong>{totalQ} original questions</div>
+            <div className="proof-strip__item"><strong>Both Exams, One Site</strong>Associate and Developer, all modules open</div>
+            <div className="proof-strip__item"><strong>Instant Feedback</strong>Readiness estimate out of 1,000</div>
           </div>
         </section>
 
-        {/* ── Tracks section ── */}
-        <section id="tracks" style={{ padding: "80px 0", background: "#F4F6F9" }}>
-          <div className="page-wrap">
+        {/* Exam tracks */}
+        <section className="section" id="tracks" aria-labelledby="tracks-title">
+          <div className="container">
             <div className="section-head">
-              <div>
-                <p style={{
-                  fontSize: "14px",
-                  letterSpacing: "1px",
-                  fontWeight: 800,
-                  color: BLUE,
-                  textTransform: "uppercase",
-                  margin: "0 0 16px",
-                  fontFamily: "var(--font-manrope), sans-serif",
-                }}>
-                  Choose your exam
-                </p>
-                <h2 style={{
-                  fontFamily: "var(--font-manrope), sans-serif",
-                  fontSize: "clamp(30px, 3.4vw, 42px)",
-                  fontWeight: 800,
-                  color: "var(--ink)",
-                  margin: 0,
-                  letterSpacing: "-0.035em",
-                }}>
-                  Two exams.<br />Every module open.
-                </h2>
-              </div>
-              <p style={{ color: "var(--muted)", margin: 0, fontSize: "16px", lineHeight: 1.65 }}>
-                Each track offers a readiness diagnostic, quick sprints, domain drills and a
-                full mock that copies the real exam format and domain weights.
+              <span className="eyebrow">Choose Your Exam</span>
+              <h2 className="t-h1" id="tracks-title">Two Exams.<br />Every Module Open.</h2>
+              <p className="t-muted measure">
+                Each track offers a readiness diagnostic, quick sprints, domain drills and a full mock that copies the real
+                exam format and domain weights.
               </p>
             </div>
 
-            <div className="module-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))" }}>
+            <div className="grid grid--2">
               {TRACK_IDS.map((id) => {
                 const t = TRACKS[id];
                 return (
-                  <Link key={id} href={`/${id}`} onClick={() => trackEvent("track_selected", { track: id, via: "home" })} style={{ textDecoration: "none", display: "flex" }}>
-                    <article style={{
-                      border: "1px solid #dce3ed",
-                      borderRadius: "10px",
-                      padding: "23px 19px",
-                      background: "white",
-                      display: "flex",
-                      flexDirection: "column",
-                      width: "100%",
-                      cursor: "pointer",
-                    }}>
-                      <span style={{
-                        display: "block",
-                        color: BLUE,
-                        fontSize: "14px",
-                        fontWeight: 800,
-                        letterSpacing: "1px",
-                        marginBottom: "27px",
-                        fontFamily: "var(--font-manrope), sans-serif",
-                      }}>
-                        {t.code} / Open access
-                      </span>
-                      <h3 style={{
-                        fontFamily: "var(--font-manrope), sans-serif",
-                        fontSize: "22px",
-                        lineHeight: 1.35,
-                        fontWeight: 800,
-                        color: "var(--ink)",
-                        margin: "0 0 14px",
-                        letterSpacing: "-0.025em",
-                      }}>
-                        {t.name}
-                      </h3>
-                      <p style={{ fontSize: "15px", color: "var(--muted)", lineHeight: 1.7, margin: 0, flex: 1 }}>
-                        {t.audience} {meta[id].domains.length} domains, {t.items} questions in {t.minutes} minutes on the real exam.
-                      </p>
-                      <span style={{
-                        display: "block",
-                        fontSize: "14px",
-                        color: "#654a39",
-                        borderTop: "1px solid #dce3ed",
-                        paddingTop: "14px",
-                        marginTop: "24px",
-                      }}>
-                        {meta[id].total} practice questions · diagnostic, sprint, drill, full mock
-                      </span>
-                      <span style={{
-                        display: "block",
-                        width: "100%",
-                        marginTop: "16px",
-                        padding: "12px 18px",
-                        borderRadius: "9px",
-                        border: "1px solid #dce3ed",
-                        background: "white",
-                        color: "var(--ink)",
-                        fontWeight: 700,
-                        fontSize: "14px",
-                        textAlign: "center",
-                        lineHeight: 1.3,
-                        minHeight: "44px",
-                      }}>
-                        Practice {t.short} →
-                      </span>
-                    </article>
-                  </Link>
+                  <article key={id} className="card card--lg card--interactive track-card">
+                    <div className="cluster">
+                      <span className="tag">{t.code}</span>
+                      <span className="tag tag--neutral">Open Access</span>
+                    </div>
+                    <div className="stack">
+                      <h3 className="card__title">{t.name}</h3>
+                      <p className="t-muted t-sm">{t.audience}</p>
+                    </div>
+                    <dl className="track-card__facts">
+                      <div><dt>Real Exam</dt><dd>{t.items} Q</dd></div>
+                      <div><dt>Time</dt><dd>{t.minutes} Min</dd></div>
+                      <div><dt>Domains</dt><dd>{meta[id].domains.length}</dd></div>
+                    </dl>
+                    <ul className="rules">
+                      <li><Icon name="check" /><span>{meta[id].total} practice questions</span></li>
+                      <li><Icon name="check" /><span>Diagnostic, sprint, drill, full mock</span></li>
+                    </ul>
+                    <div className="card__foot">
+                      <Link
+                        className="btn btn--accent btn--block card__link"
+                        href={`/${id}`}
+                        onClick={() => trackEvent("track_selected", { track: id, via: "home" })}
+                      >
+                        Practice {t.short}
+                      </Link>
+                    </div>
+                  </article>
                 );
               })}
             </div>
-
-            <p style={{ fontSize: "14px", color: "var(--muted)", margin: "18px 0 0" }}>
-              Topic modules follow the official exam-guide domains and weights (v1.0, July 2026).
-              Practice questions are original and independent; the readiness score is an estimate.
+            <p className="t-xs t-muted measure">
+              Topic modules follow the official exam-guide domains and weights (v1.0, July 2026). Practice questions are
+              original and independent; the readiness score is an estimate.
             </p>
           </div>
         </section>
 
-        {/* ── Outcomes / results section ── */}
-        <section style={{ background: "#ffffff" }}>
-          <div className="page-wrap">
-            <div className="outcomes-grid">
+        {/* Revision plan */}
+        <section className="section" id="report" aria-labelledby="report-title">
+          <div className="container report">
+            <div className="stack">
+              <span className="eyebrow">Turn Your Score Into a Revision Plan</span>
+              <h2 className="t-h1" id="report-title">Know What to<br />Revise Next.</h2>
+              <p className="t-muted measure">Use your answers to focus your certification preparation on the areas that need more practice.</p>
               <div>
-                <p style={{
-                  fontSize: "14px",
-                  letterSpacing: "1.4px",
-                  fontWeight: 800,
-                  color: BLUE,
-                  textTransform: "uppercase",
-                  margin: "0 0 20px",
-                  fontFamily: "var(--font-manrope), sans-serif",
-                }}>
-                  Turn your score into a revision plan
-                </p>
-                <h2 style={{
-                  fontFamily: "var(--font-manrope), sans-serif",
-                  fontSize: "clamp(30px, 3.4vw, 42px)",
-                  fontWeight: 800,
-                  color: "var(--ink)",
-                  margin: 0,
-                  letterSpacing: "-0.035em",
-                }}>
-                  Know what to<br />revise next.
-                </h2>
-                <p style={{ color: "var(--muted)", maxWidth: "335px", margin: "22px 0", fontSize: "16px", lineHeight: 1.65 }}>
-                  Use your answers to focus your certification preparation on the
-                  areas that need more practice.
-                </p>
-              </div>
-
-              <div style={{ display: "grid", gap: "25px" }}>
                 {OUTCOMES.map(({ n, h, p }) => (
-                  <article key={n} style={{ display: "flex", gap: "20px" }}>
-                    <span style={{
-                      border: "1px solid #cdd9e9",
-                      borderRadius: "50%",
-                      minWidth: "38px",
-                      height: "38px",
-                      display: "grid",
-                      placeContent: "center",
-                      fontSize: "14px",
-                      color: BLUE,
-                      background: "white",
-                      flexShrink: 0,
-                      fontWeight: 600,
-                    }}>
-                      {n}
-                    </span>
+                  <div key={n} className="feature">
+                    <span className="feature__num">{n}</span>
                     <div>
-                      <h3 style={{
-                        fontFamily: "var(--font-manrope), sans-serif",
-                        fontSize: "19px",
-                        fontWeight: 800,
-                        margin: 0,
-                        letterSpacing: "-0.025em",
-                        color: "var(--ink)",
-                      }}>
-                        {h}
-                      </h3>
-                      <p style={{ fontSize: "15px", color: "var(--muted)", margin: "9px 0 0", lineHeight: 1.65 }}>
-                        {p}
-                      </p>
+                      <h3 className="feature__title">{h}</h3>
+                      <p className="feature__text">{p}</p>
                     </div>
-                  </article>
+                  </div>
                 ))}
               </div>
             </div>
+
+            <figure className="report-card report-card--simple" aria-label="Sample readiness estimate">
+              <figcaption className="report-card__head">Sample Report · Full Mock Exam</figcaption>
+              <div className="report-card__score">
+                <p className="score__value"><strong>684</strong><span>/ 1000</span></p>
+                <p className="t-sm t-muted">36 points below the 720 pass line</p>
+              </div>
+              <div className="scale scale--light scale--thin" role="img" aria-label="684 out of 1000, pass line 720">
+                <div className="scale__track">
+                  <div className="scale__fill" style={bar("64.9%")} />
+                  <div className="scale__pass" style={pass("68.9%")} />
+                </div>
+                <span className="scale__pass-label" style={pass("68.9%")}>720</span>
+              </div>
+              <ul className="report-card__domains">
+                <li><span>Product and Model Selection</span><span className="t-num">83%</span><div className="progress"><div className="progress__fill" style={bar("83%")} /></div></li>
+                <li><span>Output Evaluation and Validation</span><span className="t-num">62%</span><div className="progress"><div className="progress__fill" style={bar("62%")} /></div></li>
+                <li className="is-weakest"><span>Troubleshooting and Optimization<span className="sr-only"> (weakest domain)</span></span><span className="t-num">40%</span><div className="progress"><div className="progress__fill" style={bar("40%")} /></div></li>
+              </ul>
+            </figure>
           </div>
         </section>
 
-        {/* ── How it works ── */}
-        <section style={{ padding: "80px 0", background: "#F4F6F9" }}>
-          <div className="page-wrap">
-            <div style={{ textAlign: "center", marginBottom: "38px" }}>
-              <p style={{
-                fontSize: "14px",
-                letterSpacing: "1.4px",
-                fontWeight: 800,
-                color: BLUE,
-                textTransform: "uppercase",
-                margin: "0 0 16px",
-                fontFamily: "var(--font-manrope), sans-serif",
-              }}>
-                How it works
-              </p>
-              <h2 style={{
-                fontFamily: "var(--font-manrope), sans-serif",
-                fontSize: "clamp(30px, 3.4vw, 42px)",
-                fontWeight: 800,
-                color: "var(--ink)",
-                margin: 0,
-                letterSpacing: "-0.035em",
-              }}>
-                Take the test. Learn from every answer.
-              </h2>
+        {/* How it works */}
+        <section className="section section--muted" id="how" aria-labelledby="how-title">
+          <div className="container">
+            <div className="section-head">
+              <span className="eyebrow">How It Works</span>
+              <h2 className="t-h1" id="how-title">Take the Test.<br />Learn From Every Answer.</h2>
             </div>
-
-            <div className="steps-grid">
+            <ol className="steps">
               {STEPS.map(({ n, h, p }) => (
-                <article key={n} style={{ position: "relative", paddingLeft: "50px" }}>
-                  <span style={{
-                    position: "absolute",
-                    left: 0,
-                    top: 0,
-                    width: "32px",
-                    height: "32px",
-                    borderRadius: "8px",
-                    background: "#071b39",
-                    color: "white",
-                    display: "grid",
-                    placeContent: "center",
-                    fontSize: "14px",
-                    fontWeight: 700,
-                  }}>
-                    {n}
-                  </span>
-                  <h3 style={{
-                    fontFamily: "var(--font-manrope), sans-serif",
-                    fontSize: "17px",
-                    fontWeight: 800,
-                    margin: 0,
-                    paddingTop: "4px",
-                    letterSpacing: "-0.025em",
-                    color: "var(--ink)",
-                  }}>
-                    {h}
-                  </h3>
-                  <p style={{ color: "var(--muted)", fontSize: "15px", margin: "12px 0 0", lineHeight: 1.65 }}>
-                    {p}
-                  </p>
-                </article>
+                <li key={n} className="step">
+                  <span className="step__num">Step {n}</span>
+                  <h3 className="step__title">{h}</h3>
+                  <p className="step__text">{p}</p>
+                </li>
               ))}
-            </div>
+            </ol>
           </div>
         </section>
 
-        {/* ── Cohort / unlock banner ── */}
-        <section style={{ paddingBottom: "80px", background: "#ffffff" }}>
-          <div className="page-wrap">
-            <div style={{
-              background: "#071b39",
-              borderRadius: "14px",
-              padding: "46px",
-              color: "white",
-            }}>
-              <div className="cohort-grid">
-                <div>
-                  <p style={{
-                    fontSize: "14px",
-                    letterSpacing: "1.4px",
-                    fontWeight: 800,
-                    color: "#ff9b50",
-                    textTransform: "uppercase",
-                    margin: "0 0 16px",
-                    fontFamily: "var(--font-manrope), sans-serif",
-                  }}>
-                    Want guided certification preparation?
-                  </p>
-                  <h2 style={{
-                    fontFamily: "var(--font-manrope), sans-serif",
-                    fontSize: "clamp(26px, 2.5vw, 34px)",
-                    fontWeight: 800,
-                    color: "white",
-                    margin: 0,
-                    lineHeight: 1.25,
-                    letterSpacing: "-0.025em",
-                  }}>
-                    Prepare for Claude certification.<br />
-                    Build with Claude Code.
-                  </h2>
-                  <p style={{ fontSize: "16px", color: "#c7d4e7", margin: "22px 0", lineHeight: 1.65 }}>
-                    Score under 720 and get a free 30-minute 1-on-1 review of your results,
-                    with a personal study plan for Claude Certified Associate or Developer.
-                  </p>
-                  <a
-                    href={CALENDLY_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ fontSize: "14px", color: "#ff9b50", textUnderlineOffset: "5px", textDecoration: "underline" }}
-                  >
-                    Book a free 1-on-1 call
-                  </a>
-                </div>
-
-                <div
-                  className="cohort-aside-border"
-                  style={{
-                    borderLeft: "1px solid rgba(255,255,255,.15)",
-                    paddingLeft: "40px",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                    alignItems: "flex-start",
-                  }}
-                >
-                  <span style={{
-                    fontSize: "14px",
-                    color: "#aebfd8",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.8px",
-                    fontWeight: 800,
-                    fontFamily: "var(--font-manrope), sans-serif",
-                    marginBottom: "16px",
-                    display: "block",
-                  }}>
-                    Start with a practice score
-                  </span>
-                  <h3 style={{
-                    fontFamily: "var(--font-manrope), sans-serif",
-                    fontSize: "24px",
-                    lineHeight: 1.4,
-                    fontWeight: 800,
-                    color: "white",
-                    margin: "0 0 22px",
-                    letterSpacing: "-0.025em",
-                  }}>
-                    Put your Claude knowledge to the test.
-                  </h3>
-                  <Link
-                    href="#tracks"
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "17px 24px",
-                      borderRadius: "9px",
-                      background: "#ff9b50",
-                      color: "#071b39",
-                      fontWeight: 700,
-                      fontSize: "14px",
-                      textDecoration: "none",
-                      minHeight: "54px",
-                      transition: "background .15s, transform .15s",
-                    }}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLAnchorElement).style.background = "#ffb77e";
-                      (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-1px)";
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLAnchorElement).style.background = "#ff9b50";
-                      (e.currentTarget as HTMLAnchorElement).style.transform = "none";
-                    }}
-                  >
-                    Choose your exam →
-                  </Link>
-                  <p style={{ fontSize: "14px", color: "#b8c8df", maxWidth: "270px", margin: "14px 0 0", lineHeight: 1.65 }}>
-                    No purchase or call booking required.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-          </div>
-        </section>
-
-        {/* ── FAQ ── */}
-        <section style={{ padding: "80px 0", background: "#F4F6F9", borderTop: "1px solid var(--border)" }}>
-          <div className="page-wrap">
-            <div className="faq-grid">
-              <div>
-                <p style={{
-                  fontSize: "14px",
-                  letterSpacing: "1.4px",
-                  fontWeight: 800,
-                  color: BLUE,
-                  textTransform: "uppercase",
-                  margin: "0 0 16px",
-                  fontFamily: "var(--font-manrope), sans-serif",
-                }}>
-                  Before you start
-                </p>
-                <h2 style={{
-                  fontFamily: "var(--font-manrope), sans-serif",
-                  fontSize: "clamp(30px, 3.4vw, 42px)",
-                  fontWeight: 800,
-                  color: "var(--ink)",
-                  margin: 0,
-                  letterSpacing: "-0.035em",
-                }}>
-                  A few answers.
-                </h2>
-              </div>
-
-              <div>
-                {FAQS.map(({ q, a }) => (
-                  <details key={q} className="faq-details">
-                    <summary>{q}</summary>
-                    <p>{a}</p>
-                  </details>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── Final CTA ── */}
-        <section style={{ background: "#071b39", textAlign: "center", color: "white", padding: "60px 0" }}>
-          <div className="page-wrap">
-            <p style={{
-              fontSize: "14px",
-              letterSpacing: "1.4px",
-              fontWeight: 800,
-              color: "#ff9b50",
-              textTransform: "uppercase",
-              margin: "0 0 20px",
-              fontFamily: "var(--font-manrope), sans-serif",
-            }}>
-              Prepare with a clear revision plan
-            </p>
-            <h2 style={{
-              fontFamily: "var(--font-manrope), sans-serif",
-              fontSize: "clamp(30px, 4vw, 42px)",
-              fontWeight: 800,
-              color: "white",
-              margin: "0 0 27px",
-              letterSpacing: "-0.035em",
-            }}>
-              Find out if you are<br />ready to certify.
-            </h2>
-            <Link
-              href="#tracks"
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: "17px 32px",
-                borderRadius: "9px",
-                background: "#ff9b50",
-                color: "#071b39",
-                fontWeight: 700,
-                fontSize: "16px",
-                textDecoration: "none",
-                minHeight: "54px",
-                transition: "background .15s, transform .15s",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.background = "#ffb77e";
-                (e.currentTarget as HTMLAnchorElement).style.transform = "translateY(-1px)";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLAnchorElement).style.background = "#ff9b50";
-                (e.currentTarget as HTMLAnchorElement).style.transform = "none";
-              }}
-            >
-              Choose your exam →
-            </Link>
-            <p style={{ fontSize: "14px", color: "#b8c8df", margin: "17px 0 0" }}>
-              Every module open · Instant explanations · Free retakes
-            </p>
-          </div>
-        </section>
-
-        {/* ── Footer ── */}
-        <footer style={{ borderTop: "1px solid var(--border)" }}>
-          <div className="page-wrap" style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: "20px",
-            paddingTop: "26px",
-            paddingBottom: "26px",
-            fontSize: "14px",
-            color: "var(--muted)",
-            flexWrap: "wrap",
-          }}>
+        {/* Instructor */}
+        <section className="section" id="instructor" aria-labelledby="instructor-title">
+          <div className="container instructor">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/agentic-ai-logo-cropped.png" alt="Agentic AI Institute" style={{ height: "36px", width: "auto" }} />
-            <span>Claude Certification Practice Quiz · Independent, not affiliated with Anthropic</span>
-            <a
-              href={CALENDLY_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: "inherit", textDecoration: "underline", textUnderlineOffset: "3px" }}
-            >
-              Book a 1-on-1 call
-            </a>
+            <img className="instructor__photo" src={INSTRUCTOR_PHOTO} alt="Mahesh Yadav" width={340} height={340} loading="lazy" />
+            <div className="stack">
+              <span className="eyebrow">Meet Your Instructor</span>
+              <div className="stack">
+                <h2 className="t-h1" id="instructor-title">Mahesh Yadav</h2>
+                <p className="instructor__role">AI Lead, Early Agents · Google, Meta, AWS · Founder, Agentic AI Institute</p>
+              </div>
+              <p className="t-body measure">
+                20+ years building production AI systems at Google, Meta, AWS and Microsoft. Architected early agentic
+                infrastructure, including an AWS Bedrock agent featured in Andy Jassy&apos;s CEO keynote, and holds 12 patents
+                in AI training and computer vision.
+              </p>
+              <div className="instructor__facts">
+                <div className="stat stat--light"><span className="stat__value">20+</span><span className="stat__label">Years in AI</span></div>
+                <div className="stat stat--light"><span className="stat__value">12</span><span className="stat__label">AI Patents</span></div>
+                <div className="stat stat--light"><span className="stat__value">4.8</span><span className="stat__label">Rating on Maven</span></div>
+              </div>
+            </div>
           </div>
-        </footer>
+        </section>
+
+        {/* Guided prep CTA */}
+        <section className="section section--flush-top" id="guided" aria-labelledby="guided-title">
+          <div className="container">
+            <div className="cta-band on-navy">
+              <div className="stack">
+                <span className="eyebrow">Want Guided Certification Preparation?</span>
+                <h2 className="t-h2" id="guided-title">
+                  Prepare for Claude Certification.<br />
+                  <span className="t-accent t-nowrap">Build With Claude Code.</span>
+                </h2>
+                <p className="t-sm measure home-on-navy-muted">
+                  Score under 720 and get a free 30-minute 1-on-1 review of your results, with a personal study plan for
+                  Claude Certified Associate or Developer.
+                </p>
+                <a className="btn btn--link-light" href={CALENDLY_URL} target="_blank" rel="noopener noreferrer">
+                  Book a Free 1-on-1 Call <Icon name="arrow-up-right" size="sm" />
+                </a>
+              </div>
+              <div className="cta-band__aside">
+                <span className="t-sm home-on-navy-muted">Start With a Practice Score</span>
+                <p className="t-h3">Put your Claude knowledge to the test.</p>
+                <a className="btn btn--accent home-self-start" href="#tracks">Choose Your Exam</a>
+                <p className="t-xs home-on-navy-faint">No purchase or call booking required.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section className="section section--muted" id="faq" aria-labelledby="faq-title">
+          <div className="container faq">
+            <div className="stack">
+              <span className="eyebrow">Before You Start</span>
+              <h2 className="t-h1" id="faq-title">A Few Answers.</h2>
+            </div>
+            <div className="accordion">
+              {FAQS.map(({ q, a }, i) => {
+                const open = openFaq === i;
+                return (
+                  <div key={q} className="accordion__item">
+                    <button
+                      type="button"
+                      className="accordion__trigger"
+                      id={`faq-trigger-${i + 1}`}
+                      aria-expanded={open}
+                      aria-controls={`faq-${i + 1}`}
+                      onClick={() => setOpenFaq(open ? null : i)}
+                    >
+                      {q}
+                      <span className="accordion__icon"><Icon name="plus" size="sm" /></span>
+                    </button>
+                    <div className="accordion__panel" id={`faq-${i + 1}`} role="region" aria-labelledby={`faq-trigger-${i + 1}`}>
+                      <div><p className="accordion__body">{a}</p></div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* Closing CTA */}
+        <section className="section section--navy" aria-labelledby="close-title">
+          <div className="container closing">
+            <span className="eyebrow">Prepare With a Clear Revision Plan</span>
+            <h2 className="t-h1" id="close-title">Find Out If You Are <span className="t-accent">Ready to Certify.</span></h2>
+            <a className="btn btn--accent btn--lg" href="#tracks">Choose Your Exam</a>
+            <p className="t-sm home-on-navy-muted">Every module open · Instant explanations · Free retakes</p>
+          </div>
+        </section>
       </main>
+
+      <SiteFooter />
     </>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import type { CheckResult, OptionLabel, PublicQuestion } from "@/types/quiz";
 import { MODES, MODULE_PAUSE_SECONDS, MODULE_QUESTION_SECONDS, TRACKS } from "@/lib/blueprint";
@@ -19,9 +19,11 @@ import {
   type StoredAttempt,
 } from "@/lib/client/store";
 import { useEmailGate } from "@/components/EmailGate";
-import SkillJarLinks from "@/components/SkillJarLinks";
+import Icon from "@/components/Icon";
+import Modal from "@/components/Modal";
 import Header from "@/components/Header";
 import RichText from "@/components/RichText";
+import "@/app/design/quiz.css";
 
 export default function QuizPage() {
   const params = useParams<{ id: string }>();
@@ -37,18 +39,21 @@ export default function QuizPage() {
 
   if (attempt === undefined || attempt?.finishedAt) {
     return (
-      <main style={{ padding: "96px 48px", textAlign: "center" }}>
-        <p style={{ color: "var(--muted)" }}>Loading questions…</p>
+      <main className="quiz-main container container--narrow">
+        <p className="checking" role="status">
+          <span className="checking__dot" aria-hidden="true" />
+          Loading Questions…
+        </p>
       </main>
     );
   }
   if (attempt === null) {
     return (
-      <main style={{ padding: "96px 48px", textAlign: "center" }}>
-        <p style={{ color: "var(--muted)" }}>
+      <main className="quiz-main container container--narrow">
+        <p className="t-muted">
           We couldn&apos;t find this attempt on this device.{" "}
-          <Link href="/" style={{ color: "var(--navy)" }}>
-            Start a new one
+          <Link className="btn btn--link" href="/">
+            Start a New One
           </Link>
         </p>
       </main>
@@ -81,18 +86,11 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
   const perQ = attempt.mode === "module" ? MODULE_QUESTION_SECONDS * 1000 : null;
   const [timing, setTiming] = useState<Record<number, QuestionTiming>>(attempt.qTiming ?? {});
   const [showTimeUp, setShowTimeUp] = useState(false);
-  // The header is sticky, so the clock sticks just below it, whatever height the header has on this screen
-  const [headerH, setHeaderH] = useState(88);
-  useEffect(() => {
-    const measure = () => setHeaderH(document.querySelector("header")?.getBoundingClientRect().height ?? 88);
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, []);
-
-  // Mobile carousel — tracks which option card is currently visible (0–4)
-  const [visibleOptIdx, setVisibleOptIdx] = useState(0);
-  const carouselRef = useRef<HTMLDivElement>(null);
+  const [finishOpen, setFinishOpen] = useState(false);
+  const qTextRef = useRef<HTMLHeadingElement>(null);
+  const nextRef = useRef<HTMLButtonElement>(null);
+  const mounted = useRef(false);
+  const focusNextOnReveal = useRef(false);
 
   const total = attempt.total;
   const q = questions[currentIdx];
@@ -122,7 +120,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
   const isLast = currentIdx === total - 1;
   const isFirst = currentIdx === 0;
   const primaryDisabled = !resolved || (feedback && !revealed && !paused) || checking || finishing || gate.modalOpen;
-  const primaryLabel = isLast ? "See my results →" : "Next question →";
+  const primaryLabel = isLast ? "See Results" : "Next Question";
   const deadline = attempt.limitSeconds ? attempt.startedAt + attempt.limitSeconds * 1000 : null;
 
   // Persist progress so a refresh resumes the attempt
@@ -232,6 +230,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
       if (!res.ok) throw new Error("check failed");
       const result = (await res.json()) as CheckResult;
       setChecks((prev) => ({ ...prev, [qq.id]: result }));
+      focusNextOnReveal.current = true;
       // The demo is kept out of the learner's practice history; it only counts towards the email gate
       if (attempt.mode === "demo") recordDemoAnswer();
       else recordAnswer(qq, result.correct);
@@ -311,31 +310,19 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
     if (!isFirst) setCurrentIdx((i) => i - 1);
   }
 
+  /** Questions the learner has settled with a real answer (paused ones score as incorrect) */
+  const answeredCount = questions.filter((qq) => isComplete(qq) && !timing[qq.id]?.paused).length;
+  const missingCount = total - answeredCount;
+  const correctCount = questions.filter((qq) => checks[qq.id]?.correct).length;
+
   function handleFinishEarly() {
-    const answered = questions.filter((qq) => isComplete(qq) && !timing[qq.id]?.paused).length;
-    const missing = total - answered;
-    if (missing > 0 && !window.confirm(`${missing} question${missing === 1 ? " is" : "s are"} unanswered and will count as incorrect. Finish now?`)) return;
-    void finish();
-  }
-
-  // Mobile carousel helpers
-  function scrollToOpt(idx: number) {
-    const el = carouselRef.current;
-    if (!el) return;
-    el.scrollLeft = idx * el.offsetWidth;
-    setVisibleOptIdx(idx);
-  }
-
-  function handleCarouselScroll() {
-    const el = carouselRef.current;
-    if (!el) return;
-    setVisibleOptIdx(Math.round(el.scrollLeft / el.offsetWidth));
+    setFinishOpen(true);
   }
 
   // Keyboard handler
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
-      if (gate.modalOpen) return;
+      if (gate.modalOpen || finishOpen) return;
       if (showTimeUp) {
         // The "time's up" popup is open: Enter closes it, nothing else reacts
         if (e.key === "Enter") {
@@ -346,11 +333,13 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
       }
       const target = e.target as HTMLElement | null;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
+      if (target?.closest('[role="listbox"]') || e.metaKey || e.ctrlKey || e.altKey) return;
       const optionLabels: OptionLabel[] = ["A", "B", "C", "D", "E"];
-      if (["1", "2", "3", "4", "5"].includes(e.key)) {
+      const letterIdx = optionLabels.indexOf(e.key.toUpperCase() as OptionLabel);
+      if (["1", "2", "3", "4", "5"].includes(e.key) || letterIdx > -1) {
         e.preventDefault();
-        const label = optionLabels[Number(e.key) - 1];
-        if (label) selectAnswer(label);
+        const label = letterIdx > -1 ? optionLabels[letterIdx] : optionLabels[Number(e.key) - 1];
+        if (label && q.options.some((o) => o.label === label)) selectAnswer(label);
       } else if (e.key === "Enter") {
         e.preventDefault();
         void handleNext();
@@ -363,7 +352,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [q, isFirst, currentComplete, resolved, showTimeUp, answers, checks, checking, finishing, questions.length, gate.modalOpen]
+    [q, isFirst, currentComplete, resolved, showTimeUp, answers, checks, checking, finishing, questions.length, gate.modalOpen, finishOpen]
   );
 
   useEffect(() => {
@@ -371,28 +360,42 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleKeyDown]);
 
-  // Reset carousel to first card when question changes
+  // New question: clear transient UI and move focus to the question text
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset transient UI when the question changes
-    setVisibleOptIdx(0);
     setShowTimeUp(false);
     setCheckError(false);
-    if (carouselRef.current) carouselRef.current.scrollLeft = 0;
+    if (mounted.current) {
+      qTextRef.current?.focus({ preventScroll: true });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } else mounted.current = true;
   }, [currentIdx]);
 
-  // Segment progress bar
-  function segmentState(i: number) {
+  // After a fresh answer is revealed, move focus to Next so keyboard users can continue
+  useEffect(() => {
+    if (focusNextOnReveal.current && revealed && !gate.modalOpen && !showTimeUp) {
+      focusNextOnReveal.current = false;
+      nextRef.current?.focus();
+    }
+  }, [revealed, gate.modalOpen, showTimeUp]);
+
+  // Segment progress bar: answered segments show the result once it is known, the current one is navy
+  function segmentClass(i: number) {
     const qq = questions[i];
-    if (i === currentIdx) return "current";
-    if (qq && (isComplete(qq) || timing[qq.id]?.timedOut || timing[qq.id]?.paused)) return "answered";
-    return "default";
+    const c = qq && checks[qq.id];
+    if (c && feedback) return c.correct ? "is-correct" : "is-incorrect";
+    if (qq && (isComplete(qq) || timing[qq.id]?.timedOut || timing[qq.id]?.paused)) return "is-answered";
+    return i === currentIdx ? "is-current" : "";
   }
 
-  const segmentColors: Record<string, string> = {
-    default: "rgba(255,255,255,.18)",
-    current: "var(--accent)",
-    answered: "rgba(255,255,255,1)",
-  };
+  /** Status shown next to each question in the navigator */
+  function navStatus(i: number): { text: string; tone: "" | "is-correct" | "is-incorrect" } {
+    const qq = questions[i];
+    const c = qq && checks[qq.id];
+    if (c && feedback) return c.correct ? { text: "Correct", tone: "is-correct" } : { text: "Incorrect", tone: "is-incorrect" };
+    if (qq && isComplete(qq)) return { text: "Answered", tone: "" };
+    return { text: "Unanswered", tone: "" };
+  }
 
   type OptState = "default" | "selected" | "correct" | "wrong" | "dimmed";
 
@@ -409,670 +412,376 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
   function optionTag(label: OptionLabel): string | null {
     if (!revealed) return null;
     const picked = selected.includes(label);
-    if (correctLabels.includes(label)) return picked ? "Your answer · Correct" : "Correct answer";
-    return picked ? "Your answer · Incorrect" : null;
-  }
-
-  function getOptionStyles(state: OptState) {
-    if (state === "correct" || state === "wrong") {
-      const color = state === "correct" ? "var(--correct-text)" : "var(--incorrect-text)";
-      return {
-        wrapper: {
-          border: `2px solid ${color}`,
-          background: state === "correct" ? "var(--correct-bg)" : "var(--incorrect-bg)",
-          color: "var(--ink)",
-        },
-        badge: { background: color, color: "#ffffff", border: "none" },
-        text: { color: "var(--ink)" },
-      };
-    }
-    if (state === "dimmed") {
-      return {
-        wrapper: {
-          border: "1px solid var(--border)",
-          background: "#ffffff",
-          color: "var(--ink)",
-          opacity: 0.6,
-        },
-        badge: {
-          background: "#ffffff",
-          color: "var(--muted)",
-          border: "1px solid var(--border)",
-        },
-        text: { color: "var(--ink)" },
-      };
-    }
-    if (state === "selected") {
-      return {
-        wrapper: {
-          border: "2px solid var(--accent)",
-          background: "#fff3e8",
-          color: "var(--ink)",
-        },
-        badge: { background: "var(--accent)", color: "#ffffff", border: "none" },
-        text: { color: "var(--ink)" },
-      };
-    }
-    return {
-      wrapper: {
-        border: "1px solid var(--border)",
-        background: "#ffffff",
-        color: "var(--ink)",
-      },
-      badge: {
-        background: "#ffffff",
-        color: "var(--muted)",
-        border: "1px solid var(--border)",
-      },
-      text: { color: "var(--ink)" },
-    };
+    if (correctLabels.includes(label)) return picked ? "Your Answer · Correct" : "Correct Answer";
+    return picked ? "Your Answer" : null;
   }
 
   const modeTitle = `${trackDef.short} · ${MODES[attempt.mode].title}${attempt.domain ? `: ${attempt.domain}` : ""}${attempt.module ? `: ${attempt.module}` : ""}${attempt.level ? ` · Level ${attempt.level}` : ""}`;
   const remaining = deadline ? deadline - now : null;
+  const lowQ = clockRunning && qRemaining !== null && qRemaining <= 10_000;
+  const navItems = questions.map((_, i) => ({ i, ...navStatus(i) }));
+  const correctWord = `The correct answer${correctLabels.length > 1 ? "s are" : " is"} ${correctLabels.join(" and ")}`;
 
   return (
-    <>
+    <div className="quiz-page">
+      <a className="skip-link" href="#q-card">Skip to Question</a>
       <Header moduleTitle={modeTitle} />
 
-      <div
-        style={{
-          minHeight: "calc(100vh - 64px)",
-          display: "flex",
-          flexDirection: "column",
-          background: "var(--canvas)",
-        }}
-      >
-        {/* ── Per-question clock: stays under the header while the page scrolls, so it is always in view ── */}
-        {qRemaining !== null && perQ !== null && (
-          <div style={{ position: "sticky", top: headerH, zIndex: 40, background: "var(--navy)", borderBottom: "1px solid rgba(255,255,255,.12)", boxShadow: "0 4px 12px rgba(15,27,51,.25)" }}>
-            <div className="quiz-band-inner" style={{ maxWidth: "860px", margin: "0 auto", padding: "10px 48px 12px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <span
-                  role="timer"
-                  aria-label={`Time left for this question ${fmt(qRemaining)}${clockRunning ? "" : ", stopped"}`}
-                  style={{
-                    fontSize: "20px",
-                    fontWeight: 800,
-                    color: clockRunning && qRemaining <= 10_000 ? "#fca5a5" : "#ffffff",
-                    fontVariantNumeric: "tabular-nums",
-                    opacity: clockRunning ? 1 : 0.75,
-                    minWidth: "76px",
-                  }}
-                >
-                  ⏱ {fmt(qRemaining)}
-                </span>
-                <span style={{ fontSize: "13px", color: "var(--on-navy-2)", flex: 1 }}>
-                  {timedOut
-                    ? "Time's up for this question"
-                    : paused && !currentComplete
-                      ? `${frozen ? "Timer paused" : "Timer resumed"}: this question now has ${MODULE_PAUSE_SECONDS} seconds and counts as incorrect.`
-                      : clockRunning
-                        ? `${MODULE_QUESTION_SECONDS} seconds per question. Answer before it runs out.`
-                        : "Clock stopped. Continue when you are ready."}
-                </span>
-                {attempt.mode === "module" && (clockRunning || frozen) && !check && (
-                  <button
-                    type="button"
-                    onClick={frozen ? resumeClock : pauseClock}
-                    style={{ padding: "7px 14px", borderRadius: "8px", border: "1px solid rgba(255,255,255,.35)", background: "transparent", color: "#ffffff", fontSize: "13px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}
-                  >
-                    {frozen ? "▶ Resume timer" : "⏸ Pause timer"}
-                  </button>
-                )}
-              </div>
-              {/* Drains over 40 seconds, freezes when the question is answered */}
-              <div aria-hidden="true" style={{ height: "6px", borderRadius: "var(--r-pill)", background: "rgba(255,255,255,.18)", marginTop: "8px", overflow: "hidden" }}>
-                <div
-                  style={{
-                    height: "100%",
-                    width: `${Math.round((qRemaining / limitMs) * 100)}%`,
-                    background: qRemaining <= 10_000 ? "#f87171" : "var(--accent)",
-                    transition: clockRunning ? "width .25s linear, background .3s" : "none",
-                  }}
-                />
-              </div>
+      {/* Quiz bar: back, progress, clock(s), navigator */}
+      <div className="quiz-bar">
+        <div className="container quiz-bar__inner">
+          <Link className="quiz-bar__back" href={`/${attempt.track}`} aria-label="All Modules">
+            <Icon name="arrow-left" />
+            <span className="label">All Modules</span>
+          </Link>
+          <div className="quiz-bar__progress">
+            <span className="quiz-bar__count" aria-live="polite">
+              {questions.filter(isComplete).length} of {total} answered
+            </span>
+            <div className="segments" style={{ "--count": total } as React.CSSProperties} aria-hidden="true">
+              {Array.from({ length: total }, (_, i) => (
+                <span key={i} className={`segments__item ${segmentClass(i)}`} />
+              ))}
             </div>
           </div>
-        )}
-
-        {/* ── Navy band ── */}
-        <div
-          style={{
-            background: "var(--gradient)",
-            padding: "28px 0 36px",
-            flexShrink: 0,
-          }}
-        >
-          <div
-            className="quiz-band-inner"
-            style={{ maxWidth: "860px", margin: "0 auto", padding: "0 48px" }}
-          >
-            {/* Row 1 */}
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "16px",
-                marginBottom: "24px",
-              }}
-            >
-              <Link
-                href={`/${attempt.track}`}
-                style={{
-                  fontSize: "14px",
-                  color: "var(--on-navy-2)",
-                  textDecoration: "none",
-                  flexShrink: 0,
-                }}
-              >
-                ← All modules
-              </Link>
-              <div style={{ flex: 1 }} />
-              {remaining !== null && (
-                <span
-                  role="timer"
-                  aria-label={`Time remaining ${fmt(remaining)}`}
-                  style={{
-                    fontSize: "14px",
-                    fontWeight: 700,
-                    color: remaining < 300_000 ? "var(--accent)" : "#ffffff",
-                    background: "rgba(255,255,255,.12)",
-                    borderRadius: "var(--r-pill)",
-                    padding: "4px 12px",
-                    whiteSpace: "nowrap",
-                    fontVariantNumeric: "tabular-nums",
-                  }}
-                >
-                  ⏱ {fmt(remaining)}
-                </span>
-              )}
+          <div className="quiz-bar__tools">
+            {qRemaining !== null && perQ !== null && (
               <span
-                style={{
-                  fontSize: "14px",
-                  color: "var(--on-navy-2)",
-                  whiteSpace: "nowrap",
-                }}
+                className={`timer${lowQ ? " is-warning" : ""}${!clockRunning ? " is-paused" : ""}`}
+                role="timer"
+                aria-label={`Time left for this question ${fmt(qRemaining)}${clockRunning ? "" : ", stopped"}`}
               >
-                {questions.filter(isComplete).length} of {total} answered
+                <Icon name="clock" size="sm" />
+                <span className="timer__value">{fmt(qRemaining)}</span>
               </span>
+            )}
+            {attempt.mode === "module" && perQ !== null && (clockRunning || frozen) && !check && (
+              <button type="button" className="btn btn--secondary btn--sm" onClick={frozen ? resumeClock : pauseClock}>
+                {frozen ? "Resume Timer" : "Pause Timer"}
+              </button>
+            )}
+            {remaining !== null && (
+              <span className={`timer${remaining < 300_000 ? " is-warning" : ""}`} role="timer" aria-label={`Time remaining ${fmt(remaining)}`}>
+                <Icon name="clock" size="sm" />
+                <span className="timer__value">{fmt(remaining)}</span>
+              </span>
+            )}
+            <QuestionNav items={navItems} current={currentIdx} total={total} onSelect={setCurrentIdx} />
+          </div>
+        </div>
+        {qRemaining !== null && perQ !== null && (
+          <div className="container quiz-timebar">
+            <div className="quiz-timebar__track" aria-hidden="true">
+              <div
+                className={`quiz-timebar__fill${clockRunning ? " is-running" : ""}${lowQ ? " is-low" : ""}`}
+                style={{ "--value": `${Math.round((qRemaining / limitMs) * 100)}%` } as React.CSSProperties}
+              />
             </div>
+            <p className="quiz-timebar__note">
+              {timedOut
+                ? "Time's up for this question."
+                : paused && !currentComplete
+                  ? `${frozen ? "Timer paused" : "Timer resumed"}: this question now has ${MODULE_PAUSE_SECONDS} seconds and counts as incorrect.`
+                  : clockRunning
+                    ? `${MODULE_QUESTION_SECONDS} seconds per question. Answer before it runs out.`
+                    : "Clock stopped. Continue when you are ready."}
+            </p>
+          </div>
+        )}
+      </div>
 
-            {attempt.examConditions && (
-              <p style={{ margin: "-8px 0 14px", fontSize: "13px", color: "var(--on-navy-2)" }}>
-                Exam conditions: feedback is hidden until you finish.
+      <main className="quiz-main">
+        <div className="container container--narrow">
+          {attempt.examConditions && <p className="quiz-note">Exam conditions: feedback is hidden until you finish.</p>}
+
+          <section className="q-card" id="q-card" aria-label="Question">
+            <p className="q-meta">
+              <span className="q-meta__num">Question {currentIdx + 1} of {total}</span>
+              <span aria-hidden="true">·</span>
+              <span>{q.domain}</span>
+            </p>
+            <h1 className={`q-text${isMulti ? " q-text--multi" : ""}`} id="q-text" tabIndex={-1} ref={qTextRef}>
+              <RichText text={q.question} />
+            </h1>
+
+            {isMulti && (
+              <p className="q-meta q-select" role="status" aria-live="polite">
+                <span className="tag">Select {picks}</span>
+                <span>
+                  {revealed
+                    ? `This question has ${picks} correct answers, and it is scored all-or-nothing.`
+                    : `Select ${picks} options (${selected.length} of ${picks} selected).${feedback ? ` Your answer is checked once all ${picks} are picked.` : ""}`}
+                </span>
               </p>
             )}
 
-            {/* Segmented progress */}
-            <div
-              role="progressbar"
-              aria-valuenow={currentIdx + 1}
-              aria-valuemin={1}
-              aria-valuemax={total}
-              aria-label={`Question ${currentIdx + 1} of ${total}`}
-              style={{
-                display: "flex",
-                gap: "4px",
-                alignItems: "center",
-                height: "16px",
-              }}
-            >
-              {Array.from({ length: total }, (_, i) => {
-                const state = segmentState(i);
+            <div className="options" role="group" aria-labelledby="q-text">
+              {q.options.map((opt) => {
+                const state = optionState(opt.label);
+                const tag = optionTag(opt.label);
+                const cls = state === "selected" ? " is-selected" : state === "correct" ? " is-correct" : state === "wrong" ? " is-incorrect" : state === "dimmed" ? " is-dimmed" : "";
                 return (
-                  <div
-                    key={i}
-                    onClick={() => questions[i] && setCurrentIdx(i)}
-                    style={{
-                      flex: 1,
-                      borderRadius: "var(--r-pill)",
-                      background: segmentColors[state],
-                      height: state === "current" ? "8px" : "4px",
-                      transition: "background 0.2s, height 0.2s",
-                      cursor: questions[i] ? "pointer" : "default",
-                    }}
-                  />
+                  <button
+                    key={opt.label}
+                    type="button"
+                    className={`option${cls}`}
+                    onClick={() => selectAnswer(opt.label)}
+                    disabled={locked}
+                    aria-pressed={selected.includes(opt.label)}
+                    aria-describedby={revealed ? "feedback" : undefined}
+                  >
+                    <span className="option__key" aria-hidden="true">{opt.label}</span>
+                    <span className="option__text">
+                      <span className="sr-only">Option {opt.label}: </span>
+                      <RichText text={opt.text} />
+                    </span>
+                    {tag && (
+                      <span className="option__status">
+                        <Icon name={state === "correct" ? "check" : "x"} size="sm" />
+                        {tag}
+                      </span>
+                    )}
+                  </button>
                 );
               })}
             </div>
-          </div>
-        </div>
 
-        {/* ── Content area ── */}
-        <div style={{ flex: 1, padding: "40px 0 80px" }}>
-          <div
-            className="quiz-content-inner"
-            style={{ maxWidth: "860px", margin: "0 auto", padding: "0 48px" }}
-          >
-            {/* Quiz card */}
-            <div
-              key={currentIdx}
-              className="card-enter quiz-card"
-              style={{
-                background: "#ffffff",
-                borderRadius: "var(--r-quiz-card)",
-                boxShadow: "var(--shadow-feature)",
-                padding: "40px",
-              }}
-            >
-              {/* Card header */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  marginBottom: "24px",
-                }}
-              >
-                <span
-                  style={{
-                    padding: "5px 14px",
-                    borderRadius: "var(--r-pill)",
-                    background: "var(--accent)",
-                    color: "var(--navy)",
-                    fontSize: "13px",
-                    fontWeight: 800,
-                    letterSpacing: "0.04em",
-                    flexShrink: 0,
-                    fontFamily: "var(--font-manrope), sans-serif",
-                  }}
-                >
-                  {String(currentIdx + 1).padStart(2, "0")}
-                </span>
-                <span style={{ fontSize: "14px", color: "var(--muted)" }}>
-                  Question {currentIdx + 1} of {total} · {q.domain}
-                </span>
-              </div>
-
-              {/* Question */}
-              <div
-                className="quiz-question"
-                style={{
-                  fontSize: "22px",
-                  lineHeight: "32px",
-                  fontWeight: 600,
-                  color: "var(--ink)",
-                  letterSpacing: "-0.02em",
-                  margin: isMulti ? "0 0 14px" : "0 0 28px",
-                }}
-              >
-                <RichText text={q.question} />
-              </div>
-
-              {isMulti && (
-                <p
-                  role="status"
-                  aria-live="polite"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    flexWrap: "wrap",
-                    gap: "8px",
-                    fontSize: "14px",
-                    color: "var(--ink)",
-                    margin: "0 0 20px",
-                  }}
-                >
-                  <span
-                    style={{
-                      padding: "3px 10px",
-                      borderRadius: "var(--r-pill)",
-                      background: "#fff3e8",
-                      border: "1px solid var(--accent)",
-                      fontSize: "12px",
-                      fontWeight: 700,
-                      letterSpacing: "0.02em",
-                    }}
-                  >
-                    Select {picks}
-                  </span>
-                  <span>
-                    {revealed
-                      ? `This question has ${picks} correct answers, and it is scored all-or-nothing.`
-                      : `Select ${picks} options (${selected.length} of ${picks} selected).${feedback ? ` Your answer is checked once all ${picks} are picked.` : ""}`}
-                  </span>
+            <div role="status" aria-live="polite">
+              {revealed && check && (
+                <div className={`feedback feedback--${currentCorrect ? "correct" : "incorrect"}`} id="feedback">
+                  <p className="feedback__status">
+                    <Icon name={currentCorrect ? "check" : "x"} />
+                    {currentCorrect ? "Correct." : timedOut ? `Time's Up. ${correctWord}.` : `Incorrect. ${correctWord}.`}
+                  </p>
+                  <p className="feedback__label">Explanation</p>
+                  <p className="feedback__text">{check.explanation}</p>
+                  {!!check.resources?.length && (
+                    <div className="feedback__resource">
+                      <span className="t-muted">Read More on Skill Jar:</span>
+                      {check.resources.map((r) => (
+                        <a key={r.url} href={r.url} target="_blank" rel="noopener noreferrer">
+                          {r.title}
+                          <Icon name="external" size="sm" />
+                          <span className="sr-only">(opens in a new tab)</span>
+                        </a>
+                      ))}
+                      <span className="note">Opens in a new tab. You need a Skill Jar account to open the course.</span>
+                    </div>
+                  )}
+                </div>
+              )}
+              {!feedback && currentComplete && <p className="quiz-note">Answer saved. You can change it until you finish.</p>}
+              {checking && !revealed && (
+                <p className="checking">
+                  <span className="checking__dot" aria-hidden="true" />
+                  Checking…
                 </p>
               )}
-
-              {/* Options — Desktop list (hidden on ≤460px) */}
-              <div
-                className="quiz-options-desktop"
-                style={{ display: "flex", flexDirection: "column", gap: "10px" }}
-              >
-                {q.options.map((opt) => {
-                  const state = optionState(opt.label);
-                  const styles = getOptionStyles(state);
-                  return (
-                    <button
-                      key={opt.label}
-                      onClick={() => selectAnswer(opt.label)}
-                      disabled={locked}
-                      aria-pressed={selected.includes(opt.label)}
-                      className={`option-btn${state === "selected" ? " option-selected" : ""}${revealed ? " option-answered" : ""}`}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "14px",
-                        padding: "14px 18px",
-                        borderRadius: "var(--r-option)",
-                        textAlign: "left",
-                        width: "100%",
-                        cursor: revealed ? "default" : "pointer",
-                        ...styles.wrapper,
-                        transition: "all 0.15s",
-                      }}
-                    >
-                      <span
-                        style={{
-                          width: "28px",
-                          height: "28px",
-                          borderRadius: "var(--r-option)",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: "13px",
-                          fontWeight: 600,
-                          flexShrink: 0,
-                          transition: "all 0.15s",
-                          ...styles.badge,
-                        }}
-                      >
-                        {opt.label}
-                      </span>
-                      <span
-                        style={{ flex: 1, fontSize: "15px", lineHeight: "24px", ...styles.text }}
-                      >
-                        <RichText text={opt.text} />
-                      </span>
-                      {optionTag(opt.label) && (
-                        <span
-                          style={{
-                            flexShrink: 0,
-                            fontSize: "12px",
-                            fontWeight: 700,
-                            color: state === "correct" ? "var(--correct-text)" : "var(--incorrect-text)",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {state === "correct" ? "✓ " : "✗ "}
-                          {optionTag(opt.label)}
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Options — Mobile swipeable carousel (visible only on ≤460px) */}
-              <div className="quiz-options-mobile">
-                <p className="mobile-answer-label">Answer</p>
-
-                {/* Swipeable card track */}
-                <div
-                  ref={carouselRef}
-                  className="mobile-carousel"
-                  onScroll={handleCarouselScroll}
-                >
-                  {q.options.map((opt) => {
-                    const state = optionState(opt.label);
-                    const styles = getOptionStyles(state);
-                    return (
-                      <div key={opt.label} className="mobile-option-slide">
-                        <button
-                          onClick={() => selectAnswer(opt.label)}
-                          disabled={locked}
-                          aria-pressed={selected.includes(opt.label)}
-                          className="mobile-option-card"
-                          style={styles.wrapper as React.CSSProperties}
-                        >
-                          <div
-                            className="mobile-option-badge"
-                            style={styles.badge as React.CSSProperties}
-                          >
-                            {opt.label}
-                          </div>
-                          <p
-                            className="mobile-option-text"
-                            style={{ color: (styles.text as React.CSSProperties).color }}
-                          >
-                            <RichText text={opt.text} />
-                          </p>
-                          {optionTag(opt.label) && (
-                            <span
-                              className={`result-tag ${state === "correct" ? "correct-tag-mobile" : "wrong-tag-mobile"}`}
-                            >
-                              {state === "correct" ? "✓ " : "✗ "}
-                              {optionTag(opt.label)}
-                            </span>
-                          )}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Swipe hint */}
-                <p className="mobile-swipe-hint" aria-hidden="true">
-                  ← swipe →
+              {checkError && (
+                <p role="alert" className="quiz-error">
+                  <Icon name="x" size="sm" />
+                  Couldn&apos;t reach the server.
+                  <button
+                    type="button"
+                    className="btn btn--link"
+                    onClick={() => (timedOut && !check ? void runTimeout(q) : currentComplete && feedback && !check ? void runCheck(q, selected) : void handleNext())}
+                  >
+                    Retry
+                  </button>
                 </p>
-
-                {/* A / B / C / D navigation */}
-                <div
-                  className="mobile-carousel-nav"
-                  role="group"
-                  aria-label="Answer navigation"
-                >
-                  {q.options.map((opt, optIdx) => {
-                    const isViewing = optIdx === visibleOptIdx;
-                    const isChosen = selected.includes(opt.label);
-                    const state = optionState(opt.label);
-                    return (
-                      <button
-                        key={opt.label}
-                        // Only scrolls to the card; tapping the card itself selects it,
-                        // so viewing an option can't accidentally lock in an answer
-                        onClick={() => scrollToOpt(optIdx)}
-                        aria-label={`View option ${opt.label}${isChosen ? " (selected)" : ""}`}
-                        className={
-                          "mobile-nav-btn" +
-                          (isViewing ? " mnb-viewing" : "") +
-                          (isChosen ? " mnb-chosen" : "") +
-                          (state === "correct" ? " mnb-correct" : "") +
-                          (state === "wrong" ? " mnb-wrong" : "")
-                        }
-                      >
-                        <span>{opt.label}</span>
-                        {isChosen && (
-                          <span className="mnb-dot" aria-hidden="true">
-                            ●
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Answer feedback */}
-              <div aria-live="polite">
-                {revealed && check && (
-                  <>
-                    <div
-                      style={{
-                        marginTop: "20px",
-                        padding: "12px 16px",
-                        borderRadius: "var(--r-option)",
-                        background: currentCorrect ? "var(--correct-bg)" : "var(--incorrect-bg)",
-                        color: currentCorrect ? "#14532d" : "#991b1b",
-                        fontSize: "15px",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {currentCorrect
-                        ? "✓ Correct!"
-                        : timedOut
-                          ? `⏱ Time's up. The correct answer${correctLabels.length > 1 ? "s are" : " is"} ${correctLabels.join(" and ")}.`
-                        : `✗ Incorrect. The correct answer${correctLabels.length > 1 ? "s are" : " is"} ${correctLabels.join(" and ")}.`}
-                    </div>
-                    <div
-                      style={{
-                        marginTop: "12px",
-                        padding: "14px 16px",
-                        borderRadius: "var(--r-option)",
-                        background: "var(--canvas)",
-                        border: "1px solid var(--border)",
-                        fontSize: "15px",
-                        lineHeight: 1.65,
-                        color: "var(--ink)",
-                      }}
-                    >
-                      <strong style={{ display: "block", marginBottom: "4px", fontSize: "13px", letterSpacing: ".4px", textTransform: "uppercase", color: "var(--muted)" }}>
-                        Explanation
-                      </strong>
-                      {check.explanation}
-                      <SkillJarLinks resources={check.resources} />
-                    </div>
-                  </>
-                )}
-                {!feedback && currentComplete && (
-                  <p style={{ marginTop: "16px", fontSize: "14px", color: "var(--muted)" }}>Answer saved. You can change it until you finish.</p>
-                )}
-                {checking && !revealed && <p style={{ marginTop: "16px", fontSize: "14px", color: "var(--muted)" }}>Checking…</p>}
-                {checkError && (
-                  <p role="alert" style={{ marginTop: "16px", fontSize: "14px", color: "var(--incorrect-text)" }}>
-                    ✗ Couldn&apos;t reach the server.{" "}
-                    <button
-                      onClick={() => (timedOut && !check ? void runTimeout(q) : currentComplete && feedback && !check ? void runCheck(q, selected) : void handleNext())}
-                      style={{ background: "none", border: "none", color: "var(--navy)", textDecoration: "underline", cursor: "pointer", fontFamily: "inherit", fontSize: "14px" }}
-                    >
-                      Retry
-                    </button>
-                  </p>
-                )}
-              </div>
-
-              {/* Primary action + Back button row */}
-              <div
-                className="quiz-action-row"
-                style={{
-                  marginTop: "28px",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                }}
-              >
-                {/* Back */}
-                <button
-                  onClick={handleBack}
-                  disabled={isFirst}
-                  aria-label="Go to previous question"
-                  style={{
-                    padding: "14px 22px",
-                    borderRadius: "9px",
-                    border: "1.5px solid var(--border)",
-                    background: "#ffffff",
-                    color: isFirst ? "var(--disabled)" : "var(--ink)",
-                    fontSize: "15px",
-                    fontWeight: 600,
-                    cursor: isFirst ? "not-allowed" : "pointer",
-                    transition: "border-color 0.15s, color 0.15s",
-                    flexShrink: 0,
-                    minHeight: "52px",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  ← Back
-                </button>
-
-                {/* Next only appears once the answer has been checked (feedback mode) */}
-                <button
-                  onClick={() => void handleNext()}
-                  disabled={primaryDisabled}
-                  className="quiz-primary-btn"
-                  style={{
-                    flex: 1,
-                    padding: "14px 32px",
-                    borderRadius: "9px",
-                    border: "none",
-                    background: primaryDisabled ? "var(--disabled)" : "var(--accent)",
-                    color: primaryDisabled ? "#ffffff" : "var(--navy)",
-                    fontSize: "16px",
-                    fontWeight: 700,
-                    cursor: primaryDisabled ? "not-allowed" : "pointer",
-                    transition: "background 0.2s, transform 0.15s",
-                    letterSpacing: "-0.01em",
-                    minHeight: "52px",
-                    fontFamily: "inherit",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!primaryDisabled) {
-                      (e.currentTarget as HTMLButtonElement).style.background = "var(--accent-hover)";
-                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLButtonElement).style.background = primaryDisabled
-                      ? "var(--disabled)"
-                      : "var(--accent)";
-                    (e.currentTarget as HTMLButtonElement).style.transform = "none";
-                  }}
-                >
-                  {primaryLabel}
-                </button>
-              </div>
+              )}
             </div>
 
-            {/* Below card: keyboard hint + finish early */}
-            <div style={{ marginTop: "16px", textAlign: "center", display: "grid", gap: "8px" }}>
-              <span
-                className="quiz-keyboard-hint"
-                style={{ fontSize: "12px", color: "var(--muted)" }}
-              >
-                Use 1–4 to select · Enter to advance · ← → navigate
-              </span>
-              <button
-                onClick={handleFinishEarly}
-                style={{ background: "none", border: "none", color: "var(--muted)", textDecoration: "underline", cursor: "pointer", fontSize: "13px", fontFamily: "inherit" }}
-              >
-                Finish and see results
+            <div className="q-actions">
+              <button type="button" className="btn btn--secondary" onClick={handleBack} disabled={isFirst} aria-label="Previous Question">
+                <Icon name="arrow-left" />
+                <span className="label">Back</span>
+              </button>
+              <button type="button" className="btn btn--accent" ref={nextRef} onClick={() => void handleNext()} disabled={primaryDisabled}>
+                {primaryLabel}
               </button>
             </div>
-          </div>
-        </div>
-      </div>
+          </section>
 
-      {showTimeUp && timedOut && check && (
-        <div role="alertdialog" aria-modal="true" aria-labelledby="qtimeup-title" style={{ position: "fixed", inset: 0, zIndex: 9000, background: "rgba(15,27,51,.8)", display: "grid", placeItems: "center", padding: "24px" }}>
-          <div style={{ background: "#fff", borderRadius: "var(--r-feature)", padding: "32px", maxWidth: "480px", width: "100%", textAlign: "center" }}>
-            <h2 id="qtimeup-title" style={{ margin: "0 0 8px", fontSize: "24px" }}>⏱ Time&apos;s up</h2>
-            <p style={{ margin: "0 0 12px", color: "var(--muted)" }}>You ran out of the {MODULE_QUESTION_SECONDS} seconds for this question, so it counts as missed. The correct answer{correctLabels.length > 1 ? "s are" : " is"}:</p>
-            <ul style={{ listStyle: "none", margin: "0 0 20px", padding: 0, display: "grid", gap: "8px", textAlign: "left" }}>
-              {q.options.filter((o) => correctLabels.includes(o.label)).map((o) => (
-                <li key={o.label} style={{ padding: "10px 14px", borderRadius: "var(--r-option)", border: "2px solid var(--correct-text)", background: "var(--correct-bg)", color: "var(--ink)", fontSize: "15px", lineHeight: 1.5 }}>
-                  <strong>{o.label}.</strong> {o.text}
-                </li>
-              ))}
-            </ul>
-            <button
-              autoFocus
-              onClick={() => setShowTimeUp(false)}
-              style={{ padding: "12px 28px", borderRadius: "9px", border: "none", background: "var(--accent)", color: "var(--navy)", fontSize: "16px", fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
-            >
-              Continue
+          <div className="quiz-foot">
+            <span className="keys">
+              <kbd>1</kbd>–<kbd>{q.options.length}</kbd> Select <kbd>Enter</kbd> Next <kbd>←</kbd>
+              <kbd>→</kbd> Navigate
+            </span>
+            <button className="btn btn--link" type="button" onClick={handleFinishEarly}>
+              Finish and See Results
             </button>
           </div>
         </div>
+      </main>
+
+      {finishOpen && (
+        <Modal role="alertdialog" labelledBy="finish-title" describedBy="finish-text" onClose={() => setFinishOpen(false)}>
+          <h2 className="modal__title" id="finish-title">Finish and See Results?</h2>
+          <div className={`modal__summary${feedback ? "" : " modal__summary--2"}`}>
+            <div><strong>{answeredCount}</strong><span>Answered</span></div>
+            {feedback && <div><strong className="is-success">{correctCount}</strong><span>Correct</span></div>}
+            <div><strong>{missingCount}</strong><span>Unanswered</span></div>
+          </div>
+          <p className="modal__text" id="finish-text">
+            {missingCount > 0
+              ? `${missingCount} ${missingCount === 1 ? "question is" : "questions are"} unanswered and will count as incorrect.`
+              : "You've answered every question."}
+          </p>
+          <div className="modal__actions">
+            <button type="button" className="btn btn--secondary" data-autofocus onClick={() => setFinishOpen(false)}>Keep Going</button>
+            <button
+              type="button"
+              className="btn btn--accent"
+              onClick={() => {
+                setFinishOpen(false);
+                void finish();
+              }}
+            >
+              See Results
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {showTimeUp && timedOut && check && (
+        <Modal role="alertdialog" labelledBy="qtimeup-title" onClose={() => setShowTimeUp(false)}>
+          <h2 className="modal__title" id="qtimeup-title">Time&apos;s Up</h2>
+          <p className="modal__text">
+            You ran out of the {MODULE_QUESTION_SECONDS} seconds for this question, so it counts as missed. The correct answer{correctLabels.length > 1 ? "s are" : " is"}:
+          </p>
+          <div className="options">
+            {q.options.filter((o) => correctLabels.includes(o.label)).map((o) => (
+              <div key={o.label} className="option is-correct">
+                <span className="option__key" aria-hidden="true">{o.label}</span>
+                <span className="option__text"><RichText text={o.text} /></span>
+                <span className="option__status"><Icon name="check" size="sm" />Correct Answer</span>
+              </div>
+            ))}
+          </div>
+          <div className="modal__actions">
+            <button type="button" className="btn btn--accent" data-autofocus onClick={() => setShowTimeUp(false)}>Continue</button>
+          </div>
+        </Modal>
       )}
 
       {timeUp && (
-        <div role="alertdialog" aria-modal="true" aria-label="Time is up" style={{ position: "fixed", inset: 0, zIndex: 9000, background: "rgba(15,27,51,.8)", display: "grid", placeItems: "center", padding: "24px" }}>
-          <div style={{ background: "#fff", borderRadius: "var(--r-feature)", padding: "32px", maxWidth: "420px", textAlign: "center" }}>
-            <h2 style={{ margin: "0 0 8px", fontSize: "24px" }}>Time&apos;s up</h2>
-            <p style={{ margin: 0, color: "var(--muted)" }}>Unanswered questions count as incorrect. Taking you to your results…</p>
-          </div>
-        </div>
+        <Modal role="alertdialog" labelledBy="timeup-title" describedBy="timeup-text" required>
+          <h2 className="modal__title" id="timeup-title">Time&apos;s Up</h2>
+          <p className="modal__text" id="timeup-text">Unanswered questions count as incorrect. Taking you to your results…</p>
+        </Modal>
       )}
-    </>
+    </div>
+  );
+}
+
+/** Jump-to-question listbox (prototype `.listbox`): arrow keys, Home/End, Enter/Space, Esc restores focus to the button */
+function QuestionNav({
+  items,
+  current,
+  total,
+  onSelect,
+}: {
+  items: { i: number; text: string; tone: "" | "is-correct" | "is-incorrect" }[];
+  current: number;
+  total: number;
+  onSelect: (i: number) => void;
+}) {
+  const uid = useId();
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(current);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const n = items.length;
+
+  const close = (refocus = true) => {
+    setOpen(false);
+    if (refocus) btnRef.current?.focus();
+  };
+  const openList = () => {
+    setActive(current);
+    setOpen(true);
+  };
+  const choose = (i: number) => {
+    onSelect(i);
+    close();
+  };
+
+  useEffect(() => {
+    if (open) listRef.current?.focus();
+  }, [open]);
+  useEffect(() => {
+    if (open) document.getElementById(`${uid}-${active}`)?.scrollIntoView({ block: "nearest" });
+  }, [open, active, uid]);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  function onListKey(e: React.KeyboardEvent) {
+    e.stopPropagation();
+    if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => (a + 1) % n); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => (a - 1 + n) % n); }
+    else if (e.key === "Home") { e.preventDefault(); setActive(0); }
+    else if (e.key === "End") { e.preventDefault(); setActive(n - 1); }
+    else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); choose(active); }
+    else if (e.key === "Escape") { e.preventDefault(); close(); }
+    else if (e.key === "Tab") close(false);
+  }
+
+  return (
+    <div className="listbox quiz-nav" ref={rootRef}>
+      <button
+        ref={btnRef}
+        className="listbox__button"
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label="Jump to Question"
+        onClick={() => (open ? close(false) : openList())}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+            e.preventDefault();
+            openList();
+          }
+        }}
+      >
+        <span className="listbox__value">{current + 1} / {total}</span>
+        <Icon name="chevron-down" size="sm" />
+      </button>
+      <ul
+        ref={listRef}
+        className="listbox__list"
+        role="listbox"
+        tabIndex={-1}
+        aria-label="Questions"
+        aria-activedescendant={`${uid}-${active}`}
+        hidden={!open}
+        onKeyDown={onListKey}
+      >
+        {items.map((it) => (
+          <li
+            key={it.i}
+            id={`${uid}-${it.i}`}
+            role="option"
+            aria-selected={it.i === current}
+            className={`listbox__option${it.i === active ? " is-active" : ""}`}
+            onClick={() => choose(it.i)}
+          >
+            <span>Question {it.i + 1}</span>
+            <span className={`weight quiz-nav__status ${it.tone}`}>
+              {it.tone === "is-correct" && <Icon name="check" size="sm" />}
+              {it.tone === "is-incorrect" && <Icon name="x" size="sm" />}
+              {it.text}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

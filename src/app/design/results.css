@@ -1,0 +1,25 @@
+/* Results / report pages: small additions on top of the shared design components (tokens only). */
+.results-message { padding-block: var(--s-16, 96px); text-align: center; color: var(--muted); }
+.results-message a { color: var(--link); text-decoration: underline; text-underline-offset: 3px; }
+.results-note { display: flex; gap: var(--s-2); color: var(--on-navy-faint); }
+.results-note .icon { flex: none; margin-top: 1px; }
+.results-list { display: grid; gap: var(--s-2); padding-left: var(--s-5); list-style: decimal; font-size: var(--fs-sm); color: var(--ink-2); }
+.results-list--bullets { list-style: disc; }
+.results-list strong { color: var(--ink); font-weight: var(--fw-medium); }
+.results-sub { color: var(--muted); }
+.results-review__meta { font-size: var(--fs-xs); color: var(--muted); margin-bottom: var(--s-3); }
+.results-review__body { padding-left: var(--s-10, 40px); }
+.results-review__explain { color: var(--ink-2); }
+.results-plan-card { display: grid; gap: var(--s-2); }
+.results-plan-card p, .results-plan-card ul { font-size: var(--fs-sm); }
+.results-plan-card ul { padding-left: var(--s-5); list-style: disc; display: grid; gap: var(--s-1, 4px); }
+.results-plan-card a, .results-link { color: var(--link); text-decoration: underline; text-underline-offset: 3px; }
+.results-days { display: grid; gap: var(--s-3); padding-left: var(--s-5); list-style: decimal; }
+.results-days ul { padding-left: var(--s-5); list-style: disc; font-size: var(--fs-sm); margin-top: var(--s-1, 4px); }
+.results-actions-row .btn:disabled, .next-actions .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.report-page { max-width: 860px; }
+.report-page .domains { margin-top: var(--s-3); }
+.report-missed { display: grid; gap: var(--s-2); padding-block: var(--s-4); border-top: 1px solid var(--line); font-size: var(--fs-sm); }
+.report-missed__q { font-weight: var(--fw-medium); color: var(--ink); }
+.report-missed .is-no { color: var(--error); }
+.report-missed .is-ok { color: var(--success); }

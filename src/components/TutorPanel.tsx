@@ -5,13 +5,15 @@ import type { PublicQuestion } from "@/types/quiz";
 import { TUTOR_MAX_TURNS } from "@/lib/config";
 import { track } from "@/lib/analytics";
 import { getEmail } from "@/lib/client/store";
+import Icon from "@/components/Icon";
+import "@/app/design/quiz.css";
 
 interface Msg {
   role: "user" | "assistant";
   content: string;
 }
 
-const CHIPS = ["Explain it like I'm not technical", "Why are the other options wrong?", "Give me an example"];
+const CHIPS = ["Explain It Like I'm Not Technical", "Why Are the Other Options Wrong?", "Give Me an Example"];
 
 /**
  * "Explain it differently" tutor. Never blocks the quiz: if the model is unavailable the static
@@ -27,6 +29,7 @@ export default function TutorPanel({
   answered: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const bodyId = `tutor-body-${question.id}`;
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -86,60 +89,38 @@ export default function TutorPanel({
     }
   }
 
-  const btn: React.CSSProperties = {
-    padding: "9px 14px",
-    borderRadius: "9px",
-    border: "1px solid var(--border)",
-    background: "#fff",
-    color: "var(--ink)",
-    fontSize: "14px",
-    fontWeight: 600,
-    cursor: "pointer",
-    fontFamily: "inherit",
-  };
-
   return (
-    <div style={{ marginTop: "16px" }}>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center" }}>
+    <div className="tutor">
+      <div className="tutor__bar">
         <button
+          type="button"
+          className="btn btn--secondary btn--sm"
           onClick={() => {
             if (!open) track("tutor_opened", { questionId: question.id });
             setOpen(!open);
           }}
           aria-expanded={open}
-          style={{ ...btn, borderColor: "var(--accent)", background: "#fff3e8" }}
+          aria-controls={bodyId}
         >
-          {open ? "Hide tutor" : "Explain it differently"}
+          {open ? "Hide Tutor" : "Explain It Differently"}
         </button>
-        <button onClick={report} disabled={reported} style={{ ...btn, color: "var(--muted)", cursor: reported ? "default" : "pointer" }}>
-          {reported ? "Thanks, sent for review" : "Report this question"}
+        <button type="button" className="btn btn--link" onClick={report} disabled={reported}>
+          {reported ? "Thanks, Sent for Review" : "Report This Question"}
         </button>
       </div>
 
       {open && (
-        <div style={{ marginTop: "12px", border: "1px solid var(--border)", borderRadius: "var(--r-card)", padding: "16px", background: "#fff" }}>
-          <p style={{ margin: "0 0 10px", fontSize: "13px", color: "var(--muted)" }}>
+        <div className="card tutor__body" id={bodyId}>
+          <p className="tutor__intro">
             {answered
               ? "Ask a follow-up about this question. The answer key never changes; if you think it's wrong, report it."
               : "This question isn't answered yet, so the tutor will only give you a hint about the concept."}{" "}
             {turns} of {TUTOR_MAX_TURNS} follow-ups used.
           </p>
 
-          <div aria-live="polite" style={{ display: "grid", gap: "10px", maxHeight: "320px", overflowY: "auto" }}>
+          <div className="tutor__msgs" aria-live="polite">
             {msgs.map((m, i) => (
-              <div
-                key={i}
-                style={{
-                  justifySelf: m.role === "user" ? "end" : "start",
-                  maxWidth: "92%",
-                  padding: "10px 14px",
-                  borderRadius: "10px",
-                  background: m.role === "user" ? "var(--wash)" : "var(--canvas)",
-                  fontSize: "15px",
-                  lineHeight: 1.6,
-                  whiteSpace: "pre-wrap",
-                }}
-              >
+              <div key={i} className={`tutor__msg tutor__msg--${m.role}`}>
                 {m.content || "…"}
               </div>
             ))}
@@ -147,45 +128,46 @@ export default function TutorPanel({
           </div>
 
           {unavailable && (
-            <p role="status" style={{ margin: "10px 0 0", fontSize: "14px", color: "var(--incorrect-text)" }}>
-              ✗ Tutor unavailable, try again shortly. The written explanation above still applies and the quiz is not affected.
+            <p role="status" className="tutor__note is-error">
+              <Icon name="x" size="sm" />
+              <span>Tutor unavailable, try again shortly. The written explanation above still applies and the quiz is not affected.</span>
             </p>
           )}
 
           {capped ? (
-            <p style={{ margin: "10px 0 0", fontSize: "14px", color: "var(--muted)" }}>
+            <p className="tutor__note">
               You&apos;ve used the {TUTOR_MAX_TURNS} follow-ups for this question. Try a domain drill on &ldquo;{question.subSkill}&rdquo; to keep practising.
             </p>
           ) : (
             <>
               {msgs.length === 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "4px" }}>
+                <div className="tutor__chips">
                   {CHIPS.map((c) => (
-                    <button key={c} onClick={() => send(c)} style={{ ...btn, fontWeight: 500, fontSize: "13px" }}>
+                    <button key={c} type="button" className="btn btn--secondary btn--sm" onClick={() => send(c)}>
                       {c}
                     </button>
                   ))}
                 </div>
               )}
               <form
+                className="tutor__form"
                 onSubmit={(e) => {
                   e.preventDefault();
                   void send(input);
                 }}
-                style={{ display: "flex", gap: "8px", marginTop: "12px" }}
               >
-                <label htmlFor={`tutor-${question.id}`} style={{ position: "absolute", left: "-9999px" }}>
-                  Ask the tutor
+                <label htmlFor={`tutor-${question.id}`} className="sr-only">
+                  Ask the Tutor
                 </label>
                 <input
                   id={`tutor-${question.id}`}
+                  className="input"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Why B and not D?"
                   maxLength={500}
-                  style={{ flex: 1, padding: "11px 14px", borderRadius: "var(--r-input)", border: "1.5px solid var(--border)", fontSize: "15px", fontFamily: "inherit", color: "var(--ink)" }}
                 />
-                <button type="submit" disabled={busy || !input.trim()} style={{ ...btn, background: "var(--navy)", color: "#fff", borderColor: "var(--navy)", opacity: busy || !input.trim() ? 0.6 : 1 }}>
+                <button type="submit" className="btn btn--accent" disabled={busy || !input.trim()}>
                   Ask
                 </button>
               </form>

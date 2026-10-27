@@ -12,7 +12,7 @@ interface Props {
   readiness?: number | null;
   reportUrl?: string | null;
   label?: string;
-  variant?: "primary" | "outline";
+  variant?: "primary" | "outline" | "navy";
 }
 
 /** Builds the scheduling link pre-filled with name, email, track, readiness, exam date and the report URL. */
@@ -30,33 +30,19 @@ export function bookingUrl(track: TrackId, readiness?: number | null, reportUrl?
   return u.toString();
 }
 
-export default function BookingCTA({ track, readiness, reportUrl, label = "Book a free 30-minute review call", variant = "primary" }: Props) {
+export default function BookingCTA({ track, readiness, reportUrl, label = "Book a Free 30-Minute Review Call", variant = "primary" }: Props) {
   const gate = useEmailGate();
   const [requested, setRequested] = useState(() => (typeof window === "undefined" ? false : callRequested(track)));
   const [waitlisted, setWaitlisted] = useState(false);
 
-  const base: React.CSSProperties = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "14px 22px",
-    borderRadius: "9px",
-    fontWeight: 700,
-    fontSize: "15px",
-    fontFamily: "inherit",
-    minHeight: "52px",
-    textDecoration: "none",
-    cursor: "pointer",
-    border: variant === "primary" ? "none" : "1px solid #dce3ed",
-    background: variant === "primary" ? "#ff9b50" : "#fff",
-    color: "#071b39",
-  };
+  const cls = `btn ${variant === "primary" ? "btn--accent" : variant === "navy" ? "btn--outline-light" : "btn--secondary"}`;
 
   if (!flags.callSlotsOpen) {
     return (
       <button
+        type="button"
         disabled={waitlisted}
-        style={base}
+        className={cls}
         onClick={async () => {
           const email = getEmail() ?? (await gate.open({ required: true, title: "Join the waitlist", body: "All advisor slots are taken right now. Add your email and we'll tell you when one opens." }));
           if (!email) return;
@@ -64,7 +50,7 @@ export default function BookingCTA({ track, readiness, reportUrl, label = "Book 
           setWaitlisted(true);
         }}
       >
-        {waitlisted ? "You're on the waitlist" : "Join the waitlist for a free review call"}
+        {waitlisted ? "You're on the Waitlist" : "Join the Waitlist for a Free Review Call"}
       </button>
     );
   }
@@ -74,13 +60,13 @@ export default function BookingCTA({ track, readiness, reportUrl, label = "Book 
       href={bookingUrl(track, readiness, reportUrl)}
       target="_blank"
       rel="noopener noreferrer"
-      style={base}
+      className={cls}
       onClick={() => {
         markCallRequested(track);
         setRequested(true);
       }}
     >
-      {requested ? "Reschedule or open your booking" : label}
+      {requested ? "Reschedule or Open Your Booking" : label}
     </a>
   );
 }

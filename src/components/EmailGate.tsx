@@ -5,6 +5,9 @@ import Link from "next/link";
 import { EMAIL_MODAL_AFTER, MAX_EMAIL_SKIPS, flags } from "@/lib/config";
 import { EMAIL_KEY, answeredTotal, getEmail, getLearner, getProfile, saveProfile } from "@/lib/client/store";
 import { track } from "@/lib/analytics";
+import Icon from "@/components/Icon";
+import Modal from "@/components/Modal";
+import "@/app/design/quiz.css";
 
 const SKIPS_KEY = "quix_email_skips";
 
@@ -120,98 +123,31 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
   }
 
   const required = modal?.required ?? false;
-  const field: React.CSSProperties = {
-    width: "100%",
-    padding: "12px 14px",
-    borderRadius: "var(--r-input)",
-    border: "1.5px solid var(--border)",
-    fontSize: "15px",
-    color: "var(--ink)",
-    outline: "none",
-    background: "#fff",
-    fontFamily: "inherit",
-  };
-  const label: React.CSSProperties = { display: "block", fontSize: "13px", fontWeight: 600, color: "var(--ink)", margin: "14px 0 6px" };
 
   return (
     <Ctx.Provider value={{ email, modalOpen: !!modal, onAnswered, open }}>
       {modal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="email-modal-title"
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 9999,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "rgba(15,27,51,.7)",
-            backdropFilter: "blur(8px)",
-            WebkitBackdropFilter: "blur(8px)",
-            padding: "16px",
-            overflowY: "auto",
-          }}
-        >
-          <div
-            style={{
-              background: "#fff",
-              borderRadius: "var(--r-feature)",
-              padding: "36px 36px 28px",
-              maxWidth: "480px",
-              width: "100%",
-              boxShadow: "var(--shadow-feature)",
-              position: "relative",
-              margin: "auto",
-            }}
-          >
-            {!required && (
-              <button
-                onClick={handleSkip}
-                aria-label="Skip and close"
-                style={{
-                  position: "absolute",
-                  top: "16px",
-                  right: "16px",
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "50%",
-                  border: "1px solid var(--border)",
-                  background: "#fff",
-                  cursor: "pointer",
-                  fontSize: "18px",
-                  lineHeight: 1,
-                  color: "var(--muted)",
-                }}
-              >
-                ×
-              </button>
-            )}
-
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/agentic-ai-logo-cropped.png" alt="Agentic AI Institute" style={{ height: "34px", width: "auto", marginBottom: "18px" }} />
-
-            <div style={{ display: "flex", alignItems: "center", gap: "7px", marginBottom: "10px" }}>
-              <div style={{ width: "7px", height: "7px", borderRadius: "2px", background: "var(--accent)" }} />
-              <span style={{ fontSize: "12px", fontWeight: 600, letterSpacing: "0.6px", textTransform: "uppercase", color: "var(--muted)" }}>
-                Claude Certification Practice Quiz
-              </span>
-            </div>
-
-            <h2 id="email-modal-title" style={{ fontSize: "24px", fontWeight: 700, color: "var(--ink)", margin: "0 0 8px", lineHeight: 1.25, letterSpacing: "-0.02em" }}>
-              {modal.opts.title ?? "Save your progress"}
+        <Modal labelledBy="email-modal-title" describedBy="email-modal-desc" required={required} onClose={handleSkip}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className="modal__logo" src="/logo-on-light.png" alt="Agentic AI Institute" width={90} height={40} />
+          <div className="stack modal__head">
+            <span className="eyebrow t-sm">Claude Certification Practice Quiz</span>
+            <h2 className="modal__title modal__title--flush" id="email-modal-title">
+              {modal.opts.title ?? "Save Your Progress"}
             </h2>
-            <p style={{ fontSize: "15px", lineHeight: 1.6, color: "var(--muted)", margin: "0 0 6px" }}>
+            <p className="modal__text" id="email-modal-desc">
               {modal.opts.body ??
                 (required
                   ? "Add your email to keep going. It keeps your progress and sends your readiness report."
                   : "Add your email to keep your progress and get your readiness report. You can skip this for now.")}
             </p>
+          </div>
 
-            <form onSubmit={handleSubmit}>
-              <label htmlFor="gate-email" style={label}>Email address</label>
+          <form className="stack modal__form" onSubmit={handleSubmit} noValidate>
+            <div className={`field${error ? " is-invalid" : ""}`}>
+              <label className="field__label" htmlFor="gate-email">Email Address</label>
               <input
+                className="input"
                 id="gate-email"
                 type="email"
                 placeholder="you@company.com"
@@ -220,79 +156,51 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
                   setInput(e.target.value);
                   setError("");
                 }}
-                autoFocus
+                data-autofocus
                 autoComplete="email"
+                required
                 aria-invalid={!!error}
-                style={{ ...field, borderColor: error ? "var(--incorrect-text)" : "var(--border)" }}
+                aria-describedby="gate-email-error"
               />
-              {error && <p role="alert" style={{ fontSize: "13px", color: "var(--incorrect-text)", margin: "6px 0 0" }}>✗ {error}</p>}
+              <span className="field__error" id="gate-email-error" role="alert">
+                <Icon name="info" size="sm" />
+                {error}
+              </span>
+            </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                <div>
-                  <label htmlFor="gate-name" style={label}>Name (optional)</label>
-                  <input id="gate-name" type="text" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" style={field} />
-                </div>
-                <div>
-                  <label htmlFor="gate-date" style={label}>Exam date (optional)</label>
-                  <input id="gate-date" type="date" value={examDate} onChange={(e) => setExamDate(e.target.value)} style={field} />
-                </div>
+            <div className="field-row">
+              <div className="field">
+                <label className="field__label" htmlFor="gate-name">Name <span className="optional">(Optional)</span></label>
+                <input className="input" id="gate-name" type="text" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
               </div>
+              <div className="field">
+                <label className="field__label" htmlFor="gate-date">Exam Date <span className="optional">(Optional)</span></label>
+                <input className="input" id="gate-date" type="date" value={examDate} onChange={(e) => setExamDate(e.target.value)} />
+              </div>
+            </div>
 
-              <label style={{ display: "flex", alignItems: "flex-start", gap: "9px", fontSize: "13px", color: "var(--muted)", marginTop: "16px", cursor: "pointer", lineHeight: 1.5 }}>
-                <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} style={{ width: "18px", height: "18px", flexShrink: 0, marginTop: "1px" }} />
-                <span>Send me study tips and course updates by email. I&apos;ll confirm my address first and can unsubscribe in one click. (Optional)</span>
-              </label>
+            <label className="checkbox">
+              <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+              <span>Send me study tips and course updates by email. I&apos;ll confirm my address first and can unsubscribe in one click. (Optional)</span>
+            </label>
 
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  marginTop: "18px",
-                  width: "100%",
-                  padding: "14px",
-                  borderRadius: "9px",
-                  border: "none",
-                  background: "var(--accent)",
-                  color: "var(--navy)",
-                  fontSize: "16px",
-                  fontWeight: 700,
-                  cursor: loading ? "not-allowed" : "pointer",
-                  opacity: loading ? 0.7 : 1,
-                  fontFamily: "inherit",
-                  minHeight: "52px",
-                }}
-              >
-                {loading ? "Saving…" : "Save my progress and keep going"}
-              </button>
+            <button className="btn btn--accent btn--lg btn--block" type="submit" disabled={loading}>
+              {loading ? "Saving…" : "Save My Progress and Keep Going"}
+            </button>
 
-              {!required && (
-                <button
-                  type="button"
-                  onClick={handleSkip}
-                  style={{
-                    marginTop: "10px",
-                    width: "100%",
-                    padding: "10px",
-                    borderRadius: "var(--r-card)",
-                    border: "1px solid var(--border)",
-                    background: "#fff",
-                    color: "var(--muted)",
-                    fontSize: "14px",
-                    fontWeight: 500,
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
-                >
-                  {modal.counted ? "Skip for now" : "Not now"}
+            {!required && (
+              <div className="modal__foot modal__foot--center">
+                <button type="button" className="btn btn--link" onClick={handleSkip}>
+                  {modal.counted ? "Skip for Now" : "Not Now"}
                 </button>
-              )}
+              </div>
+            )}
+          </form>
 
-              <p style={{ fontSize: "12px", color: "var(--muted)", textAlign: "center", margin: "14px 0 0" }}>
-                See our <Link href="/privacy" style={{ color: "inherit" }}>privacy policy</Link>. Independent practice resource, not affiliated with Anthropic.
-              </p>
-            </form>
-          </div>
-        </div>
+          <p className="modal__foot modal__foot--center">
+            See our <Link href="/privacy">privacy policy</Link>. Independent practice resource, not affiliated with Anthropic.
+          </p>
+        </Modal>
       )}
       {children}
     </Ctx.Provider>
