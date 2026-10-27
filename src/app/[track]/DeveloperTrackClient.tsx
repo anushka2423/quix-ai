@@ -35,6 +35,8 @@ export default function DeveloperTrackClient({ meta, levels }: { meta: TrackMeta
 
   const [screen, setScreen] = useState<Screen>("home");
   const [level, setLevel] = useState(1);
+  const [moduleLevels, setModuleLevels] = useState<Record<string, number>>({});
+  const levelFor = (name: string) => moduleLevels[name] ?? 1;
   const [questionCount, setQuestionCount] = useState(53);
   const [timerMinutes, setTimerMinutes] = useState(120);
   const moduleTotal = levels.total[level] ?? 0;
@@ -69,7 +71,7 @@ export default function DeveloperTrackClient({ meta, levels }: { meta: TrackMeta
   async function startModule(name: string) {
     setModuleBusy(name);
     setError("");
-    const r = await startAttempt({ track: "developer", mode: "module", module: name, level });
+    const r = await startAttempt({ track: "developer", mode: "module", module: name, level: levelFor(name) });
     if ("id" in r) router.push(`/quiz/${r.id}`);
     else {
       setError(r.error);
@@ -77,7 +79,10 @@ export default function DeveloperTrackClient({ meta, levels }: { meta: TrackMeta
     }
   }
 
-  const countAt = (m: { name: string; count: number }) => (level === 1 ? m.count : levels.modules[level]?.[m.name] ?? 0);
+  const countAt = (m: { name: string; count: number }) => {
+    const lvl = levelFor(m.name);
+    return lvl === 1 ? m.count : levels.modules[lvl]?.[m.name] ?? 0;
+  };
 
   const modules = meta.modules.length > 0 ? meta.modules : [
     { name: "Module 1", description: "MSO Foundations", count: 23 },
@@ -217,7 +222,7 @@ export default function DeveloperTrackClient({ meta, levels }: { meta: TrackMeta
                   <article className="card" key={m.name}>
                     <span className="mode-grid__num">{m.name}</span>
                     <h3 className="t-h4">{m.description}</h3>
-                    <Segmented ariaLabel={`${m.name} level`} value={level} onChange={setLevel} options={levelOptions()} />
+                    <Segmented ariaLabel={`${m.name} level`} value={levelFor(m.name)} onChange={(lvl) => setModuleLevels((prev) => ({ ...prev, [m.name]: lvl }))} options={levelOptions()} />
                     <div className="card__foot">
                       <p className="mode-card__facts">
                         <span><Icon name="list" size="sm" />{n} question{n === 1 ? "" : "s"}</span>
@@ -225,7 +230,7 @@ export default function DeveloperTrackClient({ meta, levels }: { meta: TrackMeta
                         <span>Pause available</span>
                       </p>
                       <button className="btn btn--secondary btn--block" type="button" onClick={() => void startModule(m.name)} disabled={!!moduleBusy}>
-                        {moduleBusy === m.name ? "Starting…" : <>Start Level {level} <Icon name="arrow-right" /></>}
+                        {moduleBusy === m.name ? "Starting…" : <>Start Level {levelFor(m.name)} <Icon name="arrow-right" /></>}
                       </button>
                     </div>
                   </article>
