@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import { BOOKING_URL } from "@/lib/config";
@@ -15,9 +15,39 @@ export default function Header({ moduleTitle, hideBooking }: { moduleTitle?: str
   const compact = !!moduleTitle;
   const onQuizPage = compact && !hideBooking;
   const close = () => setOpen(false);
+  const headerRef = useRef<HTMLElement>(null);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+
+  // Open menu: lock page scroll, close on Esc (focus back to the toggle), tap outside, or growing past the breakpoint
+  useEffect(() => {
+    if (!open) return;
+    document.body.classList.add("menu-open");
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        toggleRef.current?.focus();
+      }
+    };
+    const onClick = (e: MouseEvent) => {
+      if (!headerRef.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const mq = window.matchMedia("(min-width: 861px)");
+    const onResize = (e: MediaQueryListEvent) => {
+      if (e.matches) setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("click", onClick);
+    mq.addEventListener("change", onResize);
+    return () => {
+      document.body.classList.remove("menu-open");
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("click", onClick);
+      mq.removeEventListener("change", onResize);
+    };
+  }, [open]);
 
   return (
-    <header className={`site-header${compact ? " site-header--compact" : ""}`}>
+    <header ref={headerRef} className={`site-header${compact ? " site-header--compact" : ""}`}>
       <div className="container site-header__inner">
         <Link href="/" className="site-header__logo" aria-label="Agentic AI Institute — Home" onClick={close}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -52,6 +82,7 @@ export default function Header({ moduleTitle, hideBooking }: { moduleTitle?: str
           )}
           {!compact && (
             <button
+              ref={toggleRef}
               type="button"
               className="nav-toggle"
               aria-expanded={open}
