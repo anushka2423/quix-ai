@@ -180,6 +180,33 @@ describe("scoring", () => {
     expect(res.patterns.some((p) => p.includes("seconds per question"))).toBe(true);
     for (let i = 1; i < res.lifts.length; i++) expect(res.lifts[i - 1].lift).toBeGreaterThanOrEqual(res.lifts[i].lift);
   });
+  it("a right answer with the timer paused earns half a point and is listed with its time", () => {
+    const pool = trackBank("developer").slice(0, 4);
+    const keysFor = (q: (typeof pool)[number]) => displayKeys(q, "s");
+    const answers = pool.map((q) => ({ id: q.id, picks: keysFor(q) as OptionLabel[], ms: 25_000 }));
+    const res = computeResult({
+      track: "developer", domains: TRACKS.developer.domains, mode: "module", asked: pool, answers, keysFor,
+      optionsFor: (q) => presentOptions(q, "s"), explain: (q) => q.explanation ?? "", totalSeconds: 100,
+      pausedIds: new Set([pool[0].id, pool[1].id]),
+    });
+    expect(res.correct).toBe(3);
+    expect(res.missed).toHaveLength(0);
+    expect(res.pausedItems.map((p) => [p.id, p.credit, p.ms])).toEqual([[pool[0].id, 0.5, 25_000], [pool[1].id, 0.5, 25_000]]);
+  });
+  it("a wrong answer with the timer paused earns nothing", () => {
+    const pool = trackBank("developer").slice(0, 2);
+    const keysFor = (q: (typeof pool)[number]) => displayKeys(q, "s");
+    const wrong = (["A", "B", "C", "D"] as OptionLabel[]).filter((l) => !keysFor(pool[0]).includes(l)).slice(0, keysFor(pool[0]).length);
+    const res = computeResult({
+      track: "developer", domains: TRACKS.developer.domains, mode: "module", asked: pool,
+      answers: [{ id: pool[0].id, picks: wrong, ms: 9_000 }], keysFor,
+      optionsFor: (q) => presentOptions(q, "s"), explain: (q) => q.explanation ?? "", totalSeconds: 50,
+      pausedIds: new Set([pool[0].id]),
+    });
+    expect(res.correct).toBe(0);
+    expect(res.pausedItems[0].credit).toBe(0);
+    expect(res.missed.map((m) => m.id)).toContain(pool[0].id);
+  });
   it("getQuestion and shuffle helpers behave", () => {
     expect(getQuestion(101)?.track).toBe("developer");
     expect(shuffle([1, 2, 3, 4], rng())).toHaveLength(4);

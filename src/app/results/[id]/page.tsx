@@ -49,6 +49,12 @@ export default function ResultsPage() {
   return <Results attempt={attempt} />;
 }
 
+/** Milliseconds as m:ss */
+function fmtTime(ms: number) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
 function Message({ children }: { children: React.ReactNode }) {
   return (
     <main id="main" className="container results-message">
@@ -425,6 +431,26 @@ function Results({ attempt }: { attempt: StoredAttempt }) {
                       </button>
                     </div>
                   )}
+                </section>
+              )}
+
+              {/* Questions answered with the timer paused */}
+              {result.pausedItems.length > 0 && (
+                <section aria-labelledby="paused-title">
+                  <div className="cluster" style={{ justifyContent: "space-between", marginBottom: "var(--s-3)" }}>
+                    <h2 className="t-h3" id="paused-title">Paused Timer</h2>
+                    <span className="tag tag--neutral">
+                      {result.pausedItems.reduce((n, p) => n + p.credit, 0)} of {result.pausedItems.length} points
+                    </span>
+                  </div>
+                  <p className="t-sm t-muted measure">A right answer with the timer paused earns half a point.</p>
+                  <ul className="stack" style={{ marginTop: "var(--s-3)" }}>
+                    {result.pausedItems.map((p) => (
+                      <li key={p.id} className="t-sm">
+                        <strong>{p.credit === 0.5 ? "0.5 point" : "0 points"}</strong> · {fmtTime(p.ms)} on the question · {p.question.length > 90 ? `${p.question.slice(0, 90)}…` : p.question}
+                      </li>
+                    ))}
+                  </ul>
                 </section>
               )}
 

@@ -17,10 +17,14 @@ export async function POST(req: Request) {
   // A module quiz question whose 40 seconds ran out is revealed without an answer and counts as missed
   const timedOut = b.timedOut === true && b.mode === "module";
   if (!timedOut && picks.length !== keys.length) return bad(`Select ${keys.length}`);
-  // A question whose clock was paused still shows its key, but never scores
+  // A question whose clock was paused still shows its key, but earns at most half a point
   const paused = b.paused === true && b.mode === "module";
+  const matches = !timedOut && isCorrectAnswer(picks, keys.join(","));
+  // A right answer with the timer paused earns half a point
+  const credit = matches ? (paused ? 0.5 : 1) : 0;
   const out: CheckResult = {
-    correct: !timedOut && !paused && isCorrectAnswer(picks, keys.join(",")),
+    correct: credit === 1,
+    credit,
     keys,
     explanation: explanationFor(q),
     // In a module quiz the link names the lesson of that module the question belongs to
@@ -28,6 +32,6 @@ export async function POST(req: Request) {
   };
   // Wrong answers join the learner's review list; a later correct answer takes the item off it.
   // Demo answers are kept separate from the learner's practice history.
-  if (b.mode !== "demo") await recordOutcomes(parseLearner(b.learner), q.track, [{ id: q.id, correct: out.correct }]);
+  if (b.mode !== "demo") await recordOutcomes(parseLearner(b.learner), q.track, [{ id: q.id, correct: credit > 0 }]);
   return NextResponse.json(out);
 }

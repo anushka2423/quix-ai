@@ -45,6 +45,7 @@ const mk = (readiness: number): ResultSummary => {
     passed: readiness >= 720, lowConfidence: false, domains, subSkills: [], weakestDomain: domains[2].domain,
     lifts: domains.map((d) => ({ kind: "domain" as const, name: d.domain, domain: d.domain, pct: d.pct, weight: d.weight, lift: Math.round(d.weight * 4) })).sort((a, b) => b.lift - a.lift),
     missed: [], patterns: [], avgSecondsPerQuestion: 90, paceSeconds: 120, totalSeconds: 3000, unansweredCount: 0,
+    pausedItems: [],
   };
 };
 const NOW = new Date("2026-10-10T12:00:00Z");

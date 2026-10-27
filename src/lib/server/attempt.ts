@@ -27,7 +27,7 @@ export interface ResultRequest {
   /** Practice by module: the module (course) name, so missed questions link to the lesson of that module */
   module?: string;
   questionIds: number[];
-  /** Module quiz questions whose clock the learner paused: they score as incorrect whatever was picked */
+  /** Module quiz questions whose clock the learner paused: a right answer earns half a point */
   pausedIds?: number[];
   answers: { id: number; picks: unknown; ms: number }[];
   totalSeconds: number;
@@ -42,7 +42,7 @@ export async function resultFromRequest(body: ResultRequest): Promise<ResultSumm
   if (!asked.length) return null;
   const paused = new Set(body.mode === "module" ? (body.pausedIds ?? []).map(Number) : []);
   const answers: AttemptAnswer[] = (body.answers ?? [])
-    .filter((a) => asked.some((q) => q.id === a.id) && !paused.has(a.id))
+    .filter((a) => asked.some((q) => q.id === a.id))
     .map((a) => ({ id: a.id, picks: cleanPicks(a.picks), ms: Math.max(0, Math.min(Number(a.ms) || 0, 3_600_000)) }))
     .filter((a) => a.picks.length > 0);
   // In a module quiz, a missed question links to the lesson of that module it belongs to
@@ -61,5 +61,6 @@ export async function resultFromRequest(body: ResultRequest): Promise<ResultSumm
     explain: explanationFor,
     resourcesFor: (q) => (lessonLink.has(q.id) ? [lessonLink.get(q.id) as Resource] : (q.resources ?? [])),
     totalSeconds: Math.max(0, Math.round(Number(body.totalSeconds) || 0)),
+    pausedIds: paused,
   });
 }

@@ -6,7 +6,7 @@ export interface QuestionTiming {
   stoppedAt?: number;
   /** The time ran out before an answer was given */
   timedOut?: boolean;
-  /** The learner paused this question's clock: it scores as incorrect and gets the longer time limit */
+  /** The learner paused this question's clock: a right answer earns half a point and it gets the longer time limit */
   paused?: boolean;
   /** Set while the clock is frozen by the pause */
   pausedAt?: number;
@@ -25,7 +25,7 @@ export function remainingMs(t: QuestionTiming | undefined, now: number, limitMs:
   return Math.max(0, limit - ((t.pausedAt ?? t.stoppedAt ?? now) - t.startedAt - (t.pausedMs ?? 0)));
 }
 
-/** Freezes a question's clock: it now scores as incorrect and has the longer limit. */
+/** Freezes a question's clock: a right answer now earns half a point and it has the longer limit. */
 export function pauseTiming(t: QuestionTiming | undefined, now: number): QuestionTiming {
   const base = t ?? { startedAt: now };
   return { ...base, paused: true, pausedAt: base.pausedAt ?? now };
