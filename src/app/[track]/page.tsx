@@ -19,8 +19,8 @@ export async function generateMetadata({ params }: { params: Promise<{ track: st
   if (!isTrack(track)) return {};
   const t = TRACKS[track];
   return {
-    title: track === "developer" ? `Claude Developer Certification Mock Test (${t.code}) | Free Practice Exam` : `Claude ${t.short} Certification Mock Test (${t.code}) | Free Practice Exam`,
-    description: `Free Claude ${t.short.toLowerCase()} certification mock test: ${t.items}-question full mocks, readiness diagnostic, quick sprints and domain drills for the ${t.name} (${t.code}) exam. Independent Anthropic certification prep.`,
+    title: track === "developer" ? `Claude Developer Certification Mock Test (${t.code}) | Free` : `Claude ${t.short} Certification Mock Test (${t.code}) | Free`,
+    description: `Claude ${t.short} certification mock test (${t.code}): free ${t.items}-question mocks, readiness diagnostic and domain drills. Independent exam prep.`,
     alternates: { canonical: `/${track}` },
     openGraph: { url: `/${track}`, title: `Claude ${t.short} Certification Mock Test (${t.code})`, images: ["/agentic-ai-logo.png"] },
   };

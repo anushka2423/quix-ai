@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { SEO_PAGES } from "@/lib/seo-pages";
 import { TRACKS } from "@/lib/blueprint";
 import type { TrackId } from "@/types/quiz";
 
@@ -59,6 +61,14 @@ export default function SeoFaq({ track }: { track?: TrackId }) {
           <p>{f.a}</p>
         </div>
       ))}
+      <h3 className="t-h3" style={{ marginTop: 28 }}>Claude certification study resources</h3>
+      <ul>
+        {Object.values(SEO_PAGES).map((p) => (
+          <li key={p.slug}>
+            <Link href={`/${p.slug}`}>{p.h1}</Link>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

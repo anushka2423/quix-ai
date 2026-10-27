@@ -15,8 +15,8 @@ const golosText = Golos_Text({
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "Claude Certification Practice Test & Mock Exam | Anthropic Certification Prep",
-  description: "Free Claude certification mock tests for the Associate (CCAO-F) and Developer (CCDV-F) exams. Instant feedback, a readiness score out of 1,000 and a study plan. Independent Anthropic certification prep, not affiliated with Anthropic.",
+  title: "Claude Certification Practice Quiz (CCAO-F & CCDV-F) | Free",
+  description: "Claude certification practice tests for CCAO-F and CCDV-F. Free mock exams, instant feedback, a 1,000-point readiness score and study plan.",
   keywords: ["claude certification", "anthropic certification", "claude developer certification mock test", "claude mock test", "claude certified associate", "claude certified developer"],
   openGraph: {
     type: "website",
