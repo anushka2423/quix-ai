@@ -1,5 +1,7 @@
 "use client";
 
+import "@/app/design/results.css";
+
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -26,33 +28,8 @@ import BookingCTA from "@/components/BookingCTA";
 import RichText from "@/components/RichText";
 import SkillJarLinks from "@/components/SkillJarLinks";
 import Header from "@/components/Header";
-
-const btnOutline: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "14px 18px",
-  border: "1px solid #dce3ed",
-  borderRadius: "9px",
-  background: "white",
-  color: "#071b39",
-  fontWeight: 700,
-  fontSize: "15px",
-  cursor: "pointer",
-  fontFamily: "inherit",
-  textDecoration: "none",
-  minHeight: "52px",
-  lineHeight: 1.3,
-};
-const btnDark: React.CSSProperties = { ...btnOutline, width: "100%", border: "none", background: "#071b39", color: "white", marginTop: "12px" };
-const h2: React.CSSProperties = {
-  fontFamily: "var(--font-manrope), sans-serif",
-  fontSize: "20px",
-  fontWeight: 800,
-  letterSpacing: "-0.025em",
-  color: "#071b39",
-  margin: "36px 0 10px",
-};
+import SiteFooter from "@/components/SiteFooter";
+import Icon from "@/components/Icon";
 
 export default function ResultsPage() {
   const { id } = useParams<{ id: string }>();
@@ -66,10 +43,7 @@ export default function ResultsPage() {
   if (attempt === null)
     return (
       <Message>
-        We couldn&apos;t find these results on this device.{" "}
-        <Link href="/" style={{ color: "var(--navy)" }}>
-          Go back
-        </Link>
+        We couldn&apos;t find these results on this device. <Link href="/">Go back</Link>
       </Message>
     );
   return <Results attempt={attempt} />;
@@ -77,8 +51,8 @@ export default function ResultsPage() {
 
 function Message({ children }: { children: React.ReactNode }) {
   return (
-    <main style={{ padding: "96px 48px", textAlign: "center" }}>
-      <p style={{ color: "var(--muted)" }}>{children}</p>
+    <main id="main" className="container results-message">
+      <p>{children}</p>
     </main>
   );
 }
@@ -96,6 +70,14 @@ function Results({ attempt }: { attempt: StoredAttempt }) {
   const [ready, setReady] = useState(false);
   const generated = useRef(false);
   const [openedAt] = useState(() => Date.now());
+  const [openReview, setOpenReview] = useState<Set<number>>(new Set());
+  const toggleReview = (qid: number) =>
+    setOpenReview((prev) => {
+      const next = new Set(prev);
+      if (next.has(qid)) next.delete(qid);
+      else next.add(qid);
+      return next;
+    });
 
   const request = {
     seed: attempt.seed,
@@ -227,7 +209,7 @@ function Results({ attempt }: { attempt: StoredAttempt }) {
   const trackDef = TRACKS[attempt.track];
   const title = `${trackDef.short} · ${MODES[attempt.mode].title}`;
 
-  if (error) return <Message>Couldn&apos;t score this attempt. <Link href={`/${attempt.track}`} style={{ color: "var(--navy)" }}>Back to modules</Link></Message>;
+  if (error) return <Message>Couldn&apos;t score this attempt. <Link href={`/${attempt.track}`}>Back to modules</Link></Message>;
   if (!result) return <><Header moduleTitle={title} /><Message>Scoring your answers…</Message></>;
 
   const weakest = result.domains.find((d) => d.domain === result.weakestDomain);
@@ -238,286 +220,374 @@ function Results({ attempt }: { attempt: StoredAttempt }) {
     .sort((a, b) => (a.pct as number) - (b.pct as number))
     .slice(0, 8);
   const readinessPos = (n: number) => `${((n - SCORE_MIN) / (SCORE_MAX - SCORE_MIN)) * 100}%`;
+  const scaled = result.readiness !== null;
+  const pctRounded = Math.round(result.pct * 100);
+  const cssVar = (name: string, value: string) => ({ [name]: value }) as React.CSSProperties;
 
   return (
     <>
       <Header moduleTitle={title} />
-      <main style={{ minHeight: "calc(100vh - 88px)", background: "#ffffff" }}>
-        <div style={{ maxWidth: "700px", margin: "0 auto", padding: "28px 28px 80px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", marginBottom: "18px" }}>
-            <span style={{ fontSize: "13px", fontWeight: 800, letterSpacing: ".8px", color: "#214f91", textTransform: "uppercase", fontFamily: "var(--font-manrope), sans-serif" }}>
-              Claude Certification Practice Quiz
-            </span>
-            <Link href={`/${attempt.track}`} aria-label="Close results" style={{ display: "grid", placeContent: "center", width: "44px", height: "44px", borderRadius: "50%", background: "#f1f5fa", color: "#071b39", fontSize: "22px", textDecoration: "none", flexShrink: 0 }}>
-              ×
+      <main id="main">
+        {/* ResultsHead */}
+        <section className="results-head" aria-labelledby="res-title">
+          <div className="container">
+            <Link className="page-head__crumb" href={`/${attempt.track}`}>
+              <Icon name="arrow-left" size="sm" />
+              All Modules
             </Link>
-          </div>
-
-          <div style={{ background: "#fff4db", color: "#65501f", padding: "10px 13px", borderRadius: "6px", fontSize: "14px", lineHeight: 1.6, marginBottom: "22px" }}>
-            Estimate, not an official score. Anthropic publishes no conversion from percent correct to the 100–1,000 scale, so this is a practice estimate and not a guarantee of a pass.
-          </div>
-
-          <h1 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "25px", fontWeight: 800, letterSpacing: "-0.025em", color: "#071b39", margin: "22px 0 4px", lineHeight: 1.4 }}>
-            {result.readiness !== null ? "Your readiness estimate" : "Your practice summary"}
-          </h1>
-
-          {result.readiness !== null ? (
-            <>
-              <div style={{ fontSize: "62px", fontWeight: 800, lineHeight: 1.2, letterSpacing: "-2px", color: "#071b39", fontFamily: "var(--font-manrope), sans-serif" }}>
-                {result.readiness}
-                <small style={{ fontSize: "20px", letterSpacing: 0, color: "var(--muted)", fontWeight: 500 }}> / 1000</small>
-                <span style={{ marginLeft: "14px", verticalAlign: "middle", fontSize: "14px", fontWeight: 700, letterSpacing: 0, padding: "4px 12px", borderRadius: "var(--r-pill)", background: result.readiness >= PASS_SCORE ? "var(--correct-bg)" : "var(--incorrect-bg)", color: result.readiness >= PASS_SCORE ? "var(--correct-text)" : "var(--incorrect-text)" }}>
-                  {result.readiness >= PASS_SCORE ? "✓" : "✗"} {readinessLabel(result.readiness)}
-                </span>
+            <div className="results-head__grid">
+              <div className="score on-navy">
+                <span className="eyebrow">{MODES[attempt.mode].title} · {trackDef.short}</span>
+                <h1 className="t-h2" id="res-title">{scaled ? "Your Readiness Estimate" : "Your Practice Summary"}</h1>
+                {result.readiness !== null ? (
+                  <>
+                    <p className="score__value">
+                      <strong>{result.readiness}</strong>
+                      <span>/ 1000</span>
+                    </p>
+                    <div>
+                      <div className="scale" role="img" aria-label={`Readiness estimate ${result.readiness} out of 1000. Pass line ${PASS_SCORE}.`}>
+                        <div className="scale__track">
+                          <div className="scale__fill" style={cssVar("--value", readinessPos(result.readiness))} />
+                          <div className="scale__pass" style={cssVar("--pass", readinessPos(PASS_SCORE))} />
+                        </div>
+                        <span className="scale__pass-label" style={cssVar("--pass", readinessPos(PASS_SCORE))}>Pass Line {PASS_SCORE}</span>
+                        <div className="scale__ends"><span>{SCORE_MIN}</span><span>1,000</span></div>
+                      </div>
+                      <span className={`tag ${result.readiness >= PASS_SCORE ? "tag--success" : "tag--on-navy"}`} style={{ marginTop: "var(--s-4)" }}>
+                        {readinessLabel(result.readiness)}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="score__value">
+                      <strong>{pctRounded}</strong>
+                      <span>%</span>
+                    </p>
+                    <div className="progress progress--on-navy" style={{ height: 8 }} role="img" aria-label={`${result.correct} of ${result.total} correct`}>
+                      <div className="progress__fill" style={{ ...cssVar("--value", `${pctRounded}%`), background: "var(--orange-logo)" }} />
+                    </div>
+                  </>
+                )}
               </div>
 
-              {/* Scale 100–1000 with the 720 pass line and 800 ready line */}
-              <div style={{ position: "relative", height: "10px", borderRadius: "var(--r-pill)", background: "#e2e7f0", margin: "20px 0 34px" }} role="img" aria-label={`Estimate ${result.readiness} on a scale of 100 to 1000; pass line ${PASS_SCORE}`}>
-                <div style={{ position: "absolute", inset: 0, width: readinessPos(result.readiness), borderRadius: "var(--r-pill)", background: result.readiness >= PASS_SCORE ? "var(--correct-text)" : "var(--incorrect-text)" }} />
-                {[{ v: PASS_SCORE, l: `Pass ${PASS_SCORE}` }, { v: READY_SCORE, l: `Ready ${READY_SCORE}` }].map((m) => (
-                  <div key={m.v} style={{ position: "absolute", left: readinessPos(m.v), top: "-4px", bottom: "-4px", width: "2px", background: "#071b39" }}>
-                    <span style={{ position: "absolute", top: "18px", left: m.v === PASS_SCORE ? "auto" : "6px", right: m.v === PASS_SCORE ? "6px" : "auto", fontSize: "12px", fontWeight: 700, whiteSpace: "nowrap" }}>{m.l}</span>
+              <div className="results-head__aside">
+                <div className="card card--glass">
+                  <p className="t-sm" style={{ color: "var(--on-navy-muted)" }}>
+                    {result.readiness !== null ? (
+                      <>
+                        {result.passed
+                          ? `You're ${result.readiness - PASS_SCORE} points above the ${PASS_SCORE} pass line.`
+                          : `You're ${result.gap} points short of the ${PASS_SCORE} pass line.`}{" "}
+                        {result.correct} of {result.total} correct.
+                        {fail && " Your full report includes a study plan and a free 30-minute review call."}
+                        {result.lowConfidence && ` Low confidence: this attempt has only ${result.total} questions. A full mock gives a steadier estimate.`}
+                        {attempt.mode === "full" && (
+                          <>
+                            {" "}“Ready” means the estimate stays at {READY_SCORE} or higher across 2 full mocks in a row.{" "}
+                            {ready ? "You've done it. Looks ready." : `Full mocks so far: ${fullMockReadiness(attempt.track).slice(-2).join(", ") || "none"}.`}
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {result.correct} of {result.total} correct in this {MODES[attempt.mode].title.toLowerCase()}. Practice accuracy, not an official score.{" "}
+                        {attempt.mode !== "review" && "Take the diagnostic or a full mock for a readiness estimate."}
+                      </>
+                    )}
+                  </p>
+                  <p className="t-xs results-note">
+                    <Icon name="info" size="sm" />
+                    <span>Estimate, not an official score. Anthropic publishes no conversion from percent correct to the 100–1,000 scale, so this is a practice estimate and not a guarantee of a pass.</span>
+                  </p>
+                  <div className="cluster results-actions-row">
+                    {fail ? (
+                      <>
+                        <a className="btn btn--accent" href="#detailed-report">Get My Study Plan</a>
+                        <BookingCTA track={attempt.track} readiness={result.readiness} reportUrl={reportUrl} variant="navy" label="Book a Free Review Call" />
+                      </>
+                    ) : result.readiness !== null ? (
+                      <button type="button" className="btn btn--accent" onClick={() => again("full")} disabled={!!starting}>
+                        {starting === "full" ? "Starting…" : "Take Another Full Mock"}
+                      </button>
+                    ) : attempt.mode !== "review" ? (
+                      <button type="button" className="btn btn--accent" onClick={() => again("diagnostic")} disabled={!!starting}>
+                        {starting === "diagnostic" ? "Starting…" : "Take the Diagnostic"}
+                      </button>
+                    ) : null}
                   </div>
-                ))}
-              </div>
-
-              <p style={{ fontSize: "16px", color: "#071b39", margin: "0 0 8px", lineHeight: 1.6 }}>
-                {result.passed
-                  ? `You're ${result.readiness - PASS_SCORE} points above the ${PASS_SCORE} pass line.`
-                  : `You're ${result.gap} points short of the ${PASS_SCORE} pass line.`}{" "}
-                {result.correct} of {result.total} correct.
-              </p>
-              {result.lowConfidence && (
-                <p style={{ fontSize: "14px", color: "var(--muted)", margin: "0 0 8px" }}>
-                  Low confidence: this attempt has only {result.total} questions. A full mock gives a steadier estimate.
-                </p>
-              )}
-              {attempt.mode === "full" && (
-                <p style={{ fontSize: "14px", color: "var(--muted)", margin: 0 }}>
-                  &ldquo;Ready&rdquo; means the estimate stays at {READY_SCORE} or higher across 2 full mocks in a row.{" "}
-                  {ready ? "You've done it. Looks ready." : `Full mocks so far: ${fullMockReadiness(attempt.track).slice(-2).join(", ") || "none"}.`}
-                </p>
-              )}
-            </>
-          ) : (
-            <>
-              <div style={{ fontSize: "62px", fontWeight: 800, lineHeight: 1.3, letterSpacing: "-2px", color: "#071b39", fontFamily: "var(--font-manrope), sans-serif" }}>
-                {Math.round(result.pct * 100)}
-                <small style={{ fontSize: "20px", letterSpacing: 0, color: "var(--muted)", fontWeight: 500 }}>%</small>
-              </div>
-              <p style={{ fontSize: "16px", color: "#071b39", margin: "0 0 8px", lineHeight: 1.6 }}>
-                {result.correct} of {result.total} correct in this {MODES[attempt.mode].title.toLowerCase()}. Practice accuracy, not an official score.{" "}
-                {attempt.mode !== "review" && "Take the diagnostic or a full mock for a readiness estimate."}
-              </p>
-            </>
-          )}
-
-          {/* Domains */}
-          <h2 style={h2}>Percent correct by domain</h2>
-          <div style={{ display: "grid", gap: "12px" }}>
-            {sortedDomains.map((d) => (
-              <div key={d.domain}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", fontSize: "14px", marginBottom: "5px" }}>
-                  <span>
-                    {d.domain} <span style={{ color: "var(--muted)" }}>({d.weight}% of exam)</span>
-                  </span>
-                  <strong>
-                    {Math.round((d.pct as number) * 100)}% · {d.correct}/{d.total}
-                  </strong>
                 </div>
-                <div style={{ height: "8px", borderRadius: "var(--r-pill)", background: "#e2e7f0" }}>
-                  <div style={{ height: "100%", width: `${(d.pct as number) * 100}%`, borderRadius: "var(--r-pill)", background: (d.pct as number) >= 0.69 ? "var(--correct-text)" : "var(--incorrect-text)" }} />
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Weakest domain + next module + course CTA */}
-          {weakest && weakest.pct !== null && (
-            <div style={{ marginTop: "28px", background: "#071b39", color: "#fff", borderRadius: "14px", padding: "26px" }}>
-              <p style={{ margin: "0 0 6px", fontSize: "13px", fontWeight: 800, letterSpacing: "1px", textTransform: "uppercase", color: "#ff9b50" }}>Weakest domain</p>
-              <h3 style={{ margin: "0 0 10px", fontSize: "22px", color: "#fff" }}>{weakest.domain}</h3>
-              <p style={{ margin: "0 0 16px", color: "#c7d4e7", lineHeight: 1.6 }}>
-                You scored {Math.round(weakest.pct * 100)}% on {weakest.domain}. Our course covers it in Module {weakest.courseModule ?? 1}.
-              </p>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
-                <button onClick={() => again("drill", weakest.domain)} disabled={!!starting} style={{ ...btnOutline, background: "#ff9b50", border: "none" }}>
-                  {starting === "drill" ? "Starting…" : "Next: drill this domain →"}
-                </button>
-                <a
-                  href={COURSE_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => trackEvent("course_cta_clicked", { where: "results", domain: weakest.domain })}
-                  style={{ ...btnOutline, background: "transparent", color: "#fff", borderColor: "rgba(255,255,255,.4)" }}
-                >
-                  See the course module
-                </a>
               </div>
             </div>
-          )}
+          </div>
+        </section>
 
-          {/* Fail report */}
-          {fail && (
-            <section aria-label="Detailed report">
-              <h2 style={h2}>Your detailed report</h2>
-              <p style={{ margin: "0 0 14px", lineHeight: 1.6 }}>
-                You&apos;re <strong>{result.gap} points</strong> short of the {PASS_SCORE} pass line. Here is where the points are, ranked by how much each area would lift your estimate.
-              </p>
-              <ol style={{ paddingLeft: "20px", margin: "0 0 14px", display: "grid", gap: "6px" }}>
-                {(email ? result.lifts.slice(0, 10) : topGaps).map((l) => (
-                  <li key={`${l.kind}-${l.name}`}>
-                    <strong>{l.name}</strong>
-                    {l.kind === "subSkill" && <span style={{ color: "var(--muted)" }}> · {l.domain}</span>}: {Math.round(l.pct * 100)}% correct, about +{l.lift} points available
-                  </li>
-                ))}
-              </ol>
-
-              {!email ? (
-                <div style={{ border: "1px dashed #99abc2", borderRadius: "10px", padding: "20px", background: "#f9fbfe" }}>
-                  <strong>Unlock the full report</strong>
-                  <p style={{ margin: "6px 0 14px", color: "var(--muted)", lineHeight: 1.6 }}>
-                    The full report adds every sub-skill, patterns in your mistakes, time per question, a personal study plan and a PDF. It needs an email address.
-                  </p>
-                  <button onClick={() => gate.open({ required: true, title: "Unlock your full report", body: "Add your email to see the full report, study plan and PDF." })} style={{ ...btnDark, marginTop: 0, width: "auto", padding: "14px 22px" }}>
-                    Add my email to unlock
-                  </button>
+        {/* ResultsBody */}
+        <section className="section" style={{ paddingTop: "var(--s-12)" }}>
+          <div className="container results-body">
+            <div className="stack" style={{ "--stack": "48px" } as React.CSSProperties}>
+              <div>
+                <h2 className="t-h3" style={{ marginBottom: "var(--s-5)" }}>Percent Correct by Domain</h2>
+                <div className="domains">
+                  {sortedDomains.map((d) => {
+                    const pct = Math.round((d.pct as number) * 100);
+                    const isWeakest = d.domain === result.weakestDomain;
+                    const flagWeak = isWeakest && pct < 80;
+                    return (
+                      <div key={d.domain} className={`domain${flagWeak ? " is-weakest" : pct >= 80 ? " is-strong" : ""}`}>
+                        <div>
+                          <span className="domain__name">{d.domain}</span>
+                          <span className="domain__weight">{d.weight}% of exam · {d.correct}/{d.total}{isWeakest ? " · Weakest" : ""}</span>
+                        </div>
+                        <div className="progress" role="img" aria-label={`${pct}% correct`}>
+                          <div className="progress__fill" style={cssVar("--value", `${pct}%`)} />
+                        </div>
+                        <span className="domain__score">{pct}%</span>
+                      </div>
+                    );
+                  })}
                 </div>
-              ) : (
-                <>
-                  {unweightedWeak.length > 0 && (
-                    <>
-                      <h3 style={{ ...h2, fontSize: "17px", margin: "22px 0 8px" }}>Sub-skills to review</h3>
-                      <p style={{ margin: "0 0 8px", color: "var(--muted)", fontSize: "14px" }}>The exam guide gives these no separate weight, so they are ranked by your accuracy.</p>
-                      <ul style={{ margin: 0, paddingLeft: "20px", display: "grid", gap: "4px" }}>
-                        {unweightedWeak.map((s) => (
-                          <li key={`${s.domain}-${s.subSkill}`}>
-                            <strong>{s.subSkill}</strong> <span style={{ color: "var(--muted)" }}>· {s.domain}</span>: {Math.round((s.pct as number) * 100)}% ({s.correct}/{s.total})
-                          </li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
+              </div>
 
-                  <h3 style={{ ...h2, fontSize: "17px", margin: "22px 0 8px" }}>Patterns in your mistakes</h3>
-                  {result.patterns.length ? (
-                    <ul style={{ margin: 0, paddingLeft: "20px", display: "grid", gap: "6px" }}>
-                      {result.patterns.map((p) => <li key={p}>{p}</li>)}
-                    </ul>
+              {/* Fail report */}
+              {fail && (
+                <section id="detailed-report" aria-labelledby="detailed-report-title">
+                  <h2 className="t-h3" id="detailed-report-title" style={{ marginBottom: "var(--s-3)" }}>Your Detailed Report</h2>
+                  <p className="t-sm" style={{ color: "var(--ink-2)", marginBottom: "var(--s-4)" }}>
+                    You&apos;re <strong>{result.gap} points</strong> short of the {PASS_SCORE} pass line. Here is where the points are, ranked by how much each area would lift your estimate.
+                  </p>
+                  <ol className="results-list" style={{ marginBottom: "var(--s-5)" }}>
+                    {(email ? result.lifts.slice(0, 10) : topGaps).map((l) => (
+                      <li key={`${l.kind}-${l.name}`}>
+                        <strong>{l.name}</strong>
+                        {l.kind === "subSkill" && <span className="results-sub"> · {l.domain}</span>}: {Math.round(l.pct * 100)}% correct, about +{l.lift} points available
+                      </li>
+                    ))}
+                  </ol>
+
+                  {!email ? (
+                    <div className="card card--soft">
+                      <h3 className="t-h4">Unlock the Full Report</h3>
+                      <p className="t-sm t-muted">
+                        The full report adds every sub-skill, patterns in your mistakes, time per question, a personal study plan and a PDF. It needs an email address.
+                      </p>
+                      <div>
+                        <button type="button" className="btn btn--accent" onClick={() => gate.open({ required: true, title: "Unlock your full report", body: "Add your email to see the full report, study plan and PDF." })}>
+                          Add My Email to Unlock
+                        </button>
+                      </div>
+                    </div>
                   ) : (
-                    <p style={{ color: "var(--muted)", margin: 0 }}>No single pattern stands out. Your misses are spread across topics.</p>
+                    <div className="stack" style={{ "--stack": "32px" } as React.CSSProperties}>
+                      {unweightedWeak.length > 0 && (
+                        <div>
+                          <h3 className="t-h4" style={{ marginBottom: "var(--s-2)" }}>Sub-Skills to Review</h3>
+                          <p className="t-sm t-muted" style={{ marginBottom: "var(--s-3)" }}>The exam guide gives these no separate weight, so they are ranked by your accuracy.</p>
+                          <ul className="results-list results-list--bullets">
+                            {unweightedWeak.map((s) => (
+                              <li key={`${s.domain}-${s.subSkill}`}>
+                                <strong>{s.subSkill}</strong> <span className="results-sub">· {s.domain}</span>: {Math.round((s.pct as number) * 100)}% ({s.correct}/{s.total})
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <div>
+                        <h3 className="t-h4" style={{ marginBottom: "var(--s-3)" }}>Patterns in Your Mistakes</h3>
+                        {result.patterns.length ? (
+                          <ul className="results-list results-list--bullets">
+                            {result.patterns.map((p) => <li key={p}>{p}</li>)}
+                          </ul>
+                        ) : (
+                          <p className="t-sm t-muted">No single pattern stands out. Your misses are spread across topics.</p>
+                        )}
+                      </div>
+
+                      <div>
+                        <h3 className="t-h4" style={{ marginBottom: "var(--s-3)" }}>Time per Question</h3>
+                        <p className="t-sm" style={{ color: "var(--ink-2)" }}>
+                          {result.avgSecondsPerQuestion} seconds on average, compared with the {result.paceSeconds}-second exam pace.
+                        </p>
+                      </div>
+
+                      <div>
+                        <h3 className="t-h4" style={{ marginBottom: "var(--s-3)" }}>Your Study Plan</h3>
+                        {planLoading && <p className="t-sm t-muted" role="status">Writing your plan…</p>}
+                        {plan && <PlanView plan={plan} />}
+                        {!planLoading && !plan && <p className="t-sm t-muted">The plan couldn&apos;t be generated right now. Your report and PDF are unaffected.</p>}
+                      </div>
+
+                      <button type="button" className="btn btn--secondary btn--block" onClick={downloadPdf} disabled={pdfBusy}>
+                        {pdfBusy ? "Building PDF…" : "Download the Full Report (PDF)"}
+                        <Icon name="arrow-down" />
+                      </button>
+                    </div>
                   )}
-
-                  <h3 style={{ ...h2, fontSize: "17px", margin: "22px 0 8px" }}>Time per question</h3>
-                  <p style={{ margin: 0 }}>
-                    {result.avgSecondsPerQuestion} seconds on average, compared with the {result.paceSeconds}-second exam pace.
-                  </p>
-
-                  <h3 style={{ ...h2, fontSize: "17px", margin: "22px 0 8px" }}>Your study plan</h3>
-                  {planLoading && <p style={{ color: "var(--muted)" }}>Writing your plan…</p>}
-                  {plan && <PlanView plan={plan} />}
-                  {!planLoading && !plan && <p style={{ color: "var(--muted)" }}>The plan couldn&apos;t be generated right now. Your report and PDF are unaffected.</p>}
-
-                  <button onClick={downloadPdf} disabled={pdfBusy} style={{ ...btnOutline, marginTop: "20px", width: "100%" }}>
-                    {pdfBusy ? "Building PDF…" : "Download the full report (PDF)"}
-                  </button>
-                </>
+                </section>
               )}
 
-              {/* 1:1 review call */}
-              <div style={{ marginTop: "24px", border: "1px solid #dce3ed", borderRadius: "12px", padding: "22px", background: "#f1f5fa" }}>
-                <strong style={{ fontSize: "17px" }}>Want a person to go through this with you?</strong>
-                <p style={{ margin: "6px 0 14px", color: "var(--muted)", lineHeight: 1.6 }}>
-                  Book a free 30-minute review call. An advisor sees your report first, so the time goes on your weak areas. One free call per track.
-                </p>
-                <BookingCTA track={attempt.track} readiness={result.readiness} reportUrl={reportUrl} />
+              {/* Missed questions */}
+              <div>
+                <div className="cluster" style={{ justifyContent: "space-between", marginBottom: "var(--s-3)" }}>
+                  <h2 className="t-h3">Question Review</h2>
+                  <span className={`tag ${result.missed.length === 0 ? "tag--success" : "tag--error"}`}>{result.missed.length} Missed</span>
+                </div>
+                {result.missed.length === 0 ? (
+                  <p className="t-sm t-muted">No missed questions. Nice work.</p>
+                ) : (
+                  <div className="accordion">
+                    {result.missed.map((m, i) => {
+                      const open = openReview.has(m.id);
+                      const answer = (labels: string[]) => labels.map((l) => `${l}. ${m.options.find((o) => o.label === l)?.text}`).join("; ");
+                      return (
+                        <div key={m.id} className="accordion__item">
+                          <button
+                            type="button"
+                            className="accordion__trigger"
+                            aria-expanded={open}
+                            aria-controls={`rv-${i}`}
+                            id={`rv-trigger-${i}`}
+                            onClick={() => toggleReview(m.id)}
+                          >
+                            <span className="review__q">
+                              <span className="review__mark review__mark--no"><Icon name="x" size="sm" /></span>
+                              <span><RichText text={m.question} /></span>
+                            </span>
+                            <span className="accordion__icon"><Icon name="plus" size="sm" /></span>
+                          </button>
+                          <div className="accordion__panel" id={`rv-${i}`} role="region" aria-labelledby={`rv-trigger-${i}`} inert={!open}>
+                            <div>
+                              <div className="accordion__body results-review__body">
+                                <p className="results-review__meta">{m.domain} · {m.subSkill}</p>
+                                <dl className="review__answers">
+                                  <div className="review__answer review__answer--no">
+                                    <dt>Your Answer</dt>
+                                    <dd>{m.userPicks.length ? answer(m.userPicks) : "Not answered"}</dd>
+                                  </div>
+                                  <div className="review__answer review__answer--ok">
+                                    <dt>Correct Answer</dt>
+                                    <dd>{answer(m.keys)}</dd>
+                                  </div>
+                                </dl>
+                                <p className="results-review__explain">{m.explanation}</p>
+                                <SkillJarLinks resources={m.resources} />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            </section>
-          )}
-
-          {/* Missed questions */}
-          <h2 style={h2}>Question review ({result.missed.length} missed)</h2>
-          {result.missed.length === 0 ? (
-            <p style={{ color: "var(--muted)" }}>No missed questions. Nice work.</p>
-          ) : (
-            <div style={{ display: "grid", gap: "10px" }}>
-              {result.missed.map((m, i) => (
-                <details key={m.id} className="faq-details" style={{ border: "1px solid #dce3ed", borderRadius: "10px", padding: "12px 16px" }}>
-                  <summary style={{ cursor: "pointer", fontWeight: 600 }}>
-                    {i + 1}. <RichText text={m.question} />
-                  </summary>
-                  <p style={{ margin: "10px 0 4px", fontSize: "13px", color: "var(--muted)" }}>
-                    {m.domain} · {m.subSkill}
-                  </p>
-                  <p style={{ margin: "4px 0", color: "var(--incorrect-text)", fontSize: "14px" }}>
-                    ✗ Your answer: {m.userPicks.length ? m.userPicks.map((l) => `${l}) ${m.options.find((o) => o.label === l)?.text}`).join("; ") : "not answered"}
-                  </p>
-                  <p style={{ margin: "4px 0", color: "var(--correct-text)", fontSize: "14px" }}>
-                    ✓ Correct: {m.keys.map((l) => `${l}) ${m.options.find((o) => o.label === l)?.text}`).join("; ")}
-                  </p>
-                  <p style={{ margin: "8px 0 0", fontSize: "15px", lineHeight: 1.65 }}>{m.explanation}</p>
-                  <SkillJarLinks resources={m.resources} />
-                </details>
-              ))}
             </div>
-          )}
 
-          {/* Next actions */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginTop: "32px" }}>
-            <button onClick={() => again(attempt.mode, attempt.domain, attempt.module)} disabled={!!starting} style={btnOutline}>
-              Repeat this module
-            </button>
-            {result.missed.length > 0 ? (
-              <button onClick={() => again("review")} disabled={!!starting} style={btnOutline}>
-                Review mistakes
-              </button>
-            ) : (
-              <button disabled style={{ ...btnOutline, opacity: 0.45, cursor: "not-allowed" }}>Review mistakes</button>
-            )}
+            <aside className="results-body__side" aria-label="What to Do Next">
+              {weakest && weakest.pct !== null && (
+                <div className="card card--navy card--lg">
+                  <span className="eyebrow">Weakest Domain</span>
+                  <h2 className="t-h3">{weakest.domain}</h2>
+                  <p className="t-sm" style={{ color: "var(--on-navy-muted)" }}>
+                    You scored {Math.round(weakest.pct * 100)}% on {weakest.domain}. Our course covers it in Module {weakest.courseModule ?? 1}.
+                  </p>
+                  <div className="stack" style={{ "--stack": "12px" } as React.CSSProperties}>
+                    <button type="button" className="btn btn--accent btn--block" onClick={() => again("drill", weakest.domain)} disabled={!!starting}>
+                      {starting === "drill" ? "Starting…" : "Drill This Domain"}
+                    </button>
+                    <a
+                      className="btn btn--link-light"
+                      href={COURSE_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => trackEvent("course_cta_clicked", { where: "results", domain: weakest.domain })}
+                    >
+                      See the Course Module <Icon name="external" size="sm" />
+                    </a>
+                  </div>
+                </div>
+              )}
+              <div className="card">
+                <h2 className="t-h4">Keep Practising</h2>
+                <div className="next-actions">
+                  <button type="button" className="btn btn--secondary btn--block" onClick={() => again(attempt.mode, attempt.domain, attempt.module)} disabled={!!starting}>
+                    Repeat This Module <Icon name="refresh" />
+                  </button>
+                  <button type="button" className="btn btn--secondary btn--block" onClick={() => again("review")} disabled={!!starting || result.missed.length === 0}>
+                    Review Mistakes <Icon name="list" />
+                  </button>
+                  <Link className="btn btn--secondary btn--block" href={`/${attempt.track}`}>
+                    Choose Any Module <Icon name="layers" />
+                  </Link>
+                </div>
+              </div>
+            </aside>
           </div>
-          <Link href={`/${attempt.track}`} style={btnDark}>
-            Choose any module
-          </Link>
-        </div>
+        </section>
+
+        {/* 1:1 review call */}
+        {fail && (
+          <section className="section" style={{ paddingTop: 0 }} aria-label="Book a review call">
+            <div className="container">
+              <div className="cta-band">
+                <div className="stack" style={{ "--stack": "12px" } as React.CSSProperties}>
+                  <span className="eyebrow">Free 1-on-1 Review</span>
+                  <h2 className="t-h3">Want a Person to Go Through This With You?</h2>
+                </div>
+                <div className="cta-band__aside">
+                  <p className="t-sm" style={{ color: "var(--on-navy-muted)" }}>
+                    Book a free 30-minute review call. An advisor sees your report first, so the time goes on your weak areas. One free call per track.
+                  </p>
+                  <div>
+                    <BookingCTA track={attempt.track} readiness={result.readiness} reportUrl={reportUrl} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
       </main>
+      <SiteFooter />
     </>
   );
 }
 
 function PlanView({ plan }: { plan: StudyPlan }) {
   return (
-    <div>
-      <p style={{ lineHeight: 1.6 }}>{plan.summary}</p>
+    <div className="stack" style={{ "--stack": "16px" } as React.CSSProperties}>
+      <p className="t-sm" style={{ color: "var(--ink-2)" }}>{plan.summary}</p>
       {plan.domains.map((d) => (
-        <div key={d.name} style={{ border: "1px solid #dce3ed", borderRadius: "10px", padding: "14px 16px", margin: "10px 0" }}>
-          <strong>{d.name}</strong> <span style={{ color: "var(--muted)" }}>· {Math.round(d.pct * 100)}% · Course Module {d.courseModule}</span>
-          <p style={{ margin: "6px 0", fontSize: "14px", lineHeight: 1.6 }}>{d.whatToStudy}</p>
-          <ul style={{ margin: 0, paddingLeft: "18px", fontSize: "14px" }}>
+        <div key={d.name} className="card results-plan-card">
+          <h4 className="t-h4">{d.name}</h4>
+          <span className="t-xs t-muted">{Math.round(d.pct * 100)}% · Course Module {d.courseModule}</span>
+          <p>{d.whatToStudy}</p>
+          <ul>
             {d.docLinks.map((l) => (
               <li key={l.url}>
-                <a href={l.url} target="_blank" rel="noopener noreferrer" style={{ color: "#214f91" }}>{l.title}</a>
+                <a href={l.url} target="_blank" rel="noopener noreferrer">{l.title}</a>
               </li>
             ))}
             <li>{d.drill}</li>
           </ul>
         </div>
       ))}
-      <ol style={{ paddingLeft: "20px", display: "grid", gap: "8px", margin: "14px 0" }}>
+      <ol className="results-days t-sm">
         {plan.days.map((d) => (
           <li key={d.day}>
             <strong>
               Day {d.day}
               {d.date ? ` (${d.date})` : ""}: {d.title}
             </strong>
-            {d.focus && <div style={{ color: "var(--muted)", fontSize: "14px" }}>{d.focus}</div>}
-            <ul style={{ margin: "2px 0 0", paddingLeft: "18px", fontSize: "14px" }}>
+            {d.focus && <div className="t-muted">{d.focus}</div>}
+            <ul>
               {d.tasks.map((t) => <li key={t}>{t}</li>)}
             </ul>
           </li>
         ))}
       </ol>
-      <p style={{ fontWeight: 600 }}>Retest checkpoint: {plan.retest.text}</p>
-      {plan.askForDate && <p style={{ color: "var(--muted)", fontSize: "14px" }}>No exam date given, so this is a 14-day default. Add your exam date next time to sharpen it.</p>}
+      <p className="t-sm" style={{ fontWeight: "var(--fw-medium)" }}>Retest checkpoint: {plan.retest.text}</p>
+      {plan.askForDate && <p className="t-xs t-muted">No exam date given, so this is a 14-day default. Add your exam date next time to sharpen it.</p>}
     </div>
   );
 }

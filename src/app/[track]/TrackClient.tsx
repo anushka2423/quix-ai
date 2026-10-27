@@ -1,5 +1,6 @@
 "use client";
 
+import "../design/track.css";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -12,8 +13,23 @@ import { fullMockReadiness, getHistory, getLearner, getWrongIds, type HistoryEnt
 import { isReady } from "@/lib/scoring";
 import { track as trackEvent } from "@/lib/analytics";
 import Header from "@/components/Header";
+import SiteFooter from "@/components/SiteFooter";
+import Icon, { type IconName } from "@/components/Icon";
+import Listbox from "@/components/ui/Listbox";
+import Tabs from "@/components/ui/Tabs";
+import Tooltip from "@/components/ui/Tooltip";
 
-const BLUE = "#214f91";
+const SMALL_WORDS = new Set(["a", "an", "and", "of", "to", "the", "or", "in", "on", "for"]);
+/** Interface labels are Title Case in the redesign; question content is never passed through this. */
+const titleCase = (s: string) => s.split(" ").map((w, i) => (i > 0 && SMALL_WORDS.has(w.toLowerCase()) ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1))).join(" ");
+
+const MODE_UI: Record<string, { tag: string; icon: IconName; cta: string }> = {
+  diagnostic: { tag: "Start Here", icon: "target", cta: "Start Diagnostic" },
+  sprint: { tag: "Daily Habit", icon: "zap", cta: "Start Sprint" },
+  drill: { tag: "Fix a Weak Area", icon: "layers", cta: "Start Drill" },
+  full: { tag: "Exam Rehearsal", icon: "calendar", cta: "Start Mock Exam" },
+  review: { tag: "Untimed", icon: "refresh", cta: "Start Review" },
+};
 
 export default function TrackClient({ track, meta }: { track: TrackId; meta: TrackMeta }) {
   const router = useRouter();
@@ -42,6 +58,8 @@ export default function TrackClient({ track, meta }: { track: TrackId; meta: Tra
   const latest = [...history].reverse().find((h) => h.readiness !== null);
   const ready = isReady(fullMockReadiness(track));
   const shortBank = meta.total < def.items;
+  const maxWeight = Math.max(1, ...meta.domains.map((d) => d.weight));
+  const hasModules = meta.modules.length > 0;
 
   async function go(mode: ModeId) {
     setBusy(mode);
@@ -68,174 +86,199 @@ export default function TrackClient({ track, meta }: { track: TrackId; meta: Tra
   return (
     <>
       <Header />
-      <main style={{ background: "#fff" }}>
-        <section style={{ background: "#071b39", color: "white" }}>
-          <div className="page-wrap" style={{ padding: "56px 0 60px" }}>
-            <Link href="/" style={{ color: "#b5c5dc", fontSize: "14px", textDecoration: "none" }}>← All tracks</Link>
-            <p style={{ fontSize: "14px", letterSpacing: "1.4px", fontWeight: 800, color: "#ff9b50", textTransform: "uppercase", margin: "22px 0 14px", fontFamily: "var(--font-manrope), sans-serif" }}>
-              {def.code}
-            </p>
-            <h1 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "clamp(32px, 4vw, 48px)", fontWeight: 800, letterSpacing: "-0.035em", margin: 0, color: "#fff", lineHeight: 1.15 }}>
-              {def.name}
-            </h1>
-            <p style={{ fontSize: "17px", lineHeight: 1.65, color: "#c7d4e7", maxWidth: "640px", margin: "18px 0 0" }}>
-              {def.audience} The real exam: {def.items} questions, {def.minutes} minutes, pass mark 720 on a scale of 100–1,000. Every module below is open.
-            </p>
-
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "14px", marginTop: "28px" }}>
-              <div style={{ background: "#fff", color: "#071b39", borderRadius: "12px", padding: "16px 20px", minWidth: "220px" }}>
-                <span style={{ fontSize: "12px", fontWeight: 800, letterSpacing: ".6px", textTransform: "uppercase", color: "#44536a" }}>Your readiness estimate</span>
-                <div style={{ fontSize: "36px", fontWeight: 800, fontFamily: "var(--font-manrope), sans-serif", lineHeight: 1.2 }}>
-                  {latest ? latest.readiness : "–"}
-                  <small style={{ fontSize: "14px", fontWeight: 500, color: "#44536a" }}> / 1000</small>
-                </div>
-                <span style={{ fontSize: "13px", color: "#44536a" }}>
-                  {latest ? (ready ? "Looks ready: 800+ on 2 full mocks" : `Pass line ${PASS_SCORE}. Estimate, not an official score`) : "Take the diagnostic to get one"}
-                </span>
+      <main id="main">
+        <section className="page-head" aria-labelledby="track-title">
+          <div className="container">
+            <Link className="page-head__crumb" href="/#tracks"><Icon name="arrow-left" size="sm" />All Tracks</Link>
+            <div className="page-head__grid">
+              <div className="stack stack--16">
+                <span className="tag tag--on-navy">{def.code}</span>
+                <h1 className="t-h1" id="track-title">{def.name}</h1>
+                <p className="t-body measure t-on-navy-muted">
+                  {def.audience} The real exam: {def.items} questions, {def.minutes} minutes, pass mark 720 on a scale of 100–1,000.
+                </p>
               </div>
-              <div style={{ background: "rgba(255,255,255,.08)", borderRadius: "12px", padding: "16px 20px", minWidth: "220px", border: "1px solid rgba(255,255,255,.15)" }}>
-                <span style={{ fontSize: "12px", fontWeight: 800, letterSpacing: ".6px", textTransform: "uppercase", color: "#b5c5dc" }}>Question bank</span>
-                <div style={{ fontSize: "36px", fontWeight: 800, fontFamily: "var(--font-manrope), sans-serif", lineHeight: 1.2 }}>{meta.total}</div>
-                <span style={{ fontSize: "13px", color: "#b5c5dc" }}>original practice questions</span>
+              <div className="page-head__stats">
+                <div className="stat stat--glass">
+                  <span className="stat__label track-glass-label">Your Readiness Estimate
+                    <Tooltip end label="About the readiness estimate">Domain-weighted percent correct mapped onto the 100–1,000 scale. An estimate, not an official score.</Tooltip>
+                  </span>
+                  <span className="stat__value">{latest ? latest.readiness : "–"}<small>/ 1000</small></span>
+                  <span className="t-xs track-glass-note">
+                    {latest ? (ready ? "Looks ready: 800+ on 2 full mocks" : `Pass line ${PASS_SCORE}. Estimate, not an official score`) : "Take the diagnostic to get one"}
+                  </span>
+                </div>
+                <div className="stat stat--glass">
+                  <span className="stat__label">Question Bank</span>
+                  <span className="stat__value">{meta.total}</span>
+                  <span className="t-xs track-glass-note">Original practice questions</span>
+                </div>
               </div>
             </div>
           </div>
         </section>
 
-        <section style={{ padding: "64px 0", background: "#ffffff" }}>
-          <div className="page-wrap">
-            <p style={{ fontSize: "14px", letterSpacing: "1px", fontWeight: 800, color: BLUE, textTransform: "uppercase", margin: "0 0 14px", fontFamily: "var(--font-manrope), sans-serif" }}>
-              Practice
-            </p>
-            <h2 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "clamp(28px, 3vw, 38px)", fontWeight: 800, color: "var(--ink)", margin: "0 0 28px", letterSpacing: "-0.035em" }}>
-              Pick any module. Nothing is locked.
-            </h2>
-            {error && <p role="alert" style={{ color: "var(--incorrect-text)" }}>✗ {error}</p>}
-
-            {view === "module" ? (
-              <>
-              <button onClick={() => setView("overall")} style={{ background: "none", border: "none", padding: 0, margin: "0 0 20px", color: BLUE, fontWeight: 700, fontSize: "14px", cursor: "pointer", fontFamily: "inherit", minHeight: "44px" }}>
-                ← Back to all practice modes
-              </button>
-              <div className="module-grid">
-                {meta.modules.map((m) => (
-                  <article key={m.name} style={{ border: "1px solid #dce3ed", borderRadius: "10px", padding: "23px 19px", background: "white", display: "flex", flexDirection: "column" }}>
-                    <h3 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "19px", lineHeight: 1.35, fontWeight: 800, color: "var(--ink)", margin: "0 0 12px", letterSpacing: "-0.025em" }}>{m.name}</h3>
-                    <p style={{ fontSize: "15px", color: "var(--muted)", lineHeight: 1.7, margin: 0, flex: 1 }}>{m.description}</p>
-                    <span style={{ fontSize: "14px", color: "#654a39", borderTop: "1px solid #dce3ed", paddingTop: "14px", marginTop: "20px" }}>
-                      {Math.min(m.count, MODULE_SIZE)} question{Math.min(m.count, MODULE_SIZE) === 1 ? "" : "s"} · {MODULE_QUESTION_SECONDS} sec each
-                    </span>
-                    <button
-                      onClick={() => goModule(m.name)}
-                      disabled={!!moduleBusy}
-                      style={{ width: "100%", marginTop: "14px", padding: "12px 18px", borderRadius: "9px", border: "1px solid #dce3ed", background: "white", color: "var(--ink)", fontWeight: 700, fontSize: "14px", cursor: moduleBusy ? "not-allowed" : "pointer", fontFamily: "inherit", minHeight: "44px" }}
-                    >
-                      {moduleBusy === m.name ? "Starting…" : "Start →"}
-                    </button>
-                  </article>
-                ))}
-              </div>
-              </>
-            ) : (
-            <div className="module-grid">
-              {MODE_IDS.map((mode) => {
-                const m = MODES[mode];
-                const count = m.questions(track);
-                const mins = m.minutes?.(track);
-                const disabled = mode === "review" && wrong === 0;
-                return (
-                  <article key={mode} style={{ border: "1px solid #dce3ed", borderRadius: "10px", padding: "23px 19px", background: "white", display: "flex", flexDirection: "column", opacity: disabled ? 0.7 : 1 }}>
-                    <span style={{ color: BLUE, fontSize: "14px", fontWeight: 800, letterSpacing: "1px", marginBottom: "22px", fontFamily: "var(--font-manrope), sans-serif" }}>
-                      {mode === "diagnostic" ? "Start here" : mode === "full" ? "Exam rehearsal" : "Open access"}
-                    </span>
-                    <h3 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "19px", lineHeight: 1.35, fontWeight: 800, color: "var(--ink)", margin: "0 0 12px", letterSpacing: "-0.025em" }}>
-                      {m.title}
-                    </h3>
-                    <p style={{ fontSize: "15px", color: "var(--muted)", lineHeight: 1.7, margin: 0, flex: 1 }}>{m.purpose}</p>
-
-                    {mode === "drill" && (
-                      <label style={{ display: "block", marginTop: "14px", fontSize: "13px", fontWeight: 600 }}>
-                        Domain
-                        <select value={domain} onChange={(e) => setDomain(e.target.value)} style={{ display: "block", width: "100%", marginTop: "6px", padding: "10px", borderRadius: "var(--r-input)", border: "1.5px solid var(--border)", fontFamily: "inherit", fontSize: "14px", color: "var(--ink)", background: "#fff" }}>
-                          {meta.domains.map((d) => (
-                            <option key={d.name} value={d.name} disabled={d.count === 0}>
-                              {d.name} ({d.weight}%)
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    )}
-                    {mode === "full" && flags.examConditions && (
-                      <label style={{ display: "flex", gap: "8px", alignItems: "flex-start", marginTop: "14px", fontSize: "13px", lineHeight: 1.5 }}>
-                        <input type="checkbox" checked={exam} onChange={(e) => setExam(e.target.checked)} style={{ width: "18px", height: "18px", marginTop: "1px" }} />
-                        Exam conditions: hide feedback until the end
-                      </label>
-                    )}
-                    {mode === "full" && shortBank && (
-                      <p style={{ fontSize: "13px", color: "#65501f", background: "#fff4db", padding: "8px 10px", borderRadius: "6px", margin: "14px 0 0", lineHeight: 1.5 }}>
-                        Preview: the bank has {meta.total} of the {def.items} items a full mock needs, so this mock is shorter until the bank grows.
-                      </p>
-                    )}
-
-                    <span style={{ fontSize: "14px", color: "#654a39", borderTop: "1px solid #dce3ed", paddingTop: "14px", marginTop: "20px" }}>
-                      {mode === "review" ? `${wrong} missed item${wrong === 1 ? "" : "s"} · untimed` : `${mode === "full" ? Math.min(count ?? 0, meta.total) : count} questions · ${mins} min`}
-                    </span>
-                    <button
-                      onClick={() => go(mode)}
-                      disabled={disabled || !!busy}
-                      style={{ width: "100%", marginTop: "14px", padding: "12px 18px", borderRadius: "9px", border: "1px solid #dce3ed", background: mode === "diagnostic" ? "#ff9b50" : "white", color: "var(--ink)", fontWeight: 700, fontSize: "14px", cursor: disabled || busy ? "not-allowed" : "pointer", fontFamily: "inherit", minHeight: "44px" }}
-                    >
-                      {busy === mode ? "Starting…" : mode === "review" && disabled ? "Nothing to review yet" : "Start →"}
-                    </button>
-                  </article>
-                );
-              })}
-              {meta.modules.length > 0 && (
-                <article style={{ border: "1px solid #dce3ed", borderRadius: "10px", padding: "23px 19px", background: "white", display: "flex", flexDirection: "column" }}>
-                  <span style={{ color: BLUE, fontSize: "14px", fontWeight: 800, letterSpacing: "1px", marginBottom: "22px", fontFamily: "var(--font-manrope), sans-serif" }}>
-                    Open access
-                  </span>
-                  <h3 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "19px", lineHeight: 1.35, fontWeight: 800, color: "var(--ink)", margin: "0 0 12px", letterSpacing: "-0.025em" }}>
-                    By module
-                  </h3>
-                  <p style={{ fontSize: "15px", color: "var(--muted)", lineHeight: 1.7, margin: 0, flex: 1 }}>
-                    Practice one Skill Jar course at a time. Pick a module and work through its questions.
-                  </p>
-                  <span style={{ fontSize: "14px", color: "#654a39", borderTop: "1px solid #dce3ed", paddingTop: "14px", marginTop: "20px" }}>
-                    {meta.modules.length} module{meta.modules.length === 1 ? "" : "s"} · {MODULE_SIZE} questions each
-                  </span>
-                  <button
-                    onClick={() => setView("module")}
-                    style={{ width: "100%", marginTop: "14px", padding: "12px 18px", borderRadius: "9px", border: "1px solid #dce3ed", background: "white", color: "var(--ink)", fontWeight: 700, fontSize: "14px", cursor: "pointer", fontFamily: "inherit", minHeight: "44px" }}
-                  >
-                    Browse modules →
-                  </button>
-                </article>
+        <section className="section section--soft-top" aria-labelledby="practice-title">
+          <div className="container">
+            <div className="section-head section-head--tight">
+              <span className="eyebrow">Practice</span>
+              <h2 className="t-h2" id="practice-title">Pick Any Module. Nothing Is Locked.</h2>
+              {hasModules && (
+                <div className="tabs--end">
+                  <Tabs
+                    idBase="practice"
+                    ariaLabel="Practice View"
+                    value={view}
+                    onChange={setView}
+                    tabs={[{ id: "overall", label: "Practice Modes" }, { id: "module", label: "By Module" }]}
+                  />
+                </div>
               )}
             </div>
+            {error && <p role="alert" className="track-error">{error}</p>}
+
+            <div id="practice-panel-overall" role="tabpanel" aria-labelledby="practice-tab-overall" hidden={view !== "overall"}>
+              <div className="modes">
+                {MODE_IDS.map((mode) => {
+                  const m = MODES[mode];
+                  const ui = MODE_UI[mode];
+                  const count = m.questions(track);
+                  const mins = m.minutes?.(track);
+                  const empty = mode === "review" && wrong === 0;
+                  const featured = mode === "diagnostic";
+                  const qn = mode === "full" ? Math.min(count ?? 0, meta.total) : count;
+                  return (
+                    <article key={mode} className={`card${featured ? " card--featured" : ""}`}>
+                      <div className="card__head">
+                        <span className={`tag${featured ? "" : " tag--neutral"}`}>{ui.tag}</span>
+                        <Icon name={ui.icon} size="lg" className={featured ? "track-ico--blue" : "track-ico--muted"} />
+                      </div>
+                      <h3 className="t-h3">{titleCase(m.title)}</h3>
+                      {empty ? (
+                        <div className="empty">
+                          <span className="empty__icon"><Icon name="inbox" /></span>
+                          <p className="empty__title">Nothing to Review Yet</p>
+                          <p className="empty__text">Questions you miss land here for spaced repetition.</p>
+                        </div>
+                      ) : (
+                        <p className="mode-card__desc">{m.purpose}</p>
+                      )}
+                      <div className="card__foot">
+                        {mode === "drill" && (
+                          <Listbox
+                            up
+                            label="Domain"
+                            value={domain}
+                            onChange={setDomain}
+                            options={meta.domains.map((d) => ({ value: d.name, label: d.name, hint: `${d.weight}%`, disabled: d.count === 0 }))}
+                          />
+                        )}
+                        {mode === "full" && flags.examConditions && (
+                          <label className="checkbox">
+                            <input type="checkbox" checked={exam} onChange={(e) => setExam(e.target.checked)} />
+                            <span>Exam conditions: hide feedback until the end</span>
+                          </label>
+                        )}
+                        {mode === "full" && shortBank && (
+                          <p className="track-note">
+                            Preview: the bank has {meta.total} of the {def.items} items a full mock needs, so this mock is shorter until the bank grows.
+                          </p>
+                        )}
+                        {!empty && (
+                          <p className="mode-card__facts">
+                            {mode === "review" ? (
+                              <span><Icon name="list" size="sm" />{wrong} Missed Item{wrong === 1 ? "" : "s"}</span>
+                            ) : (
+                              <>
+                                <span><Icon name="list" size="sm" />{qn} Questions</span>
+                                <span><Icon name="clock" size="sm" />{mins} Min</span>
+                              </>
+                            )}
+                            {mode === "review" && <span><Icon name="clock" size="sm" />Untimed</span>}
+                          </p>
+                        )}
+                        <button
+                          type="button"
+                          className={`btn btn--block ${featured ? "btn--accent" : "btn--secondary"}`}
+                          onClick={() => go(mode)}
+                          disabled={empty || !!busy}
+                        >
+                          {busy === mode ? "Starting…" : empty ? "0 Missed Items" : ui.cta}
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })}
+                {hasModules && (
+                  <article className="card">
+                    <div className="card__head">
+                      <span className="tag tag--neutral">Skill Jar Courses</span>
+                      <Icon name="file" size="lg" className="track-ico--muted" />
+                    </div>
+                    <h3 className="t-h3">By Module</h3>
+                    <p className="mode-card__desc">Practice one Skill Jar course at a time. Pick a module and work through its questions.</p>
+                    <div className="card__foot">
+                      <p className="mode-card__facts">
+                        <span><Icon name="layers" size="sm" />{meta.modules.length} Module{meta.modules.length === 1 ? "" : "s"}</span>
+                        <span><Icon name="list" size="sm" />{MODULE_SIZE} Questions Each</span>
+                      </p>
+                      <button type="button" className="btn btn--secondary btn--block" onClick={() => setView("module")}>Browse Modules</button>
+                    </div>
+                  </article>
+                )}
+              </div>
+            </div>
+
+            {hasModules && (
+              <div id="practice-panel-module" role="tabpanel" aria-labelledby="practice-tab-module" hidden={view !== "module"}>
+                <ol className="module-list">
+                  {meta.modules.map((m, i) => {
+                    const n = Math.min(m.count, MODULE_SIZE);
+                    return (
+                      <li className="module-row" key={m.name}>
+                        <span className="module-row__num">{String(i + 1).padStart(2, "0")}</span>
+                        <div>
+                          <p className="module-row__title">{m.name}</p>
+                          <p className="module-row__desc">{m.description}</p>
+                        </div>
+                        <span className="module-row__meta">{n} Q · {MODULE_QUESTION_SECONDS} Sec Each</span>
+                        <button type="button" className="btn btn--secondary btn--sm" onClick={() => goModule(m.name)} disabled={!!moduleBusy}>
+                          {moduleBusy === m.name ? "Starting…" : "Start"}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
             )}
           </div>
         </section>
 
-        <section style={{ padding: "64px 0", background: "#F4F6F9" }}>
-          <div className="page-wrap">
-            <h2 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "clamp(24px, 2.6vw, 32px)", fontWeight: 800, margin: "0 0 8px", letterSpacing: "-0.03em" }}>
-              {meta.domains.length} official domains, weighted as the exam guide weights them
-            </h2>
-            <p style={{ color: "var(--muted)", margin: "0 0 22px", maxWidth: "640px" }}>
-              Full mocks and the diagnostic draw questions at these weights. Source: exam guide v1.0 (July 2026).
-            </p>
-            <div style={{ display: "grid", gap: "10px" }}>
+        <section className="section section--muted" aria-labelledby="weights-title">
+          <div className="container weights">
+            <div className="stack stack--16">
+              <span className="eyebrow">Exam Blueprint</span>
+              <h2 className="t-h2" id="weights-title">{meta.domains.length} Official Domains, Weighted as the Exam Guide Weights Them</h2>
+              <p className="t-sm t-muted measure">Full mocks and the diagnostic draw questions at these weights. Source: exam guide v1.0 (July 2026).</p>
+            </div>
+            <div className="domains">
               {meta.domains.map((d) => (
-                <div key={d.name} style={{ display: "flex", justifyContent: "space-between", gap: "16px", background: "#fff", border: "1px solid #dce3ed", borderRadius: "10px", padding: "14px 18px", flexWrap: "wrap" }}>
-                  <strong style={{ fontWeight: 600 }}>{d.name}</strong>
-                  <span style={{ color: "var(--muted)", fontSize: "14px" }}>{d.weight}% of the exam · {d.count} practice questions</span>
+                <div className="domain" key={d.name}>
+                  <div>
+                    <span className="domain__name">{d.name}</span>
+                    <span className="domain__weight">{d.count} practice questions</span>
+                  </div>
+                  <div className="progress progress--blue" role="img" aria-label={`${d.weight}% of the exam`}>
+                    <div className="progress__fill" style={{ "--value": `${(d.weight / maxWeight) * 100}%` } as React.CSSProperties} />
+                  </div>
+                  <span className="domain__score">{d.weight}%</span>
                 </div>
               ))}
             </div>
           </div>
         </section>
       </main>
+      <SiteFooter />
     </>
   );
 }

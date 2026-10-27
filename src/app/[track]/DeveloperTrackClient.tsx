@@ -1,5 +1,6 @@
 "use client";
 
+import "../design/track.css";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -8,11 +9,10 @@ import type { TrackMeta } from "@/lib/bank";
 import { startAttempt, startDevFullMock } from "@/lib/client/start";
 import { track as trackEvent } from "@/lib/analytics";
 import Header from "@/components/Header";
-
-const NAVY = "#071b39";
-const BLUE = "#214f91";
-const ACCENT = "#ff9b50";
-
+import SiteFooter from "@/components/SiteFooter";
+import Icon from "@/components/Icon";
+import Segmented, { type SegmentedOption } from "@/components/ui/Segmented";
+import RangeField from "@/components/ui/RangeField";
 
 type Screen = "home" | "full-mock-config";
 
@@ -21,6 +21,13 @@ export interface LevelCounts {
   total: Record<number, number>;
   modules: Record<number, Record<string, number>>;
 }
+
+const LEVEL_NOTE = "Level 3 will be available in a future update.";
+const levelOptions = (describedBy?: string): SegmentedOption[] =>
+  [1, 2, 3].map((lvl) => {
+    const locked = !OPEN_LEVELS.includes(lvl);
+    return { value: lvl, label: `Level ${lvl}`, disabled: locked, note: LEVEL_NOTE, describedBy: locked ? describedBy : undefined };
+  });
 
 export default function DeveloperTrackClient({ meta, levels }: { meta: TrackMeta; levels: LevelCounts }) {
   const router = useRouter();
@@ -34,11 +41,19 @@ export default function DeveloperTrackClient({ meta, levels }: { meta: TrackMeta
   const [fullBusy, setFullBusy] = useState(false);
   const [moduleBusy, setModuleBusy] = useState<string | null>(null);
   const [error, setError] = useState("");
-  const countRef = useRef<HTMLInputElement>(null);
+  const configureBtnRef = useRef<HTMLButtonElement>(null);
+  const configureTitleRef = useRef<HTMLHeadingElement>(null);
+  const focusTarget = useRef<"title" | "button" | null>(null);
 
   useEffect(() => {
     trackEvent("track_selected", { track: "developer", via: "page" });
   }, []);
+
+  useEffect(() => {
+    if (focusTarget.current === "title") configureTitleRef.current?.focus();
+    else if (focusTarget.current === "button") configureBtnRef.current?.focus();
+    focusTarget.current = null;
+  }, [screen]);
 
   async function startFullMock() {
     setFullBusy(true);
@@ -72,294 +87,155 @@ export default function DeveloperTrackClient({ meta, levels }: { meta: TrackMeta
     { name: "Module 5", description: "Accelerators, IP & Deployment", count: 12 },
   ];
 
+  const maxQuestions = Math.min(FULL_MOCK_MAX_QUESTIONS, moduleTotal);
+  const effectiveCount = Math.max(FULL_MOCK_MIN_QUESTIONS, Math.min(questionCount, maxQuestions));
+
   return (
     <>
       <Header />
-      <main style={{ background: "#fff" }}>
-
-        {/* ── Hero ── */}
-        <section style={{ background: NAVY, color: "white" }}>
-          <div className="page-wrap" style={{ padding: "56px 0 60px" }}>
-            <Link href="/" style={{ color: "#b5c5dc", fontSize: "14px", textDecoration: "none" }}>← All tracks</Link>
-            <p style={{ fontSize: "14px", letterSpacing: "1.4px", fontWeight: 800, color: ACCENT, textTransform: "uppercase", margin: "22px 0 14px", fontFamily: "var(--font-manrope), sans-serif" }}>
-              {def.code}
-            </p>
-            <h1 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "clamp(32px, 4vw, 48px)", fontWeight: 800, letterSpacing: "-0.035em", margin: 0, color: "#fff", lineHeight: 1.15 }}>
-              {def.name}
-            </h1>
-            <p style={{ fontSize: "17px", lineHeight: 1.65, color: "#c7d4e7", maxWidth: "640px", margin: "18px 0 0" }}>
-              {def.audience} Choose Full Mock Exam to test across all 5 modules, or By Module to practice one course at a time.
-            </p>
+      <main id="main">
+        <section className="page-head" aria-labelledby="track-title">
+          <div className="container">
+            <Link className="page-head__crumb" href="/#tracks"><Icon name="arrow-left" size="sm" />All Tracks</Link>
+            <div className="stack stack--16">
+              <span className="tag tag--on-navy">{def.code}</span>
+              <h1 className="t-h1" id="track-title">{def.name}</h1>
+              <p className="t-lead measure t-on-navy-muted">
+                {def.audience} Choose Full Mock Exam to test across all 5 modules, or By Module to practice one course at a time.
+              </p>
+            </div>
           </div>
         </section>
 
-        {/* ── Exam Modes ── */}
-        <section style={{ padding: "64px 0", background: "#fff" }}>
-          <div className="page-wrap">
-            <p style={{ fontSize: "14px", letterSpacing: "1px", fontWeight: 800, color: BLUE, textTransform: "uppercase", margin: "0 0 14px", fontFamily: "var(--font-manrope), sans-serif" }}>
-              Exam Modes
-            </p>
-            <h2 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "clamp(28px, 3vw, 38px)", fontWeight: 800, color: "var(--ink)", margin: "0 0 32px", letterSpacing: "-0.035em" }}>
-              Pick how you want to practice
-            </h2>
-            {error && <p role="alert" style={{ color: "var(--incorrect-text)", marginBottom: "16px" }}>✗ {error}</p>}
+        <section className="section section--soft-top" id="modes" aria-labelledby="modes-title">
+          <div className="container">
+            <div className="stack stack--16 stack--mb">
+              <span className="eyebrow">Exam Modes</span>
+              <h2 className="t-h2" id="modes-title">Pick How You Want to Practice</h2>
+            </div>
+            {error && <p role="alert" className="track-error">{error}</p>}
 
             {screen === "home" && (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "20px" }}>
-
-                {/* ── Full Mock Exam ── */}
-                <article style={{ border: "1px solid #dce3ed", borderRadius: "12px", padding: "28px 24px", background: "white", display: "flex", flexDirection: "column" }}>
-                  <span style={{ color: BLUE, fontSize: "14px", fontWeight: 800, letterSpacing: "1px", marginBottom: "20px", fontFamily: "var(--font-manrope), sans-serif" }}>
-                    Exam Rehearsal
-                  </span>
-                  <h3 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "20px", lineHeight: 1.3, fontWeight: 800, color: "var(--ink)", margin: "0 0 10px", letterSpacing: "-0.025em" }}>
-                    Full Mock Exam
-                  </h3>
-                  <p style={{ fontSize: "15px", color: "var(--muted)", lineHeight: 1.7, margin: 0, flex: 1 }}>
-                    Questions drawn from all 5 course modules. Set your level, timer, and question count before you start.
-                  </p>
-                  <span style={{ fontSize: "14px", color: "#654a39", borderTop: "1px solid #dce3ed", paddingTop: "14px", marginTop: "20px" }}>
-                    Up to {levels.total[1]} questions · configurable timer
-                  </span>
-                  <button
-                    onClick={() => { setScreen("full-mock-config"); setError(""); }}
-                    style={{ width: "100%", marginTop: "14px", padding: "13px 18px", borderRadius: "9px", border: "none", background: ACCENT, color: NAVY, fontWeight: 800, fontSize: "15px", cursor: "pointer", fontFamily: "inherit", minHeight: "48px" }}
-                  >
-                    Configure →
-                  </button>
+              <div className="dev-modes">
+                <article className="card card--lg card--featured">
+                  <div className="card__head"><span className="tag">Exam Rehearsal</span><Icon name="calendar" size="lg" className="track-ico--blue" /></div>
+                  <h3 className="t-h3">Full Mock Exam</h3>
+                  <p className="mode-card__desc">Questions drawn from all 5 course modules. Set your level, timer, and question count before you start.</p>
+                  <div className="card__foot">
+                    <p className="mode-card__facts">
+                      <span><Icon name="list" size="sm" />Up to {levels.total[1]} questions</span>
+                      <span><Icon name="clock" size="sm" />Configurable timer</span>
+                    </p>
+                    <button
+                      ref={configureBtnRef}
+                      className="btn btn--accent btn--block"
+                      type="button"
+                      onClick={() => { focusTarget.current = "title"; setScreen("full-mock-config"); setError(""); }}
+                    >
+                      Configure
+                    </button>
+                  </div>
                 </article>
 
-                {/* ── By Module ── */}
-                <article style={{ border: "1px solid #dce3ed", borderRadius: "12px", padding: "28px 24px", background: "white", display: "flex", flexDirection: "column" }}>
-                  <span style={{ color: BLUE, fontSize: "14px", fontWeight: 800, letterSpacing: "1px", marginBottom: "20px", fontFamily: "var(--font-manrope), sans-serif" }}>
-                    Focused Practice
-                  </span>
-                  <h3 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "20px", lineHeight: 1.3, fontWeight: 800, color: "var(--ink)", margin: "0 0 10px", letterSpacing: "-0.025em" }}>
-                    By Module
-                  </h3>
-                  <p style={{ fontSize: "15px", color: "var(--muted)", lineHeight: 1.7, margin: 0, flex: 1 }}>
+                <article className="card card--lg">
+                  <div className="card__head"><span className="tag tag--neutral">Focused Practice</span><Icon name="layers" size="lg" className="track-ico--muted" /></div>
+                  <h3 className="t-h3">By Module</h3>
+                  <p className="mode-card__desc">
                     Practice one course module at a time. {MODULE_QUESTION_SECONDS} seconds per question. Pause a question to skip it — it counts as incorrect but gives you 60 seconds to review.
                   </p>
-                  <span style={{ fontSize: "14px", color: "#654a39", borderTop: "1px solid #dce3ed", paddingTop: "14px", marginTop: "20px" }}>
-                    5 modules · up to {MODULE_SIZE} questions each · {MODULE_QUESTION_SECONDS} sec/question
-                  </span>
-                  <a
-                    href="#by-module"
-                    style={{ display: "block", width: "100%", marginTop: "14px", padding: "13px 18px", borderRadius: "9px", border: "1px solid #dce3ed", background: "white", color: "var(--ink)", fontWeight: 700, fontSize: "15px", cursor: "pointer", fontFamily: "inherit", minHeight: "48px", textAlign: "center", textDecoration: "none", boxSizing: "border-box" }}
-                  >
-                    Browse modules ↓
-                  </a>
+                  <div className="card__foot">
+                    <p className="mode-card__facts">
+                      <span><Icon name="layers" size="sm" />{modules.length} modules</span>
+                      <span><Icon name="list" size="sm" />Up to {MODULE_SIZE} questions each</span>
+                      <span><Icon name="clock" size="sm" />{MODULE_QUESTION_SECONDS} sec/question</span>
+                    </p>
+                    <a className="btn btn--secondary btn--block" href="#by-module">Browse Modules <Icon name="arrow-down" /></a>
+                  </div>
                 </article>
               </div>
             )}
 
-            {/* ── Full Mock Config Screen ── */}
             {screen === "full-mock-config" && (
-              <div style={{ maxWidth: "520px" }}>
-                <button
-                  onClick={() => setScreen("home")}
-                  style={{ background: "none", border: "none", padding: 0, marginBottom: "24px", color: BLUE, fontWeight: 700, fontSize: "14px", cursor: "pointer", fontFamily: "inherit", minHeight: "44px" }}
-                >
-                  ← Back
-                </button>
-                <div style={{ border: "1px solid #dce3ed", borderRadius: "12px", padding: "32px 28px", background: "white" }}>
-                  <h3 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "22px", fontWeight: 800, margin: "0 0 24px", letterSpacing: "-0.025em" }}>Configure Full Mock</h3>
-
-                  {/* Level selector */}
-                  <div style={{ marginBottom: "24px" }}>
-                    <p style={{ fontSize: "13px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".5px", margin: "0 0 10px" }}>Level</p>
-                    <div style={{ display: "flex", gap: "8px" }}>
-                      {[1, 2, 3].map((lvl) => {
-                        const locked = !OPEN_LEVELS.includes(lvl);
-                        const selected = lvl === level;
-                        return (
-                          <button
-                            key={lvl}
-                            disabled={locked}
-                            onClick={() => setLevel(lvl)}
-                            aria-pressed={selected}
-                            style={{
-                              padding: "10px 20px",
-                              borderRadius: "8px",
-                              border: "2px solid",
-                              borderColor: selected ? ACCENT : "#dce3ed",
-                              background: selected ? "#fff3e8" : "#f5f7fa",
-                              color: !locked ? NAVY : "var(--muted)",
-                              fontWeight: 700,
-                              fontSize: "14px",
-                              cursor: locked ? "not-allowed" : "pointer",
-                              fontFamily: "inherit",
-                              opacity: locked ? 0.7 : 1,
-                            }}
-                          >
-                            Level {lvl} {locked ? "🔒" : selected ? "✓" : ""}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <p style={{ fontSize: "13px", color: "var(--muted)", margin: "8px 0 0" }}>Level 3 will be available in a future update.</p>
-                  </div>
-
-                  {/* Question count */}
-                  <div style={{ marginBottom: "24px" }}>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: "10px" }}>
-                      Number of questions
-                    </label>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <input
-                        ref={countRef}
-                        type="range"
-                        min={FULL_MOCK_MIN_QUESTIONS}
-                        max={Math.min(FULL_MOCK_MAX_QUESTIONS, moduleTotal)}
-                        value={questionCount}
-                        onChange={(e) => setQuestionCount(Number(e.target.value))}
-                        style={{ flex: 1, accentColor: ACCENT }}
-                      />
-                      <input
-                        type="number"
-                        min={FULL_MOCK_MIN_QUESTIONS}
-                        max={Math.min(FULL_MOCK_MAX_QUESTIONS, moduleTotal)}
-                        value={questionCount}
-                        onChange={(e) => {
-                          const v = Math.max(FULL_MOCK_MIN_QUESTIONS, Math.min(Math.min(FULL_MOCK_MAX_QUESTIONS, moduleTotal), Number(e.target.value)));
-                          setQuestionCount(v);
-                        }}
-                        style={{ width: "68px", padding: "8px 10px", borderRadius: "8px", border: "1.5px solid var(--border)", fontFamily: "inherit", fontSize: "15px", textAlign: "center" }}
-                      />
-                    </div>
-                    <p style={{ fontSize: "13px", color: "var(--muted)", margin: "6px 0 0" }}>
-                      Max {moduleTotal} questions ({modules.length} modules)
-                    </p>
-                  </div>
-
-                  {/* Timer */}
-                  <div style={{ marginBottom: "32px" }}>
-                    <label style={{ display: "block", fontSize: "13px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: ".5px", marginBottom: "10px" }}>
-                      Time limit (minutes)
-                    </label>
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <input
-                        type="range"
-                        min={FULL_MOCK_MIN_MINUTES}
-                        max={FULL_MOCK_MAX_MINUTES}
-                        value={timerMinutes}
-                        onChange={(e) => setTimerMinutes(Number(e.target.value))}
-                        style={{ flex: 1, accentColor: ACCENT }}
-                      />
-                      <input
-                        type="number"
-                        min={FULL_MOCK_MIN_MINUTES}
-                        max={FULL_MOCK_MAX_MINUTES}
-                        value={timerMinutes}
-                        onChange={(e) => {
-                          const v = Math.max(FULL_MOCK_MIN_MINUTES, Math.min(FULL_MOCK_MAX_MINUTES, Number(e.target.value)));
-                          setTimerMinutes(v);
-                        }}
-                        style={{ width: "68px", padding: "8px 10px", borderRadius: "8px", border: "1.5px solid var(--border)", fontFamily: "inherit", fontSize: "15px", textAlign: "center" }}
-                      />
-                    </div>
-                    <p style={{ fontSize: "13px", color: "var(--muted)", margin: "6px 0 0" }}>
-                      Recommended: ~{Math.round(timerMinutes / Math.max(1, questionCount) * 60)} seconds per question at current settings
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={() => void startFullMock()}
-                    disabled={fullBusy}
-                    style={{ width: "100%", padding: "15px 24px", borderRadius: "9px", border: "none", background: fullBusy ? "var(--disabled)" : ACCENT, color: fullBusy ? "#fff" : NAVY, fontWeight: 800, fontSize: "16px", cursor: fullBusy ? "not-allowed" : "pointer", fontFamily: "inherit", minHeight: "52px" }}
-                  >
-                    {fullBusy ? "Starting…" : `Start Full Mock (${questionCount}Q · ${timerMinutes} min) →`}
+              <div className="card card--lg">
+                <div className="cluster cluster--between">
+                  <button className="btn btn--link" type="button" onClick={() => { focusTarget.current = "button"; setScreen("home"); }}>
+                    <Icon name="arrow-left" size="sm" />Back
                   </button>
+                  <span className="tag">Exam Rehearsal</span>
+                </div>
+                <h3 className="t-h3" ref={configureTitleRef} tabIndex={-1}>Configure Full Mock</h3>
+                <div className="configure">
+                  <div className="configure__col">
+                    <div className="field">
+                      <span className="field__label" id="mock-level-label">Level</span>
+                      <Segmented labelledBy="mock-level-label" value={level} onChange={setLevel} options={levelOptions("lvl3-note")} />
+                      <span className="field__hint" id="lvl3-note">{LEVEL_NOTE}</span>
+                    </div>
+                  </div>
+                  <div className="configure__col">
+                    <RangeField
+                      label="Number of Questions"
+                      value={effectiveCount}
+                      min={FULL_MOCK_MIN_QUESTIONS}
+                      max={maxQuestions}
+                      onChange={setQuestionCount}
+                      endNote={`Max ${moduleTotal} questions (${modules.length} modules)`}
+                    />
+                    <RangeField
+                      label="Time Limit (Minutes)"
+                      value={timerMinutes}
+                      min={FULL_MOCK_MIN_MINUTES}
+                      max={FULL_MOCK_MAX_MINUTES}
+                      onChange={setTimerMinutes}
+                    />
+                  </div>
+                  <div className="configure__foot">
+                    <p className="t-sm t-muted" aria-live="polite">
+                      Recommended: ~{Math.round((timerMinutes * 60) / Math.max(1, effectiveCount))} seconds per question at current settings
+                    </p>
+                    <button className="btn btn--accent btn--lg" type="button" onClick={() => void startFullMock()} disabled={fullBusy}>
+                      {fullBusy ? "Starting…" : `Start Full Mock (${effectiveCount}Q · ${timerMinutes} min)`}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
           </div>
         </section>
 
-        {/* ── By Module ── */}
-        <section id="by-module" style={{ padding: "64px 0", background: "#F4F6F9" }}>
-          <div className="page-wrap">
-            <p style={{ fontSize: "14px", letterSpacing: "1px", fontWeight: 800, color: BLUE, textTransform: "uppercase", margin: "0 0 14px", fontFamily: "var(--font-manrope), sans-serif" }}>
-              By Module
-            </p>
-            <h2 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "clamp(24px, 2.6vw, 34px)", fontWeight: 800, color: "var(--ink)", margin: "0 0 8px", letterSpacing: "-0.03em" }}>
-              Practice one module at a time
-            </h2>
-            <p style={{ color: "var(--muted)", margin: "0 0 28px", fontSize: "16px", maxWidth: "640px" }}>
-              {MODULE_QUESTION_SECONDS} seconds per question. Pause a question to mark it incorrect and get 60 seconds to study the answer before moving on.
-            </p>
-            {error && <p role="alert" style={{ color: "var(--incorrect-text)", marginBottom: "16px" }}>✗ {error}</p>}
-
+        <section className="section section--muted section--anchor" id="by-module" aria-labelledby="bm-title">
+          <div className="container">
+            <div className="section-head">
+              <span className="eyebrow">By Module</span>
+              <h2 className="t-h2" id="bm-title">Practice One Module at a Time</h2>
+              <p className="t-muted measure">{MODULE_QUESTION_SECONDS} seconds per question. Pause a question to mark it incorrect and get 60 seconds to study the answer before moving on.</p>
+            </div>
             <div className="module-grid">
-              {modules.map((m) => (
-                <article
-                  key={m.name}
-                  style={{ border: "1px solid #dce3ed", borderRadius: "10px", padding: "24px 20px", background: "white", display: "flex", flexDirection: "column" }}
-                >
-                  <h3 style={{ fontFamily: "var(--font-manrope), sans-serif", fontSize: "18px", lineHeight: 1.35, fontWeight: 800, color: "var(--ink)", margin: "0 0 8px", letterSpacing: "-0.02em" }}>
-                    {m.name}
-                  </h3>
-                  <p style={{ fontSize: "15px", color: "var(--muted)", lineHeight: 1.65, margin: "0 0 16px", flex: 1 }}>{m.description}</p>
-
-                  {/* Level buttons */}
-                  <div style={{ display: "flex", gap: "6px", marginBottom: "16px" }}>
-                    {[1, 2, 3].map((lvl) => {
-                      const locked = !OPEN_LEVELS.includes(lvl);
-                      const selected = lvl === level;
-                      return (
-                        <button
-                          key={lvl}
-                          type="button"
-                          disabled={locked}
-                          onClick={() => setLevel(lvl)}
-                          aria-pressed={selected}
-                          style={{
-                            cursor: locked ? "not-allowed" : "pointer",
-                            fontFamily: "inherit",
-                            padding: "4px 12px",
-                            borderRadius: "999px",
-                            fontSize: "12px",
-                            fontWeight: 700,
-                            background: selected ? "#e8f5e9" : "#f5f7fa",
-                            color: selected ? "#2e7d32" : "var(--muted)",
-                            border: `1px solid ${selected ? "#a5d6a7" : "#dce3ed"}`,
-                            letterSpacing: ".3px",
-                          }}
-                        >
-                          {locked ? "🔒 " : ""}Level {lvl}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <span style={{ fontSize: "14px", color: "#654a39", borderTop: "1px solid #dce3ed", paddingTop: "14px", marginBottom: "14px" }}>
-                    {Math.min(countAt(m), MODULE_SIZE)} question{Math.min(countAt(m), MODULE_SIZE) === 1 ? "" : "s"} · {MODULE_QUESTION_SECONDS} sec each · Pause available
-                  </span>
-                  <button
-                    onClick={() => void startModule(m.name)}
-                    disabled={!!moduleBusy}
-                    style={{
-                      width: "100%",
-                      padding: "12px 18px",
-                      borderRadius: "9px",
-                      border: "1px solid #dce3ed",
-                      background: "white",
-                      color: "var(--ink)",
-                      fontWeight: 700,
-                      fontSize: "14px",
-                      cursor: moduleBusy ? "not-allowed" : "pointer",
-                      fontFamily: "inherit",
-                      minHeight: "44px",
-                    }}
-                  >
-                    {moduleBusy === m.name ? "Starting…" : `Start Level ${level} →`}
-                  </button>
-                </article>
-              ))}
+              {modules.map((m) => {
+                const n = Math.min(countAt(m), MODULE_SIZE);
+                return (
+                  <article className="card" key={m.name}>
+                    <span className="mode-grid__num">{m.name}</span>
+                    <h3 className="t-h4">{m.description}</h3>
+                    <Segmented ariaLabel={`${m.name} level`} value={level} onChange={setLevel} options={levelOptions()} />
+                    <div className="card__foot">
+                      <p className="mode-card__facts">
+                        <span><Icon name="list" size="sm" />{n} question{n === 1 ? "" : "s"}</span>
+                        <span><Icon name="clock" size="sm" />{MODULE_QUESTION_SECONDS} sec each</span>
+                        <span>Pause available</span>
+                      </p>
+                      <button className="btn btn--secondary btn--block" type="button" onClick={() => void startModule(m.name)} disabled={!!moduleBusy}>
+                        {moduleBusy === m.name ? "Starting…" : <>Start Level {level} <Icon name="arrow-right" /></>}
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </div>
         </section>
       </main>
+      <SiteFooter />
     </>
   );
 }

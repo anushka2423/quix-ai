@@ -1,0 +1,103 @@
+/* ==========================================================================
+   CCPrep Quiz — Design Tokens
+   Source of truth: computed styles sampled from agenticaiinstitute.ai (Oct 2026).
+   "sampled" = read directly from the official site.
+   "extension" = not present on the official site; derived for quiz-only needs.
+   Port: drop into the app's globals.css (or app/tokens.css imported by layout.tsx).
+   ========================================================================== */
+
+:root {
+  /* ---------- Type ---------- */
+  --font-sans: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif; /* sampled */
+  --font-num: "Golos Text", system-ui, sans-serif;
+
+  --fw-regular: 400;  /* sampled — official headings, body AND primary CTA are 400 */
+  --fw-medium: 500;   /* sampled — labels, small UI emphasis */
+  --fw-semibold: 600; /* headings — owner decision (official site uses 400) */
+  --fw-heading: var(--fw-semibold);
+
+  /* Scale: size / line-height / tracking (sampled from official H1–H4, P) */
+  --fs-display: clamp(40px, 5.2vw, 64px);  --lh-display: 1.06; --ls-display: -0.045em;
+  --fs-h1:      clamp(34px, 4vw, 46px);    --lh-h1: 1.08;      --ls-h1: -0.04em;
+  --fs-h2:      clamp(26px, 3vw, 32px);    --lh-h2: 1.12;      --ls-h2: -0.035em;
+  --fs-h3:      clamp(21px, 2.2vw, 25px);  --lh-h3: 1.2;       --ls-h3: -0.025em;
+  --fs-h4:      19px;                      --lh-h4: 1.25;      --ls-h4: -0.015em;
+  --fs-lead:    clamp(18px, 1.8vw, 22px);  --lh-lead: 1.35;    --ls-lead: -0.03em;
+  --fs-body:    17px;                      --lh-body: 1.4;     --ls-body: -0.02em;
+  --fs-sm:      15px;                      --lh-sm: 1.45;      --ls-sm: -0.01em;
+  --fs-xs:      13px;                      --lh-xs: 1.4;       --ls-xs: 0;
+
+  /* ---------- Color: brand ---------- */
+  --navy:        #04275E; /* sampled — nav, brand bands, stat cards */
+  --navy-deep:   #031C45; /* extension — hover on navy fills, footer */
+  --blue:        #006FFF; /* sampled — CTA arrow square, accents, focus */
+  --blue-hover:  #005FDB; /* extension */
+  --link:        #005FDB; /* extension — blue for text: #006FFF is 4.45:1 on white, this is 5.3:1 */
+  --blue-sky:    #73B0FF; /* sampled — accent word on navy (H1 "Transformation") */
+  --orange:      #FF6F00; /* sampled — 8px eyebrow marker, offer badge. Never a button fill. */
+  --orange-logo: #FDA93C; /* logo "agentic" orange — accent phrase and highlights on navy */
+  --orange-dark: #A33F08; /* dark orange — small text on light/tint surfaces (AA) */
+  --orange-tint: #FFF4E8; /* light orange surface for callouts */
+
+  /* ---------- Color: ink & neutrals ---------- */
+  --ink:         #0C111D; /* sampled — headings/body on light */
+  --ink-2:       #3D4350; /* extension — secondary body between ink and muted */
+  --muted:       #5C6370; /* sampled — supporting copy */
+  --subtle:      #98A2B3; /* extension — placeholders, disabled text */
+  --tint-ink:    #0A66C2; /* sampled — text/icon on blue tint surfaces */
+
+  --line:        #E3E8F0; /* extension — hairline on white (CCPrep's #E2E7F0 kept) */
+  --line-strong: #C9D3E3; /* extension — inputs, hover borders */
+  --line-tint:   rgba(10, 102, 194, 0.12); /* sampled */
+
+  /* ---------- Color: surfaces ---------- */
+  --bg:          #FFFFFF;
+  --bg-soft:     #F7FAFF; /* sampled — testimonial cards */
+  --bg-muted:    #F4F7FC; /* sampled — section bands */
+  --bg-tint:     #ECF2FF; /* sampled — selected, chips */
+  --bg-tint-2:   rgba(10, 102, 194, 0.07); /* sampled — "AFTER" role cards */
+
+  /* On navy */
+  --on-navy:        #FFFFFF;
+  --on-navy-muted:  rgba(255, 255, 255, 0.74); /* sampled */
+  --on-navy-faint:  rgba(255, 255, 255, 0.5);  /* sampled */
+  --navy-card:      rgba(255, 255, 255, 0.05); /* sampled */
+  --navy-line:      rgba(255, 255, 255, 0.12); /* sampled */
+  --navy-line-2:    rgba(255, 255, 255, 0.3);  /* sampled */
+
+  /* ---------- Color: feedback ---------- */
+  --success:     #17804C; /* sampled */
+  --success-bg:  #EEF7F2; /* extension */
+  --error:       #C0362C; /* extension */
+  --error-bg:    #FCEFEE; /* extension */
+  --warning:     #B45309; /* extension — timer under 2 min */
+  --warning-bg:  #FFF5EB; /* extension */
+
+  /* ---------- Radius (sampled: 4 controls · 12 tint cards · 20 large cards) ---------- */
+  --r-sm: 4px;
+  --r-md: 12px;
+  --r-lg: 20px;
+  --r-pill: 999px;
+
+  /* ---------- Shadow (border first; shadow only for floating layers) ---------- */
+  --shadow-float: 0 0 55px rgba(0, 0, 0, 0.03);              /* sampled */
+  --shadow-pop:   0 12px 32px -12px rgba(4, 39, 94, 0.22);   /* extension — dropdowns, tooltips */
+  --shadow-modal: 0 32px 64px -24px rgba(4, 39, 94, 0.35);   /* extension */
+
+  /* ---------- Space (4px base) ---------- */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px; --s-5: 20px;
+  --s-6: 24px; --s-8: 32px; --s-10: 40px; --s-12: 48px; --s-16: 64px; --s-20: 80px; --s-24: 96px;
+
+  --container: 1200px;
+  --container-narrow: 760px;  /* quiz column */
+  --gutter: clamp(16px, 4vw, 40px);
+  --section-y: clamp(48px, 6vw, 80px);
+
+  /* ---------- Motion ---------- */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-fast: 120ms;
+  --dur: 200ms;
+
+  /* ---------- Focus ---------- */
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--blue);
+}

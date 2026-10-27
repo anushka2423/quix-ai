@@ -1,0 +1,51 @@
+/* Quiz-only additions on top of components.css (tokens only). */
+
+/* Per-question clock under the quiz bar (module quizzes) */
+.quiz-timebar { padding-bottom: 10px; display: flex; flex-direction: column; gap: 6px; }
+.quiz-timebar__track { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.quiz-timebar__fill { height: 100%; width: var(--value, 100%); background: var(--blue); }
+.quiz-timebar__fill.is-running { transition: width 250ms linear, background var(--dur) var(--ease); }
+.quiz-timebar__fill.is-low { background: var(--error); }
+.quiz-timebar__note { font-size: var(--fs-xs); color: var(--muted); }
+
+/* Navigator (jump to question) */
+.quiz-nav { width: 112px; }
+.quiz-nav .listbox__button { min-height: 36px; padding: 6px 10px; }
+.quiz-nav .listbox__list { left: auto; width: 260px; max-width: calc(100vw - 2 * var(--gutter)); }
+.quiz-nav__status { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.quiz-nav__status.is-correct { color: var(--success); }
+.quiz-nav__status.is-incorrect { color: var(--error); }
+
+/* Answered without feedback (exam conditions) */
+.segments__item.is-answered { background: var(--muted); }
+
+/* Multi-select hint and small notes */
+.q-text--multi { margin-bottom: var(--s-3); }
+.q-select { margin-bottom: var(--s-5); }
+.quiz-note { margin-top: var(--s-4); font-size: var(--fs-sm); color: var(--muted); }
+.quiz-main > .container > .quiz-note:first-child { margin: 0 0 var(--s-4); }
+.quiz-error { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--s-2); margin-top: var(--s-4); font-size: var(--fs-sm); color: var(--error); }
+
+/* Two-up dialog summary (no "correct" count under exam conditions) */
+.modal__summary--2 { grid-template-columns: repeat(2, 1fr); }
+.modal__summary .is-success { color: var(--success); }
+
+/* Tutor panel */
+.tutor { margin-top: var(--s-4); }
+.tutor__bar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); }
+.tutor__body { margin-top: var(--s-3); gap: var(--s-3); }
+.tutor__intro { font-size: var(--fs-sm); color: var(--muted); }
+.tutor__msgs { display: grid; gap: var(--s-3); max-height: 320px; overflow-y: auto; }
+.tutor__msg { max-width: 92%; padding: 10px 14px; border-radius: var(--r-md); background: var(--bg-muted); font-size: var(--fs-sm); line-height: 1.5; white-space: pre-wrap; }
+.tutor__msg--user { justify-self: end; background: var(--bg-tint); }
+.tutor__msg--assistant { justify-self: start; }
+.tutor__chips { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.tutor__form { display: flex; gap: var(--s-2); }
+.tutor__form .input { flex: 1; min-width: 0; }
+.tutor__note { font-size: var(--fs-sm); color: var(--muted); }
+.tutor__note.is-error { display: flex; gap: 6px; align-items: baseline; color: var(--error); }
+
+/* Email gate */
+.modal__title--flush { padding-right: 0; }
+.modal__head { --stack: 10px; }
+.modal__form { --stack: var(--s-4); }
