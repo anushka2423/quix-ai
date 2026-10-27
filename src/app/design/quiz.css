@@ -7,6 +7,7 @@
 .quiz-timebar__fill.is-running { transition: width 250ms linear, background var(--dur) var(--ease); }
 .quiz-timebar__fill.is-low { background: var(--error); }
 .quiz-timebar__note { font-size: var(--fs-xs); color: var(--muted); }
+.quiz-timebar__hint { font-size: var(--fs-xs); color: var(--muted); font-style: italic; margin-top: 2px; }
 
 /* Navigator (jump to question) */
 .quiz-nav { width: 112px; }

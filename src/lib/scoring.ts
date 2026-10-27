@@ -5,6 +5,7 @@ import type {
   LiftItem,
   MissedItem,
   ModeId,
+  PausedItem,
   OptionLabel,
   Resource,
   ResultSummary,
@@ -58,6 +59,8 @@ export interface ScoreInput {
   /** Skill Jar links to show with a missed question's explanation */
   resourcesFor?: (q: BankQuestion) => Resource[];
   totalSeconds: number;
+  /** Questions answered with the timer paused: a right answer earns half a point */
+  pausedIds?: ReadonlySet<number>;
 }
 
 export function modeProducesReadiness(mode: ModeId): boolean {
@@ -73,6 +76,7 @@ export function computeResult(input: ScoreInput): ResultSummary {
   const subAcc = new Map<string, { correct: number; total: number }>();
   const missed: MissedItem[] = [];
   let correct = 0;
+  const pausedItems: PausedItem[] = [];
   let unanswered = 0;
   let answeredMs = 0;
   let answeredCount = 0;
@@ -93,7 +97,11 @@ export function computeResult(input: ScoreInput): ResultSummary {
       answeredMs += a.ms;
       answeredCount++;
     }
-    if (ok) correct++;
+    // A right answer with the timer paused earns half a point
+    const wasPaused = !!input.pausedIds?.has(q.id);
+    const credit = ok ? (wasPaused ? 0.5 : 1) : 0;
+    correct += credit;
+    if (wasPaused && a) pausedItems.push({ id: q.id, question: q.question, ms: a.ms, credit });
     if (multi) {
       multiTotal++;
       if (!ok) multiMissed++;
@@ -104,16 +112,16 @@ export function computeResult(input: ScoreInput): ResultSummary {
 
     const d = domainAcc.get(q.domain) ?? { correct: 0, total: 0 };
     d.total++;
-    if (ok) d.correct++;
+    d.correct += credit;
     domainAcc.set(q.domain, d);
 
     const sk = `${q.domain}|${q.subSkill}`;
     const s = subAcc.get(sk) ?? { correct: 0, total: 0 };
     s.total++;
-    if (ok) s.correct++;
+    s.correct += credit;
     subAcc.set(sk, s);
 
-    if (!ok) {
+    if (credit === 0) {
       missed.push({
         id: q.id,
         domain: q.domain,
@@ -246,6 +254,7 @@ export function computeResult(input: ScoreInput): ResultSummary {
     paceSeconds: PACE_SECONDS,
     totalSeconds: input.totalSeconds,
     unansweredCount: unanswered,
+    pausedItems,
   };
 }
 

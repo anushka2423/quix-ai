@@ -4,8 +4,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import type { CheckResult, OptionLabel, PublicQuestion } from "@/types/quiz";
-import { MODES, MODULE_PAUSE_SECONDS, MODULE_QUESTION_SECONDS, TRACKS } from "@/lib/blueprint";
-import { pauseTiming, remainingMs, resumeTiming, type QuestionTiming } from "@/lib/question-timer";
+import { MODES, MODULE_QUESTION_SECONDS, TRACKS } from "@/lib/blueprint";
+import { pauseTiming, remainingMs, type QuestionTiming } from "@/lib/question-timer";
 import { track as trackEvent } from "@/lib/analytics";
 import {
   getAttempt,
@@ -80,6 +80,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
   const [checking, setChecking] = useState(false);
   const [checkError, setCheckError] = useState(false);
   const [finishing, setFinishing] = useState(false);
+  const [pauseHintFor, setPauseHintFor] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const shownAt = useRef(0);
   // Module quizzes give each question its own clock
@@ -102,19 +103,19 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
   const check = checks[q.id];
   const qTime = timing[q.id];
   const timedOut = !!qTime?.timedOut;
-  /** The learner paused this question: it scores as incorrect and has the longer limit */
+  /** The learner paused this question: a right answer earns half a point and it has the longer limit */
   const paused = !!qTime?.paused;
-  /** The clock is frozen right now (a paused question the learner has not resumed) */
+  /** The clock is frozen for good: a pause cannot be undone, but the learner can still answer */
   const frozen = paused && qTime?.pausedAt !== undefined;
   /** Answered, out of time, or paused: the question is settled and the learner can go on */
   const resolved = currentComplete || timedOut || paused;
   /** The clock runs from the moment the question is shown until an answer is complete or the time is gone */
   const clockRunning = perQ !== null && !currentComplete && !timedOut && !check && !frozen;
-  const qRemaining = perQ === null ? null : remainingMs(qTime, now, perQ, MODULE_PAUSE_SECONDS * 1000);
-  const limitMs = perQ === null ? 0 : paused ? MODULE_PAUSE_SECONDS * 1000 : perQ;
+  const qRemaining = perQ === null ? null : remainingMs(qTime, now, perQ);
+  const limitMs = perQ === null ? 0 : perQ;
   // Feedback mode: the answer locks and is revealed once the server has checked it
   const revealed = feedback && !!check;
-  const locked = revealed || checking || (feedback && currentComplete) || frozen;
+  const locked = revealed || checking || (feedback && currentComplete);
   const correctLabels = check?.keys ?? [];
   const currentCorrect = !!check?.correct;
   const isLast = currentIdx === total - 1;
@@ -179,20 +180,15 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [outOfTime, q.id]);
 
-  /** Freezes this question's clock: it now scores as incorrect, has 60 seconds, and the learner can move on */
+  /** Freezes this question's clock: a right answer now earns half a point, the clock stays stopped, and the learner can still answer */
   function pauseClock() {
     if (!clockRunning) return;
     const at = Date.now();
+    // The first pause of the session gets a gentle inline reminder, never a popup
+    if (!Object.values(timing).some((t) => t.paused)) setPauseHintFor(q.id);
     setTiming((prev) => ({ ...prev, [q.id]: pauseTiming(prev[q.id], at) }));
     setNow(at);
     trackEvent("question_timer_paused", { track: attempt.track, mode: attempt.mode, domain: q.domain });
-  }
-
-  function resumeClock() {
-    if (!frozen || !qTime) return;
-    const at = Date.now();
-    setTiming((prev) => (prev[q.id] ? { ...prev, [q.id]: resumeTiming(prev[q.id], at) } : prev));
-    setNow(at);
   }
 
   async function runTimeout(qq: PublicQuestion) {
@@ -233,7 +229,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
       focusNextOnReveal.current = true;
       // The demo is kept out of the learner's practice history; it only counts towards the email gate
       if (attempt.mode === "demo") recordDemoAnswer();
-      else recordAnswer(qq, result.correct);
+      else recordAnswer(qq, result.credit > 0);
       trackEvent("question_answered", {
         correct: result.correct,
         domain: qq.domain,
@@ -310,7 +306,7 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
     if (!isFirst) setCurrentIdx((i) => i - 1);
   }
 
-  /** Questions the learner has settled with a real answer (paused ones score as incorrect) */
+  /** Questions the learner has settled with a real answer (paused ones earn at most half a point) */
   const answeredCount = questions.filter((qq) => isComplete(qq) && !timing[qq.id]?.paused).length;
   const missingCount = total - answeredCount;
   const correctCount = questions.filter((qq) => checks[qq.id]?.correct).length;
@@ -420,6 +416,8 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
   const remaining = deadline ? deadline - now : null;
   const lowQ = clockRunning && qRemaining !== null && qRemaining <= 10_000;
   const navItems = questions.map((_, i) => ({ i, ...navStatus(i) }));
+  /** Right answer with the timer paused: half a point */
+  const halfCredit = check?.credit === 0.5;
   const correctWord = `The correct answer${correctLabels.length > 1 ? "s are" : " is"} ${correctLabels.join(" and ")}`;
 
   return (
@@ -455,9 +453,9 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
                 <span className="timer__value">{fmt(qRemaining)}</span>
               </span>
             )}
-            {attempt.mode === "module" && perQ !== null && (clockRunning || frozen) && !check && (
-              <button type="button" className="btn btn--secondary btn--sm" onClick={frozen ? resumeClock : pauseClock}>
-                {frozen ? "Resume Timer" : "Pause Timer"}
+            {attempt.mode === "module" && perQ !== null && clockRunning && !check && (
+              <button type="button" className="btn btn--secondary btn--sm" onClick={pauseClock}>
+                Pause Timer (half points)
               </button>
             )}
             {remaining !== null && (
@@ -481,11 +479,16 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
               {timedOut
                 ? "Time's up for this question."
                 : paused && !currentComplete
-                  ? `${frozen ? "Timer paused" : "Timer resumed"}: this question now has ${MODULE_PAUSE_SECONDS} seconds and counts as incorrect.`
+                  ? "Timer paused. Take your time and pick your answer: this question earns at most half a point."
                   : clockRunning
                     ? `${MODULE_QUESTION_SECONDS} seconds per question. Answer before it runs out.`
                     : "Clock stopped. Continue when you are ready."}
             </p>
+            {pauseHintFor === q.id && paused && !check && (
+              <p className="quiz-timebar__hint" role="status">
+                A gentle reminder: a paused question earns at most half a point, even with the right answer.
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -551,7 +554,13 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
                 <div className={`feedback feedback--${currentCorrect ? "correct" : "incorrect"}`} id="feedback">
                   <p className="feedback__status">
                     <Icon name={currentCorrect ? "check" : "x"} />
-                    {currentCorrect ? "Correct." : timedOut ? `Time's Up. ${correctWord}.` : `Incorrect. ${correctWord}.`}
+                    {currentCorrect
+                      ? "Correct."
+                      : timedOut
+                        ? `Time's Up. ${correctWord}.`
+                        : halfCredit
+                          ? `Half a point (0.5). Your answer is right, but the timer was paused. Time on this question: ${fmt(answers[q.id]?.ms ?? 0)}.`
+                          : `Incorrect. ${correctWord}.`}
                   </p>
                   <p className="feedback__label">Explanation</p>
                   <p className="feedback__text">{check.explanation}</p>

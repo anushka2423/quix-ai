@@ -27,7 +27,7 @@ export async function POST(req: Request) {
       exam_date: body.examDate || null,
       track: result.track,
       mode: result.mode,
-      correct: result.correct,
+      correct: Math.round(result.correct), // the column is whole numbers; result keeps the half points
       total: result.total,
       readiness: result.readiness,
       result,

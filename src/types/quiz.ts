@@ -83,7 +83,10 @@ export interface PublicQuestion {
 }
 
 export interface CheckResult {
+  /** Full credit: right answer with the timer never paused */
   correct: boolean;
+  /** Points earned: 1, 0.5 (right answer, timer paused) or 0 */
+  credit: number;
   keys: OptionLabel[];
   explanation: string;
   resources?: Resource[];
@@ -141,6 +144,16 @@ export interface LiftItem {
   lift: number;
 }
 
+/** A module quiz question whose timer the learner paused: it earns at most half a point */
+export interface PausedItem {
+  id: number;
+  question: string;
+  /** Milliseconds spent on the question */
+  ms: number;
+  /** 0.5 when the answer was right, otherwise 0 */
+  credit: number;
+}
+
 export interface ResultSummary {
   track: TrackId;
   mode: ModeId;
@@ -164,4 +177,6 @@ export interface ResultSummary {
   paceSeconds: number;
   totalSeconds: number;
   unansweredCount: number;
+  /** Questions answered with the timer paused, each with the time spent and the credit earned */
+  pausedItems: PausedItem[];
 }
