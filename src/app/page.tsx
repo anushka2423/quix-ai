@@ -19,8 +19,7 @@ export default async function Home() {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
-      <HomeClient meta={await bankMeta()} />
-      <SeoFaq />
+      <HomeClient meta={await bankMeta()} seo={<SeoFaq />} />
     </>
   );
 }

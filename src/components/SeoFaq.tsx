@@ -51,24 +51,33 @@ function faqs(track?: TrackId): Faq[] {
 /** Server-rendered, crawlable Q&A so search engines can read the page's topic without running JavaScript */
 export default function SeoFaq({ track }: { track?: TrackId }) {
   return (
-    <section className="container" aria-labelledby="seo-faq-title" style={{ padding: "48px 0" }}>
-      <h2 className="t-h1" id="seo-faq-title">
-        {track ? `${TRACKS[track].name} practice: common questions` : "Claude certification: common questions"}
-      </h2>
-      {faqs(track).map((f) => (
-        <div key={f.q} style={{ marginTop: 20 }}>
-          <h3 className="t-h3">{f.q}</h3>
-          <p>{f.a}</p>
+    <section className="section" aria-labelledby="seo-faq-title">
+      <div className="container faq">
+        <div className="stack">
+          <span className="eyebrow">Common Questions</span>
+          <h2 className="t-h2" id="seo-faq-title">
+            {track ? `${TRACKS[track].name} Practice: Common Questions` : "Claude Certification: Common Questions"}
+          </h2>
         </div>
-      ))}
-      <h3 className="t-h3" style={{ marginTop: 28 }}>Claude certification study resources</h3>
-      <ul>
-        {Object.values(SEO_PAGES).map((p) => (
-          <li key={p.slug}>
-            <Link href={`/${p.slug}`}>{p.h1}</Link>
-          </li>
-        ))}
-      </ul>
+        <div>
+          <dl className="seo-faq__list">
+            {faqs(track).map((f) => (
+              <div key={f.q} className="seo-faq__item">
+                <dt className="seo-faq__q">{f.q}</dt>
+                <dd className="seo-faq__a">{f.a}</dd>
+              </div>
+            ))}
+          </dl>
+          <h3 className="seo-faq__resources-title">Claude Certification Study Resources</h3>
+          <ul className="seo-faq__links">
+            {Object.values(SEO_PAGES).map((p) => (
+              <li key={p.slug}>
+                <Link className="btn btn--link" href={`/${p.slug}`}>{p.h1}</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
     </section>
   );
 }

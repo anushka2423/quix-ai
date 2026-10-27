@@ -31,7 +31,7 @@ const MODE_UI: Record<string, { tag: string; icon: IconName; cta: string }> = {
   review: { tag: "Untimed", icon: "refresh", cta: "Start Review" },
 };
 
-export default function TrackClient({ track, meta }: { track: TrackId; meta: TrackMeta }) {
+export default function TrackClient({ track, meta, seo }: { track: TrackId; meta: TrackMeta; seo?: React.ReactNode }) {
   const router = useRouter();
   const def = TRACKS[track];
   const [history, setHistory] = useState<HistoryEntry[]>([]);
@@ -277,6 +277,7 @@ export default function TrackClient({ track, meta }: { track: TrackId; meta: Tra
             </div>
           </div>
         </section>
+        {seo}
       </main>
       <SiteFooter />
     </>

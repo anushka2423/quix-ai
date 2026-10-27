@@ -31,10 +31,9 @@ export default async function TrackPage({ params }: { params: Promise<{ track: s
   if (!isTrack(track)) notFound();
   const meta = (await bankMeta())[track];
   return (
-    <>
-      {track === "developer" ? <DeveloperTrackClient meta={meta} levels={await levelCounts()} /> : <TrackClient track={track} meta={meta} />}
-      <SeoFaq track={track} />
-    </>
+    track === "developer"
+      ? <DeveloperTrackClient meta={meta} levels={await levelCounts()} seo={<SeoFaq track={track} />} />
+      : <TrackClient track={track} meta={meta} seo={<SeoFaq track={track} />} />
   );
 }
 

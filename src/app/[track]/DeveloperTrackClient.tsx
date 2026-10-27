@@ -29,7 +29,7 @@ const levelOptions = (describedBy?: string): SegmentedOption[] =>
     return { value: lvl, label: `Level ${lvl}`, disabled: locked, note: LEVEL_NOTE, describedBy: locked ? describedBy : undefined };
   });
 
-export default function DeveloperTrackClient({ meta, levels }: { meta: TrackMeta; levels: LevelCounts }) {
+export default function DeveloperTrackClient({ meta, levels, seo }: { meta: TrackMeta; levels: LevelCounts; seo?: React.ReactNode }) {
   const router = useRouter();
   const def = TRACKS.developer;
 
@@ -239,6 +239,7 @@ export default function DeveloperTrackClient({ meta, levels }: { meta: TrackMeta
             </div>
           </div>
         </section>
+        {seo}
       </main>
       <SiteFooter />
     </>

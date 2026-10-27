@@ -105,7 +105,7 @@ const FAQS = [
   },
 ];
 
-export default function HomeClient({ meta }: { meta: Meta }) {
+export default function HomeClient({ meta, seo }: { meta: Meta; seo?: React.ReactNode }) {
   const totalQ = TRACK_IDS.reduce((n, t) => n + meta[t].all, 0);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   useReveal();
@@ -411,6 +411,8 @@ export default function HomeClient({ meta }: { meta: Meta }) {
             </div>
           </div>
         </section>
+
+        {seo}
 
         {/* Closing CTA */}
         <section className="section section--navy" aria-labelledby="close-title">
