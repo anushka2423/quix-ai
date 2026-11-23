@@ -144,6 +144,11 @@ export function buildDemo(pool: BankQuestion[], domain: string): BankQuestion[] 
  * first and the longest-ago ones next, so a returning learner gets new questions until the module's pool runs out.
  */
 export function buildModulePractice(module: ModuleQuiz, rng: Rng, n = MODULE_SIZE, seen: Record<number, number> = {}): BankQuestion[] {
+  // A planned quiz is the same questions in the same order every time: no draw, no shuffle
+  if (module.plan) {
+    const byId = new Map([...module.lessons.flatMap((l) => l.questions), ...module.extras].map((q) => [q.id, q]));
+    return module.plan.flatMap((id) => byId.get(id) ?? []).slice(0, n);
+  }
   // Shuffle first so ties (all unseen, or never-seen-together) stay random, then a stable sort puts the least recently seen first
   const freshFirst = (qs: BankQuestion[]) => shuffle(qs, rng).sort((x, y) => (seen[x.id] ?? 0) - (seen[y.id] ?? 0));
   const queues = shuffle(module.lessons.filter((l) => l.questions.length), rng).map((l) => freshFirst(l.questions));

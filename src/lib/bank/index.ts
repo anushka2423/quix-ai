@@ -3,7 +3,7 @@ import { DEMO_SIZE, TRACKS, TRACK_IDS, type DocLink, type DomainDef, type SubSki
 import { parseAnswer, requiredPicks } from "@/lib/answers";
 import { db } from "@/lib/server/db";
 import { CODE_BANK } from "./code-bank";
-import { levelFromDatabase, MODULE_BANK, MODULE_QUIZZES } from "./module-bank";
+import { levelFromCode, levelFromDatabase, MODULE_BANK, MODULE_QUIZZES } from "./module-bank";
 
 /**
  * Question bank and exam blueprint. SERVER ONLY: it carries answer keys, so only API routes and
@@ -272,12 +272,15 @@ async function load(): Promise<Loaded> {
   // The Developer By Module exams are Modules 1-5 from the module question files, whatever the database holds
   // Levels 2 and 3 come from the database: the questions stored with that level (empty while there are none)
   const empty = { bank: [], quizzes: [] };
+  // Level 2 falls back to the questions built into the code (level-2/*.md) while the database holds none
+  const level2 = levelFromDatabase(base.bank, 2);
   const levels = {
     1: { bank: MODULE_BANK, quizzes: MODULE_QUIZZES },
-    2: levelFromDatabase(base.bank, 2) ?? empty,
+    2: level2 ?? levelFromCode(),
     3: levelFromDatabase(base.bank, 3) ?? empty,
   };
-  cache = { ...base, bank: [...base.bank, ...MODULE_BANK], modules: { ...base.modules, developer: MODULE_QUIZZES }, levels };
+  // Built-in Level 2 questions must be answerable too, so they join the bank (the database's own already are)
+  cache = { ...base, bank: [...base.bank, ...MODULE_BANK, ...(level2 ? [] : levels[2].bank)], modules: { ...base.modules, developer: MODULE_QUIZZES }, levels };
   return cache;
 }
 
@@ -406,7 +409,7 @@ export function mulberry32(seed: number): () => number {
   };
 }
 
-const LABELS: OptionLabel[] = ["A", "B", "C", "D", "E"];
+const LABELS: OptionLabel[] = ["A", "B", "C", "D", "E", "F"];
 
 /** order[displayIndex] = index into the original option array */
 function optionOrder(q: BankQuestion, seed: string): number[] {

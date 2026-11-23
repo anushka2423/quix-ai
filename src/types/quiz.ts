@@ -1,5 +1,5 @@
 export type Difficulty = "Easy" | "Medium" | "Hard";
-export type OptionLabel = "A" | "B" | "C" | "D" | "E";
+export type OptionLabel = "A" | "B" | "C" | "D" | "E" | "F";
 export type AnswerLabel = OptionLabel | "?";
 
 export type TrackId = "associate" | "developer";
@@ -71,6 +71,8 @@ export interface ModuleQuiz {
   lessons: ModuleLesson[];
   /** Questions of the course that belong to no lesson: used only after every lesson's questions */
   extras: BankQuestion[];
+  /** A planned quiz: ids of its questions in the fixed order they are asked. Not random, the same set every session. */
+  plan?: number[];
 }
 
 /** A question as sent to the browser: no key, no explanation. */

@@ -14,7 +14,7 @@ export async function POST(req: Request) {
   if (!q) return bad("Unknown question", 404);
   const picks = cleanPicks(b.picks);
   const keys = displayKeys(q, b.seed);
-  // A module quiz question whose 40 seconds ran out is revealed without an answer and counts as missed
+  // A module quiz question whose time ran out is revealed without an answer and counts as missed
   const timedOut = b.timedOut === true && b.mode === "module";
   if (!timedOut && picks.length !== keys.length) return bad(`Select ${keys.length}`);
   // A question whose clock was paused still shows its key, but earns at most half a point

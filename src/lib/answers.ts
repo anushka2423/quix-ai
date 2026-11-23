@@ -1,13 +1,13 @@
 import type { OptionLabel } from "@/types/quiz";
 
-const LABELS: OptionLabel[] = ["A", "B", "C", "D", "E"];
+const LABELS: OptionLabel[] = ["A", "B", "C", "D", "E", "F"];
 
 /**
  * Parse a stored answer into sorted option labels.
  * Accepts single answers ("B") and multi answers in any of "A,C", "A, C" or "AC".
  */
 export function parseAnswer(raw: string | null | undefined): OptionLabel[] {
-  const found = new Set((raw ?? "").toUpperCase().match(/[ABCDE]/g) ?? []);
+  const found = new Set((raw ?? "").toUpperCase().match(/[ABCDEF]/g) ?? []);
   return LABELS.filter((l) => found.has(l));
 }
 

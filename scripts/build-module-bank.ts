@@ -1,5 +1,6 @@
 /**
  * Builds src/lib/bank/module-bank.json from the module question files (1.md .. 5.md at the repo root).
+ * With the argument "level-2" it builds src/lib/bank/level-2.json from level-2/1.md .. 5.md instead (npm run bank:level2).
  * Those files are the source of truth for the By Module exams: run `npm run bank:modules` after editing one.
  *
  * Shared context ("For Questions 7 to 10, ..." prefaces) is copied into each question it covers, because the
@@ -10,6 +11,8 @@ import { resolve } from "node:path";
 
 const ROOT = resolve(__dirname, "..");
 const FILES = [1, 2, 3, 4, 5];
+const LEVEL2 = process.argv[2] === "level-2";
+const DIR = LEVEL2 ? resolve(ROOT, "level-2") : ROOT;
 
 /** Questions that referred to another question: rewritten so they stand alone (the expected old text guards against drift). */
 const REWRITES: Record<string, { expect: string; text: string }> = {
@@ -32,20 +35,20 @@ interface Q {
   explanation: string;
 }
 
-const OPTION = /^- ([A-E])\. (.*)$/;
+const OPTION = /^- ([A-F])\. (.*)$/;
 const HEADER = /^\*\*(\d+)\.\s*(?:\[(Easy|Medium|Hard)\]\s*)?(.*?)\*\*\s*$/;
 const PREFACE = /^For Questions? (\d+) to (\d+),\s*(.*)$/;
 
 function parse(file: number) {
-  const lines = readFileSync(resolve(ROOT, `${file}.md`), "utf8").split("\n");
+  const lines = readFileSync(resolve(DIR, `${file}.md`), "utf8").split("\n");
   const title = lines[0].match(/^# Module (\d+)(?: Quiz)?\s*[—:-]\s*(.+)$/)?.[2]?.trim();
   if (!title) throw new Error(`${file}.md: no module title`);
 
   const keyAt = lines.findIndex((l) => /^(<summary><b>)?(## )?Answer key/.test(l) || l.includes("Answer key"));
   const keys = new Map<number, { answer: string; explanation: string }>();
   for (const l of lines.slice(keyAt)) {
-    const m = l.match(/^\|\s*(\d+)\s*\|(?:\s*(?:Easy|Medium|Hard)\s*\|)?\s*\*\*([A-E](?:[,\s]*[A-E])*)\*\*\s*\|\s*(.*?)\s*\|\s*$/);
-    if (m) keys.set(Number(m[1]), { answer: m[2].replace(/[^A-E]/g, "").split("").join(","), explanation: m[3].replace(/\*\*/g, "") });
+    const m = l.match(/^\|\s*(\d+)\s*\|(?:\s*(?:Easy|Medium|Hard)\s*\|)?\s*\*\*([A-F](?:[,\s]*[A-F])*)\*\*\s*\|\s*(.*?)\s*\|\s*$/);
+    if (m) keys.set(Number(m[1]), { answer: m[2].replace(/[^A-F]/g, "").split("").join(","), explanation: m[3].replace(/\*\*/g, "") });
   }
 
   const questions: Q[] = [];
@@ -57,7 +60,7 @@ function parse(file: number) {
     const key = keys.get(cur.n);
     if (!key) throw new Error(`${file}.md Q${cur.n}: no answer in the key`);
     let stem = cur.stem;
-    const rewrite = REWRITES[`${file}:${cur.n}`];
+    const rewrite = LEVEL2 ? undefined : REWRITES[`${file}:${cur.n}`];
     let body = cur.body;
     if (rewrite) {
       if (stem !== rewrite.expect) throw new Error(`${file}.md Q${cur.n}: text changed, review the rewrite`);
@@ -94,7 +97,7 @@ function parse(file: number) {
     } else if (preface) preface.lines.push(line);
   }
   flush();
-  return { module: file, title, level: 1, questions };
+  return { module: file, title, level: LEVEL2 ? 2 : 1, questions };
 }
 
 const modules = FILES.map(parse);
@@ -105,9 +108,9 @@ for (const m of modules)
     if (seen.has(dupe)) throw new Error(`Duplicate question: module ${m.module} Q${q.n}`);
     seen.add(dupe);
     const labels = q.options.map((o) => o.label).join("");
-    if (q.options.length < 4 || !"ABCDE".startsWith(labels)) throw new Error(`Module ${m.module} Q${q.n}: bad options ${labels}`);
+    if (q.options.length < 4 || !"ABCDEF".startsWith(labels)) throw new Error(`Module ${m.module} Q${q.n}: bad options ${labels}`);
     if (q.answer.split(",").some((a) => !labels.includes(a))) throw new Error(`Module ${m.module} Q${q.n}: answer ${q.answer} not an option`);
   }
 
-writeFileSync(resolve(ROOT, "src/lib/bank/module-bank.json"), JSON.stringify({ modules }, null, 2) + "\n");
+writeFileSync(resolve(ROOT, LEVEL2 ? "src/lib/bank/level-2.json" : "src/lib/bank/module-bank.json"), JSON.stringify({ modules }, null, 2) + "\n");
 console.log(modules.map((m) => `Module ${m.module} (${m.title}): ${m.questions.length} questions`).join("\n"));
