@@ -396,7 +396,7 @@ export const MODES: Record<ModeId, ModeDef> = {
   module: {
     id: "module",
     title: "Module practice",
-    purpose: "Practice the questions behind one Skill Jar course, 40 seconds per question. Counts as normal practice, with no readiness estimate.",
+    purpose: "Practice the questions behind one Skill Jar course, 120 seconds per question. Counts as normal practice, with no readiness estimate.",
     questions: () => MODULE_SIZE,
     minutes: null,
     adaptive: false,
@@ -421,7 +421,7 @@ export const DEMO_SIZE = 5;
 export const MODULE_SIZE = 15;
 
 /** Seconds a learner has for each question of a module quiz, unless they choose another limit */
-export const MODULE_QUESTION_SECONDS = 40;
+export const MODULE_QUESTION_SECONDS = 120;
 /** Module quiz: the per-question limits (seconds) a learner can choose */
 export const MODULE_MIN_QUESTION_SECONDS = 10;
 export const MODULE_MAX_QUESTION_SECONDS = 180;

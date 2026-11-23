@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test": "vitest run",
     "bank:modules": "tsx scripts/build-module-bank.ts",
+    "bank:level2": "tsx scripts/build-module-bank.ts level-2",
     "bank:coverage": "tsx scripts/bank-coverage.ts",
     "bank:import": "tsx scripts/import-questions.ts",
     "bank:sql": "tsx scripts/generate-seed-sql.ts",
@@ -16,9 +17,11 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.0",
+    "@types/pg": "^8.23.1",
     "next": "16.3.6",
     "openai": "^7.22.0",
     "pdf-lib": "^1.17.1",
+    "pg": "^8.23.1",
     "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8"

@@ -12,7 +12,7 @@ export function explanationFor(q: BankQuestion): string {
   return `The correct ${keys.length > 1 ? "answers are" : "answer is"}: ${texts.join("; ")}.`;
 }
 
-const LABELS = new Set(["A", "B", "C", "D", "E"]);
+const LABELS = new Set(["A", "B", "C", "D", "E", "F"]);
 
 export function cleanPicks(raw: unknown): OptionLabel[] {
   if (!Array.isArray(raw)) return [];

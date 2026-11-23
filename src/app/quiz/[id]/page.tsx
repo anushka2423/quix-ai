@@ -359,9 +359,9 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
       const target = e.target as HTMLElement | null;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
       if (target?.closest('[role="listbox"]') || e.metaKey || e.ctrlKey || e.altKey) return;
-      const optionLabels: OptionLabel[] = ["A", "B", "C", "D", "E"];
+      const optionLabels: OptionLabel[] = ["A", "B", "C", "D", "E", "F"];
       const letterIdx = optionLabels.indexOf(e.key.toUpperCase() as OptionLabel);
-      if (["1", "2", "3", "4", "5"].includes(e.key) || letterIdx > -1) {
+      if (["1", "2", "3", "4", "5", "6"].includes(e.key) || letterIdx > -1) {
         e.preventDefault();
         const label = letterIdx > -1 ? optionLabels[letterIdx] : optionLabels[Number(e.key) - 1];
         if (label && q.options.some((o) => o.label === label)) selectAnswer(label);
