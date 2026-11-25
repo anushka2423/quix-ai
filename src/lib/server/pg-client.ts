@@ -13,7 +13,8 @@ import { Pool, types } from "pg";
 // bigint / numeric / dates come back as the JSON shapes PostgREST used to return (numbers and ISO strings)
 types.setTypeParser(20, (v) => Number(v)); // int8 (count(*), bigserial)
 types.setTypeParser(1700, (v) => Number(v)); // numeric
-types.setTypeParser(1184, (v) => v.replace(" ", "T").replace(/([+-]\d\d)$/, "$1:00")); // timestamptz
+types.setTypeParser(1082, (v) => v); // date stays "YYYY-MM-DD" (node-pg would build a JS Date, which React cannot render)
+types.setTypeParser(1184,(v) => v.replace(" ", "T").replace(/([+-]\d\d)$/, "$1:00")); // timestamptz
 types.setTypeParser(1114, (v) => v.replace(" ", "T")); // timestamp
 
 export interface PgError { message: string; code?: string; details?: string; hint?: string }
