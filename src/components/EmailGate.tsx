@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { EMAIL_MODAL_AFTER, MAX_EMAIL_SKIPS, flags } from "@/lib/config";
+import { EMAIL_MODAL_AFTER, flags } from "@/lib/config";
 import { EMAIL_KEY, answeredTotal, getEmail, getLearner, getProfile, saveProfile } from "@/lib/client/store";
 import { track } from "@/lib/analytics";
 import Icon from "@/components/Icon";
@@ -57,6 +57,10 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
     const p = getProfile();
     setName(p.name ?? "");
     setExamDate(p.examDate ?? "");
+    // Refreshing must not bypass the gate: reopen if answers exist but no email was given
+    if (flags.emailModal && !getEmail() && answeredTotal() >= EMAIL_MODAL_AFTER) {
+      setModal({ required: true, opts: {}, counted: true });
+    }
   }, []);
 
   const close = useCallback((value: string | null) => {
@@ -67,7 +71,7 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
 
   const open = useCallback((opts: OpenOptions = {}) => {
     if (getEmail()) return Promise.resolve(getEmail());
-    setModal({ required: !!opts.required, opts, counted: false });
+    setModal({ required: true, opts, counted: false });
     return new Promise<string | null>((resolve) => {
       resolver.current = resolve;
     });
@@ -77,8 +81,8 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
     if (!flags.emailModal || getEmail() || modal) return;
     const answered = answeredTotal();
     if (answered < EMAIL_MODAL_AFTER) return;
-    // Skippable twice, then the modal becomes required
-    const required = getSkips() >= MAX_EMAIL_SKIPS;
+    // Email is mandatory: the modal cannot be dismissed
+    const required = true;
     setModal({ required, opts: {}, counted: true });
     resolver.current = null;
     track("email_modal_shown", { afterAnswers: answered, required });
@@ -187,14 +191,6 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
             <button className="btn btn--accent btn--lg btn--block" type="submit" disabled={loading}>
               {loading ? "Saving…" : "Save My Progress and Keep Going"}
             </button>
-
-            {!required && (
-              <div className="modal__foot modal__foot--center">
-                <button type="button" className="btn btn--link" onClick={handleSkip}>
-                  {modal.counted ? "Skip for Now" : "Not Now"}
-                </button>
-              </div>
-            )}
           </form>
 
           <p className="modal__foot modal__foot--center">
