@@ -19,6 +19,7 @@ import {
   type StoredAttempt,
 } from "@/lib/client/store";
 import { useEmailGate } from "@/components/EmailGate";
+import { flags } from "@/lib/config";
 import Icon from "@/components/Icon";
 import Modal from "@/components/Modal";
 import Listbox, { type ListboxOption } from "@/components/ui/Listbox";
@@ -272,7 +273,6 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
         seconds: Math.round((answers[qq.id]?.ms ?? 0) / 1000),
         mode: attempt.mode,
       });
-      gate.onAnswered();
     } catch {
       setCheckError(true);
     } finally {
@@ -305,6 +305,8 @@ function QuizRunner({ attempt }: { attempt: StoredAttempt }) {
 
   async function handleNext() {
     if (primaryDisabled) return;
+    // The email is asked for when moving on from an answered question, never on opening a quiz
+    if (flags.emailModal && !(await gate.open())) return;
     if (currentIdx < questions.length - 1) {
       setCurrentIdx((i) => i + 1);
     } else if (questions.length < total) {
