@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { EMAIL_MODAL_AFTER, flags } from "@/lib/config";
 import { EMAIL_KEY, answeredTotal, getEmail, getLearner, getProfile, saveProfile } from "@/lib/client/store";
 import { track } from "@/lib/analytics";
@@ -42,6 +43,7 @@ const getSkips = () => {
 export function EmailGateProvider({ children }: { children: React.ReactNode }) {
   const [email, setEmail] = useState<string | null>(null);
   const [modal, setModal] = useState<{ required: boolean; opts: OpenOptions; counted: boolean } | null>(null);
+  const pathname = usePathname();
   const resolver = useRef<((v: string | null) => void) | null>(null);
 
   const [input, setInput] = useState("");
@@ -57,11 +59,16 @@ export function EmailGateProvider({ children }: { children: React.ReactNode }) {
     const p = getProfile();
     setName(p.name ?? "");
     setExamDate(p.examDate ?? "");
-    // Refreshing must not bypass the gate: reopen if answers exist but no email was given
-    if (flags.emailModal && !getEmail() && answeredTotal() >= EMAIL_MODAL_AFTER) {
-      setModal({ required: true, opts: {}, counted: true });
-    }
   }, []);
+
+  // Refreshing a quiz page must not bypass the gate. Only quiz pages: the homepage never prompts.
+  useEffect(() => {
+    if (!pathname?.startsWith("/quiz")) return;
+    if (flags.emailModal && !getEmail() && answeredTotal() >= EMAIL_MODAL_AFTER) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- depends on localStorage, only readable after mount
+      setModal((m) => m ?? { required: true, opts: {}, counted: true });
+    }
+  }, [pathname]);
 
   const close = useCallback((value: string | null) => {
     setModal(null);
