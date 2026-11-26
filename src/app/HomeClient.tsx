@@ -10,6 +10,7 @@ import type { TrackId } from "@/types/quiz";
 import { track as trackEvent } from "@/lib/analytics";
 import Header from "@/components/Header";
 import SiteFooter from "@/components/SiteFooter";
+import WallOfFame from "@/components/WallOfFame";
 import Icon from "@/components/Icon";
 import type { IconName } from "@/components/Icon";
 import { useReveal } from "@/components/useReveal";
@@ -325,6 +326,8 @@ export default function HomeClient({ meta }: { meta: Meta }) {
             </ol>
           </div>
         </section>
+
+        <WallOfFame />
 
         {/* Instructor */}
         <section className="section" id="instructor" aria-labelledby="instructor-title">
